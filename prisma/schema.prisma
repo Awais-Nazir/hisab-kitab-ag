@@ -1,0 +1,128 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String      @id @default(cuid())
+  email            String      @unique
+  passwordHash     String
+  name             String
+  createdAt        DateTime    @default(now())
+  currency         String      @default("PKR")
+  selfPersonId     String?     @unique
+  personalExpenses Expense[]   @relation("PersonalExpenses")
+  people           Person[]    @relation("OwnedPeople")
+  selfPerson       Person?     @relation("SelfPerson", fields: [selfPersonId], references: [id])
+  workspaces       Workspace[]
+  categories       Category[]  @relation("OwnedCategories")
+}
+
+model Person {
+  id              String            @id @default(cuid())
+  ownerId         String
+  name            String
+  email           String?
+  isSelf          Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  payments        ExpensePayment[]
+  splits          ExpenseSplit[]
+  owner           User              @relation("OwnedPeople", fields: [ownerId], references: [id])
+  settlementsFrom Settlement[]      @relation("SettlementFrom")
+  settlementsTo   Settlement[]      @relation("SettlementTo")
+  selfOf          User?             @relation("SelfPerson")
+  memberships     WorkspaceMember[]
+}
+
+model Workspace {
+  id          String            @id @default(cuid())
+  ownerId     String
+  name        String
+  createdAt   DateTime          @default(now())
+  expenses    Expense[]
+  settlements Settlement[]
+  owner       User              @relation(fields: [ownerId], references: [id])
+  members     WorkspaceMember[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  workspaceId String
+  personId    String
+  joinedAt    DateTime  @default(now())
+  person      Person    @relation(fields: [personId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([workspaceId, personId])
+}
+
+model Expense {
+  id          String           @id @default(cuid())
+  amount      Decimal          @db.Decimal(10, 2)
+  description String
+  category    String?
+  date        DateTime         @default(now())
+  createdAt   DateTime         @default(now())
+  workspaceId String?
+  ownerId     String?
+  owner       User?            @relation("PersonalExpenses", fields: [ownerId], references: [id])
+  workspace   Workspace?       @relation(fields: [workspaceId], references: [id])
+  payments    ExpensePayment[]
+  splits      ExpenseSplit[]
+}
+
+model ExpenseSplit {
+  id          String  @id @default(cuid())
+  expenseId   String
+  personId    String
+  shareAmount Decimal @db.Decimal(10, 2)
+  expense     Expense @relation(fields: [expenseId], references: [id])
+  person      Person  @relation(fields: [personId], references: [id])
+
+  @@unique([expenseId, personId])
+}
+
+model ExpensePayment {
+  id         String  @id @default(cuid())
+  expenseId  String
+  personId   String
+  amountPaid Decimal @db.Decimal(10, 2)
+  expense    Expense @relation(fields: [expenseId], references: [id])
+  person     Person  @relation(fields: [personId], references: [id])
+
+  @@unique([expenseId, personId])
+}
+
+model Settlement {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  fromPersonId String
+  toPersonId   String
+  amount       Decimal   @db.Decimal(10, 2)
+  date         DateTime  @default(now())
+  note         String?
+  batchId      String?
+  fromPerson   Person    @relation("SettlementFrom", fields: [fromPersonId], references: [id])
+  toPerson     Person    @relation("SettlementTo", fields: [toPersonId], references: [id])
+  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  budget    Decimal? @default(1000) @db.Decimal(10, 2)
+  icon      String?
+  color     String?
+  createdAt DateTime @default(now())
+
+  owner User @relation("OwnedCategories", fields: [ownerId], references: [id])
+
+  @@unique([ownerId, name])
+}

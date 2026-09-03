@@ -1,0 +1,578 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
+import { CategorySelect } from "@/components/CategorySelect";
+import { AppLayout } from "@/components/AppLayout";
+
+type Person = { id: string; name: string; email: string | null; isSelf?: boolean };
+type Member = { personId: string; person: Person };
+type ShareEntry = { personId: string; amount: string };
+type Split = { personId: string; shareAmount: string; person: Person };
+type Payment = { personId: string; amountPaid: string; person: Person };
+type Expense = {
+    id: string;
+    amount: string;
+    description: string;
+    category: string | null;
+    date: string;
+    splits: Split[];
+    payments: Payment[];
+};
+type Balance = { personId: string; name: string; isSelf: boolean; netBalance: number };
+type Settlement = {
+    id: string;
+    amount: string;
+    date: string;
+    note: string | null;
+    fromPerson: Person;
+    toPerson: Person;
+};
+
+function todayDateStr() {
+    return new Date().toISOString().slice(0, 10);
+}
+function nowTimeStr() {
+    const d = new Date();
+    return d.toTimeString().slice(0, 5);
+}
+function combineDateTime(dateStr: string, timeStr: string): string {
+    return new Date(`${dateStr}T${timeStr}`).toISOString();
+}
+
+function ShareEditor({
+    title,
+    members,
+    selected,
+    setSelected,
+    mode,
+    setMode,
+    customAmounts,
+    setCustomAmounts,
+}: {
+    title: string;
+    members: Member[];
+    selected: Set<string>;
+    setSelected: (s: Set<string>) => void;
+    mode: "equal" | "custom";
+    setMode: (m: "equal" | "custom") => void;
+    customAmounts: Record<string, string>;
+    setCustomAmounts: (fn: (prev: Record<string, string>) => Record<string, string>) => void;
+}) {
+    function toggle(personId: string) {
+        const next = new Set(selected);
+        if (next.has(personId)) next.delete(personId);
+        else next.add(personId);
+        setSelected(next);
+    }
+
+    return (
+        <div style={{ border: "1px solid var(--color-border)", borderRadius: "10px", padding: "0.75rem" }}>
+            <p className="form-label" style={{ marginBottom: "0.5rem" }}>{title}</p>
+            <div className="flex gap-3" style={{ marginBottom: "0.5rem" }}>
+                {members.map((m) => (
+                    <label key={m.personId} className="flex items-center gap-1">
+                        <input type="checkbox" checked={selected.has(m.personId)} onChange={() => toggle(m.personId)} />
+                        {m.person.isSelf ? "You" : m.person.name}
+                    </label>
+                ))}
+            </div>
+            <div className="flex gap-3" style={{ marginBottom: "0.5rem" }}>
+                <label className="flex items-center gap-1">
+                    <input type="radio" checked={mode === "equal"} onChange={() => setMode("equal")} />
+                    Equal
+                </label>
+                <label className="flex items-center gap-1">
+                    <input type="radio" checked={mode === "custom"} onChange={() => setMode("custom")} />
+                    Custom
+                </label>
+            </div>
+            {mode === "custom" && (
+                <div className="flex flex-col gap-2">
+                    {Array.from(selected).map((personId) => {
+                        const member = members.find((m) => m.personId === personId);
+                        return (
+                            <div key={personId} className="flex items-center gap-2">
+                                <span style={{ width: "6rem" }}>
+                                    {member?.person.isSelf ? "You" : member?.person.name}
+                                </span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Amount"
+                                    value={customAmounts[personId] || ""}
+                                    onChange={(e) =>
+                                        setCustomAmounts((prev) => ({ ...prev, [personId]: e.target.value }))
+                                    }
+                                    className="input"
+                                    style={{ flex: 1 }}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function computeShares(
+    total: number,
+    selected: Set<string>,
+    mode: "equal" | "custom",
+    customAmounts: Record<string, string>
+): ShareEntry[] {
+    const ids = Array.from(selected);
+    if (mode === "equal") {
+        const share = Math.round((total / ids.length) * 100) / 100;
+        return ids.map((personId, idx) => {
+            const isLast = idx === ids.length - 1;
+            const amt = isLast ? Math.round((total - share * (ids.length - 1)) * 100) / 100 : share;
+            return { personId, amount: amt.toString() };
+        });
+    }
+    return ids.map((personId) => ({ personId, amount: customAmounts[personId] || "0" }));
+}
+
+export default function WorkspacePage() {
+    const params = useParams();
+    const router = useRouter();
+    const workspaceId = params.id as string;
+
+    const [members, setMembers] = useState<Member[]>([]);
+    const [contacts, setContacts] = useState<Person[]>([]);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [balances, setBalances] = useState<Balance[]>([]);
+    const [settlements, setSettlements] = useState<Settlement[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const [selectedContactId, setSelectedContactId] = useState("");
+    const [addingMember, setAddingMember] = useState(false);
+
+    const [amount, setAmount] = useState("");
+    const [description, setDescription] = useState("");
+    const [category, setCategory] = useState("");
+    const [expDate, setExpDate] = useState(todayDateStr());
+    const [expTime, setExpTime] = useState(nowTimeStr());
+    const [splitSelected, setSplitSelected] = useState<Set<string>>(new Set());
+    const [splitMode, setSplitMode] = useState<"equal" | "custom">("equal");
+    const [splitCustom, setSplitCustom] = useState<Record<string, string>>({});
+    const [paySelected, setPaySelected] = useState<Set<string>>(new Set());
+    const [payMode, setPayMode] = useState<"equal" | "custom">("equal");
+    const [payCustom, setPayCustom] = useState<Record<string, string>>({});
+    const [submitting, setSubmitting] = useState(false);
+
+
+    const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+    const [editingSettlementId, setEditingSettlementId] = useState<string | null>(null);
+
+    const [settleFrom, setSettleFrom] = useState("");
+    const [settleTo, setSettleTo] = useState("");
+    const [settleAmount, setSettleAmount] = useState("");
+    const [settling, setSettling] = useState(false);
+
+    async function loadAll() {
+        const [membersRes, contactsRes, expensesRes, balancesRes, settlementsRes] = await Promise.all([
+            apiFetch<{ members: Member[] }>(`/api/workspaces/${workspaceId}/members`),
+            apiFetch<{ people: Person[] }>("/api/people"),
+            apiFetch<{ expenses: Expense[] }>(`/api/workspaces/${workspaceId}/expenses`),
+            apiFetch<{ balances: Balance[] }>(`/api/workspaces/${workspaceId}/balances`),
+            apiFetch<{ settlements: Settlement[] }>(`/api/workspaces/${workspaceId}/settlements`),
+        ]);
+        setMembers(membersRes.members);
+        setContacts(contactsRes.people);
+        setExpenses(expensesRes.expenses);
+        setBalances(balancesRes.balances);
+        setSettlements(settlementsRes.settlements);
+    }
+
+    useEffect(() => {
+        loadAll()
+            .catch(() => router.push("/login"))
+            .finally(() => setLoading(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workspaceId]);
+
+    const availableContacts = contacts.filter(
+        (c) => !members.some((m) => m.personId === c.id)
+    );
+
+    async function handleAddMember(e: React.FormEvent) {
+        e.preventDefault();
+        if (addingMember || !selectedContactId) return;
+        setAddingMember(true);
+        try {
+            await apiFetch(`/api/workspaces/${workspaceId}/members`, {
+                method: "POST",
+                body: JSON.stringify({ personId: selectedContactId }),
+            });
+            setSelectedContactId("");
+            await loadAll();
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to add member");
+        } finally {
+            setAddingMember(false);
+        }
+    }
+
+
+    async function handleSubmitExpense(e: React.FormEvent) {
+        e.preventDefault();
+        if (submitting) return;
+        if (splitSelected.size === 0 || paySelected.size === 0) {
+            alert("Choose who this was split with and who paid");
+            return;
+        }
+        const total = parseFloat(amount);
+        const splits = computeShares(total, splitSelected, splitMode, splitCustom);
+        const payments = computeShares(total, paySelected, payMode, payCustom);
+        const payload = {
+            amount: total,
+            description,
+            category: category || undefined,
+            date: combineDateTime(expDate, expTime),
+            splits: splits.map((s) => ({ personId: s.personId, amount: parseFloat(s.amount) })),
+            payments: payments.map((p) => ({ personId: p.personId, amount: parseFloat(p.amount) })),
+        };
+
+        setSubmitting(true);
+        try {
+            let res;
+            if (editingExpenseId) {
+                res = await apiFetch<{ expense: Expense }>(
+                    `/api/workspaces/${workspaceId}/expenses/${editingExpenseId}`,
+                    { method: "PATCH", body: JSON.stringify(payload) }
+                );
+                setExpenses((prev) => prev.map((e) => (e.id === editingExpenseId ? res!.expense : e)));
+                setEditingExpenseId(null);
+            } else {
+                res = await apiFetch<{ expense: Expense }>(
+                    `/api/workspaces/${workspaceId}/expenses`,
+                    { method: "POST", body: JSON.stringify(payload) }
+                );
+                setExpenses((prev) =>
+                    [res!.expense, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                );
+            }
+            setAmount("");
+            setDescription("");
+            setCategory("");
+            setExpDate(todayDateStr());
+            setExpTime(nowTimeStr());
+            setSplitSelected(new Set());
+            setSplitCustom({});
+            setPaySelected(new Set());
+            setPayCustom({});
+            const balancesRes = await apiFetch<{ balances: Balance[] }>(`/api/workspaces/${workspaceId}/balances`);
+            setBalances(balancesRes.balances);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to save expense");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    function handleEditExpenseClick(exp: Expense) {
+        setEditingExpenseId(exp.id);
+        setAmount(exp.amount);
+        setDescription(exp.description);
+        setCategory(exp.category ?? "");
+        const d = new Date(exp.date);
+        setExpDate(d.toISOString().slice(0, 10));
+        setExpTime(d.toTimeString().slice(0, 5));
+        setSplitSelected(new Set(exp.splits.map((s) => s.personId)));
+        setSplitMode("custom");
+        setSplitCustom(Object.fromEntries(exp.splits.map((s) => [s.personId, s.shareAmount])));
+        setPaySelected(new Set(exp.payments.map((p) => p.personId)));
+        setPayMode("custom");
+        setPayCustom(Object.fromEntries(exp.payments.map((p) => [p.personId, p.amountPaid])));
+    }
+
+    function handleCancelExpenseEdit() {
+        setEditingExpenseId(null);
+        setAmount("");
+        setDescription("");
+        setCategory("");
+        setExpDate(todayDateStr());
+        setExpTime(nowTimeStr());
+        setSplitSelected(new Set());
+        setSplitCustom({});
+        setPaySelected(new Set());
+        setPayCustom({});
+    }
+
+    async function handleDeleteExpense(id: string) {
+        if (!confirm("Delete this expense?")) return;
+        try {
+            await apiFetch(`/api/workspaces/${workspaceId}/expenses/${id}`, { method: "DELETE" });
+            setExpenses((prev) => prev.filter((e) => e.id !== id));
+            const balancesRes = await apiFetch<{ balances: Balance[] }>(`/api/workspaces/${workspaceId}/balances`);
+            setBalances(balancesRes.balances);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to delete");
+        }
+    }
+
+    async function handleSubmitSettle(e: React.FormEvent) {
+        e.preventDefault();
+        if (settling || !settleFrom || !settleTo || settleFrom === settleTo) return;
+        setSettling(true);
+        try {
+            if (editingSettlementId) {
+                await apiFetch(`/api/workspaces/${workspaceId}/settlements/${editingSettlementId}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ fromPersonId: settleFrom, toPersonId: settleTo, amount: parseFloat(settleAmount) }),
+                });
+                setEditingSettlementId(null);
+            } else {
+                await apiFetch(`/api/workspaces/${workspaceId}/settlements`, {
+                    method: "POST",
+                    body: JSON.stringify({ fromPersonId: settleFrom, toPersonId: settleTo, amount: parseFloat(settleAmount) }),
+                });
+            }
+            setSettleFrom("");
+            setSettleTo("");
+            setSettleAmount("");
+            const [balancesRes, settlementsRes] = await Promise.all([
+                apiFetch<{ balances: Balance[] }>(`/api/workspaces/${workspaceId}/balances`),
+                apiFetch<{ settlements: Settlement[] }>(`/api/workspaces/${workspaceId}/settlements`),
+            ]);
+            setBalances(balancesRes.balances);
+            setSettlements(settlementsRes.settlements);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to save settlement");
+        } finally {
+            setSettling(false);
+        }
+    }
+
+    function handleEditSettleClick(s: Settlement) {
+        setEditingSettlementId(s.id);
+        setSettleFrom(s.fromPerson.id);
+        setSettleTo(s.toPerson.id);
+        setSettleAmount(s.amount);
+    }
+
+    function handleCancelSettleEdit() {
+        setEditingSettlementId(null);
+        setSettleFrom("");
+        setSettleTo("");
+        setSettleAmount("");
+    }
+
+    async function handleDeleteSettle(id: string) {
+        if (!confirm("Delete this settlement?")) return;
+        try {
+            await apiFetch(`/api/workspaces/${workspaceId}/settlements/${id}`, { method: "DELETE" });
+            const [balancesRes, settlementsRes] = await Promise.all([
+                apiFetch<{ balances: Balance[] }>(`/api/workspaces/${workspaceId}/balances`),
+                apiFetch<{ settlements: Settlement[] }>(`/api/workspaces/${workspaceId}/settlements`),
+            ]);
+            setBalances(balancesRes.balances);
+            setSettlements(settlementsRes.settlements);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to delete");
+        }
+    }
+
+    if (loading) return (
+        <AppLayout title="Ledgers" subtitle="Roommates Ledger">
+            <div className="py-12 text-center text-[#5A6863]">Loading...</div>
+        </AppLayout>
+    );
+
+    return (
+        <AppLayout title="Ledgers" subtitle="Workspace Ledger">
+            <div className="max-w-2xl mx-auto">
+
+            {/* Balances */}
+            <section className="card">
+                <h2 className="font-medium mb-3">Balances</h2>
+                {balances.map((b) => (
+                    <div key={b.personId} className="row">
+                        <span>{b.isSelf ? "You" : b.name}</span>
+                        <span className={b.netBalance > 0 ? "balance-positive" : b.netBalance < 0 ? "balance-negative" : "muted"}>
+                            {b.netBalance > 0 ? "+" : ""}
+                            {b.netBalance.toFixed(2)}
+                        </span>
+                    </div>
+                ))}
+                <p className="muted" style={{ marginTop: "0.75rem" }}>
+                    Positive = Un se lene hain. Negative = Maine dene hain.
+                </p>
+            </section>
+
+            {/* Settle up */}
+            <section className="card">
+                <h2 className="font-medium mb-3">Record a settlement</h2>
+                <form onSubmit={handleSubmitSettle} className="flex flex-col gap-2">
+                    <div className="form-grid-2">
+                        <select value={settleFrom} onChange={(e) => setSettleFrom(e.target.value)} required className="input">
+                            <option value="">From...</option>
+                            {members.map((m) => (
+                                <option key={m.personId} value={m.personId}>
+                                    {m.person.isSelf ? "You" : m.person.name}
+                                </option>
+                            ))}
+                        </select>
+                        <select value={settleTo} onChange={(e) => setSettleTo(e.target.value)} required className="input">
+                            <option value="">To...</option>
+                            {members.map((m) => (
+                                <option key={m.personId} value={m.personId}>
+                                    {m.person.isSelf ? "You" : m.person.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Amount"
+                        value={settleAmount}
+                        onChange={(e) => setSettleAmount(e.target.value)}
+                        required
+                        className="input"
+                    />
+                    <button type="submit" disabled={settling} className="btn btn-primary">
+                        {settling ? "Saving..." : editingSettlementId ? "Update settlement" : "Record settlement"}
+                    </button>
+                    {editingSettlementId && (
+                        <button type="button" onClick={handleCancelSettleEdit} className="btn-text">Cancel edit</button>
+                    )}
+                </form>
+
+                {settlements.length > 0 && (
+                    <div style={{ marginTop: "1rem" }}>
+                        <p className="muted" style={{ marginBottom: "0.25rem" }}>History</p>
+                        {settlements.map((s) => (
+                            <div key={s.id} className="row">
+                                <div>
+                                    <p style={{ margin: 0 }}>
+                                        {s.fromPerson.isSelf ? "You" : s.fromPerson.name} → {s.toPerson.isSelf ? "You" : s.toPerson.name}
+                                    </p>
+                                    <p className="muted">{new Date(s.date).toLocaleString()}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span>{Number(s.amount).toFixed(2)}</span>
+                                    <button onClick={() => handleEditSettleClick(s)} className="btn-text" style={{ fontSize: "0.78rem" }}>Edit</button>
+                                    <button onClick={() => handleDeleteSettle(s.id)} className="btn-text" style={{ fontSize: "0.78rem" }}>Delete</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            {/* Members */}
+            <section className="card">
+                <h2 className="font-medium mb-3">Members</h2>
+                {members.map((m) => (
+                    <p key={m.personId} style={{ padding: "0.25rem 0" }}>
+                        {m.person.isSelf ? "You" : m.person.name}
+                    </p>
+                ))}
+                <form onSubmit={handleAddMember} className="flex gap-2" style={{ marginTop: "0.75rem" }}>
+                    <select
+                        value={selectedContactId}
+                        onChange={(e) => setSelectedContactId(e.target.value)}
+                        className="input"
+                        style={{ flex: 1 }}
+                    >
+                        <option value="">Select a contact...</option>
+                        {availableContacts.map((c) => (
+                            <option key={c.id} value={c.id}>
+                                {c.name}
+                            </option>
+                        ))}
+                    </select>
+                    <button type="submit" disabled={addingMember || !selectedContactId} className="btn btn-primary">
+                        {addingMember ? "Adding..." : "Add"}
+                    </button>
+                </form>
+                {availableContacts.length === 0 && contacts.length === 0 && (
+                    <p className="muted" style={{ marginTop: "0.5rem" }}>
+                        No contacts yet — <a href="/people" style={{ color: "var(--color-primary)" }}>add some first</a>.
+                    </p>
+                )}
+            </section>
+
+            {/* Add expense */}
+            <section className="card">
+                <h2 className="font-medium mb-3">Add shared expense</h2>
+                <form onSubmit={handleSubmitExpense} className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 gap-2">
+                        <input type="number" step="0.01" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} required className="input" />
+                        <input type="text" placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required className="input" />
+                    </div>
+                    <div className="form-grid-2">
+                        <div>
+                            <label className="form-label">Date</label>
+                            <input type="date" value={expDate} onChange={(e) => setExpDate(e.target.value)} required className="input" />
+                        </div>
+                        <div>
+                            <label className="form-label">Time</label>
+                            <input type="time" value={expTime} onChange={(e) => setExpTime(e.target.value)} required className="input" />
+                        </div>
+                    </div>
+                    <CategorySelect value={category} onChange={setCategory} />
+
+                    <ShareEditor
+                        title="Split with (who consumed this)"
+                        members={members}
+                        selected={splitSelected}
+                        setSelected={setSplitSelected}
+                        mode={splitMode}
+                        setMode={setSplitMode}
+                        customAmounts={splitCustom}
+                        setCustomAmounts={setSplitCustom}
+                    />
+
+                    <ShareEditor
+                        title="Paid by (who fronted the cash)"
+                        members={members}
+                        selected={paySelected}
+                        setSelected={setPaySelected}
+                        mode={payMode}
+                        setMode={setPayMode}
+                        customAmounts={payCustom}
+                        setCustomAmounts={setPayCustom}
+                    />
+
+                    <button type="submit" disabled={submitting} className="btn btn-primary">
+                        {submitting ? "Saving..." : editingExpenseId ? "Update expense" : "Add expense"}
+                    </button>
+                    {editingExpenseId && (
+                        <button type="button" onClick={handleCancelExpenseEdit} className="btn-text">Cancel edit</button>
+                    )}
+                </form>
+            </section>
+
+            {/* Expense list */}
+            <section className="card">
+                <h2 className="font-medium mb-3">Expenses</h2>
+                {expenses.length === 0 && <p className="muted">No expenses logged yet.</p>}
+                {expenses.map((exp) => (
+                    <div key={exp.id} className="row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                        <div className="flex justify-between">
+                            <span>{exp.description}</span>
+                            <div className="flex items-center gap-2">
+                                <span>{Number(exp.amount).toFixed(2)}</span>
+                                <button onClick={() => handleEditExpenseClick(exp)} className="btn-text" style={{ fontSize: "0.78rem" }}>Edit</button>
+                                <button onClick={() => handleDeleteExpense(exp.id)} className="btn-text" style={{ fontSize: "0.78rem" }}>Delete</button>
+                            </div>
+                        </div>
+                        <p className="muted">{new Date(exp.date).toLocaleString()}</p>
+                        <p className="muted">
+                            Paid: {exp.payments.map((p) => `${p.person.isSelf ? "You" : p.person.name} ${Number(p.amountPaid).toFixed(2)}`).join(", ")}
+                        </p>
+                        <p className="muted">
+                            Split: {exp.splits.map((s) => `${s.person.isSelf ? "You" : s.person.name} ${Number(s.shareAmount).toFixed(2)}`).join(", ")}
+                        </p>
+                    </div>
+                ))}
+            </section>
+            </div>
+        </AppLayout>
+    );
+}
