@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useCurrency } from "@/context/CurrencyContext";
 
 interface CategoryStat {
   id: string;
@@ -82,6 +83,7 @@ function CategoryIcon({ icon }: { icon: string }) {
 }
 
 export default function CategoriesPage() {
+  const { symbol } = useCurrency();
   const [data, setData] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [newCatName, setNewCatName] = useState("");
@@ -190,7 +192,7 @@ export default function CategoriesPage() {
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="font-semibold text-[#162B27]">
-                              ${item.value.toFixed(2)}
+                              {symbol}{item.value.toFixed(2)}
                             </span>
                             <span className="text-[#6B7268] w-10 text-right">{item.percentage}%</span>
                           </div>
@@ -224,7 +226,7 @@ export default function CategoriesPage() {
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}`, "Spent"]}
+                            formatter={(value) => [`${symbol}${Number(value ?? 0).toFixed(2)}`, "Spent"]}
                             contentStyle={{
                               background: "#FFFFFF",
                               border: "1px solid #E5E0D8",
@@ -240,14 +242,14 @@ export default function CategoriesPage() {
                           TOTAL
                         </span>
                         <span className="font-serif font-bold text-xl text-[#162B27]">
-                          ${data.totalSpent.toFixed(2)}
+                          {symbol}{data.totalSpent.toFixed(2)}
                         </span>
                       </div>
                     </>
                   ) : (
                     <div className="w-48 h-48 rounded-full border-4 border-dashed border-[#E5E0D8] flex flex-col items-center justify-center text-center p-4">
                       <span className="text-[10px] uppercase font-bold text-[#6B7268]">TOTAL</span>
-                      <span className="font-serif font-bold text-xl text-[#162B27]">$0.00</span>
+                      <span className="font-serif font-bold text-xl text-[#162B27]">{symbol}0.00</span>
                       <span className="text-[10px] text-[#6B7268] mt-1">No data</span>
                     </div>
                   )}
@@ -314,11 +316,11 @@ export default function CategoriesPage() {
                       <div>
                         <span className="text-xs text-[#6B7268]">Spent: </span>
                         <span className="font-semibold text-[#162B27]">
-                          ${cat.spent.toFixed(2)}
+                          {symbol}{cat.spent.toFixed(2)}
                         </span>
                       </div>
                       <div className="text-xs text-[#6B7268]">
-                        Budget: ${cat.budget}
+                        Budget: {symbol}{cat.budget}
                       </div>
                     </div>
 
@@ -362,7 +364,7 @@ export default function CategoriesPage() {
                   <div className="flex gap-2">
                     <input
                       type="number"
-                      placeholder="Budget ($)"
+                      placeholder={`Budget (${symbol})`}
                       value={newCatBudget}
                       onChange={(e) => setNewCatCatBudget(e.target.value)}
                       className="w-1/2 px-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-lg focus:outline-none focus:border-[#0F5C53]"
@@ -392,7 +394,7 @@ export default function CategoriesPage() {
                   </p>
                   <div className="mt-4">
                     <label className="text-[11px] font-semibold text-[#6B7268] uppercase tracking-wider block mb-1">
-                      Monthly Budget ($)
+                      Monthly Budget ({symbol})
                     </label>
                     <input
                       type="number"

@@ -9,6 +9,7 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianG
 import { GlobalSettlementSection } from "@/components/GlobalSettlementSection";
 import { LenaDenaRow } from "@/components/LenaDenaRow";
 import { AppLayout } from "@/components/AppLayout";
+import { useCurrency } from "@/context/CurrencyContext";
 
 interface User {
   id: string;
@@ -96,6 +97,7 @@ function getCategoryIcon(cat: string | null) {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { symbol } = useCurrency();
   const [user, setUser] = useState<User | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -304,7 +306,7 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4">
               <div className={`font-serif font-bold text-2xl md:text-3xl ${netTotal >= 0 ? "text-[#1E7D46]" : "text-[#A8441F]"}`}>
-                {netTotal >= 0 ? "+" : ""}₹{Math.abs(netTotal).toFixed(2)}
+                {netTotal >= 0 ? "+" : ""}{symbol}{Math.abs(netTotal).toFixed(2)}
               </div>
               <p className="text-xs text-[#6B7268] mt-1">
                 across all {overview?.netByPerson.length ?? 0} active contacts
@@ -327,7 +329,7 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4">
               <div className="font-serif font-bold text-2xl md:text-3xl text-[#162B27]">
-                ₹{(overview?.today.total ?? 0).toFixed(2)}
+                {symbol}{(overview?.today.total ?? 0).toFixed(2)}
               </div>
               <div className="mt-2 w-full bg-[#FAF8F5] border border-[#E5E0D8] h-1.5 rounded-full overflow-hidden">
                 <div className="bg-[#E5A93C] h-full rounded-full w-2/5" />
@@ -361,7 +363,7 @@ export default function DashboardPage() {
                     {workspaces[0]?.name || "Shared Workspace"}
                   </h4>
                   <p className="text-xs text-emerald-100/80 mt-0.5">
-                    You owe ₹{Math.abs(youOwe[0].netBalance).toFixed(2)} to {youOwe[0].name}
+                    You owe {symbol}{Math.abs(youOwe[0].netBalance).toFixed(2)} to {youOwe[0].name}
                   </p>
                 </>
               ) : owedToYou.length > 0 ? (
@@ -370,7 +372,7 @@ export default function DashboardPage() {
                     Receivable
                   </h4>
                   <p className="text-xs text-emerald-100/80 mt-0.5">
-                    {owedToYou[0].name} owes you ₹{owedToYou[0].netBalance.toFixed(2)}
+                    {owedToYou[0].name} owes you {symbol}{owedToYou[0].netBalance.toFixed(2)}
                   </p>
                 </>
               ) : (
@@ -431,7 +433,7 @@ export default function DashboardPage() {
                     borderRadius: "12px",
                     fontSize: "12px",
                   }}
-                  formatter={(value) => [`₹${Number(value ?? 0).toFixed(2)}`, "Spent"]}
+                  formatter={(value) => [`${symbol}${Number(value ?? 0).toFixed(2)}`, "Spent"]}
                 />
                 <Area
                   type="monotone"
@@ -488,7 +490,7 @@ export default function DashboardPage() {
 
                       <div className="flex items-center gap-3">
                         <span className="font-serif font-bold text-sm text-[#162B27]">
-                          -₹{Number(exp.amount).toFixed(2)}
+                          -{symbol}{Number(exp.amount).toFixed(2)}
                         </span>
                         <div className="flex items-center gap-1">
                           <button
@@ -547,7 +549,7 @@ export default function DashboardPage() {
 
                       <div className="flex items-center gap-3">
                         <span className="font-serif font-bold text-sm text-[#162B27]">
-                          -₹{Number(exp.amount).toFixed(2)}
+                          -{symbol}{Number(exp.amount).toFixed(2)}
                         </span>
                         <div className="flex items-center gap-1">
                           <button
@@ -604,7 +606,7 @@ export default function DashboardPage() {
 
                       <div className="flex items-center gap-3">
                         <span className="font-serif font-bold text-sm text-[#162B27]">
-                          -₹{Number(exp.amount).toFixed(2)}
+                          -{symbol}{Number(exp.amount).toFixed(2)}
                         </span>
                         <div className="flex items-center gap-1">
                           <button
@@ -669,7 +671,7 @@ export default function DashboardPage() {
               <form onSubmit={handleSubmitExpense} className="space-y-3.5">
                 <div>
                   <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
-                    Amount (₹)
+                    Amount ({symbol})
                   </label>
                   <input
                     type="number"
@@ -768,7 +770,7 @@ export default function DashboardPage() {
                     You Owe
                   </span>
                   <span className="font-serif font-bold text-base text-[#A8441F]">
-                    ₹{totalYouOwe.toFixed(2)}
+                    {symbol}{totalYouOwe.toFixed(2)}
                   </span>
                 </div>
                 {youOwe.length === 0 ? (
@@ -778,7 +780,7 @@ export default function DashboardPage() {
                     {youOwe.map((p) => (
                       <div key={p.personId} className="flex items-center justify-between text-xs py-1 border-b border-[#FAF8F5]">
                         <span className="text-[#162B27] font-medium">• {p.name}</span>
-                        <span className="font-semibold text-[#A8441F]">₹{Math.abs(p.netBalance).toFixed(2)}</span>
+                        <span className="font-semibold text-[#A8441F]">{symbol}{Math.abs(p.netBalance).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -792,7 +794,7 @@ export default function DashboardPage() {
                     Owes You
                   </span>
                   <span className="font-serif font-bold text-base text-[#1E7D46]">
-                    ₹{totalOwesYou.toFixed(2)}
+                    {symbol}{totalOwesYou.toFixed(2)}
                   </span>
                 </div>
                 {owedToYou.length === 0 ? (
@@ -802,7 +804,7 @@ export default function DashboardPage() {
                     {owedToYou.map((p) => (
                       <div key={p.personId} className="flex items-center justify-between text-xs py-1 border-b border-[#FAF8F5]">
                         <span className="text-[#162B27] font-medium">• {p.name}</span>
-                        <span className="font-semibold text-[#1E7D46]">₹{p.netBalance.toFixed(2)}</span>
+                        <span className="font-semibold text-[#1E7D46]">{symbol}{p.netBalance.toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -896,7 +898,7 @@ export default function DashboardPage() {
             <form onSubmit={handleSubmitExpense} className="space-y-3.5">
               <div>
                 <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
-                  Amount (₹)
+                  Amount ({symbol})
                 </label>
                 <input
                   type="number"
