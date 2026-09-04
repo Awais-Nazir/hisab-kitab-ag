@@ -30,6 +30,16 @@ export function BottomNav() {
       ),
     },
     {
+      label: "Accounts",
+      href: "/accounts",
+      icon: (active: boolean) => (
+        <svg className={`w-5 h-5 ${active ? "text-[#0F5C53]" : "text-[#6B7268]"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2" />
+          <line x1="2" x2="22" y1="10" y2="10" />
+        </svg>
+      ),
+    },
+    {
       label: "Contacts",
       href: "/people",
       icon: (active: boolean) => (
@@ -52,20 +62,10 @@ export function BottomNav() {
         </svg>
       ),
     },
-    {
-      label: "Profile",
-      href: "/profile",
-      icon: (active: boolean) => (
-        <svg className={`w-5 h-5 ${active ? "text-[#0F5C53]" : "text-[#6B7268]"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2.5" : "2"} strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="8" r="4" />
-          <path d="M20 21a8 8 0 0 0-16 0" />
-        </svg>
-      ),
-    },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-[#FAF8F5]/95 backdrop-blur-md border-t border-[#E5E0D8] flex md:hidden items-center justify-around px-2 z-40 shadow-sm">
+    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-[#FAF8F5]/95 dark:bg-[#151A18]/95 backdrop-blur-md border-t border-[#E5E0D8] dark:border-[#28332E] flex md:hidden items-center justify-around px-2 z-40 shadow-sm transition-colors duration-200">
       {tabs.map((tab) => {
         const isActive =
           tab.href === "/dashboard"
@@ -77,11 +77,13 @@ export function BottomNav() {
             key={tab.href}
             href={tab.href}
             className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-colors ${
-              isActive ? "text-[#0F5C53]" : "text-[#6B7268] hover:text-[#162B27]"
+              isActive
+                ? "text-[#0F5C53] dark:text-[#34D399]"
+                : "text-[#6B7268] dark:text-stone-400 hover:text-[#162B27] dark:hover:text-white"
             }`}
           >
             {tab.icon(isActive)}
-            <span className={`text-[10px] ${isActive ? "font-bold text-[#0F5C53]" : "font-medium"}`}>
+            <span className={`text-[10px] ${isActive ? "font-bold text-[#0F5C53] dark:text-[#34D399]" : "font-medium"}`}>
               {tab.label}
             </span>
           </Link>

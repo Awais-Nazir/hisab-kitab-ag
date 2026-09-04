@@ -21,7 +21,11 @@ model User {
   people           Person[]    @relation("OwnedPeople")
   selfPerson       Person?     @relation("SelfPerson", fields: [selfPersonId], references: [id])
   workspaces       Workspace[]
-  categories       Category[]  @relation("OwnedCategories")
+  categories       Category[]        @relation("OwnedCategories")
+  accounts         Account[]
+  transfers        AccountTransfer[]
+  deposits         AccountDeposit[]
+  udharEntries     UdharEntry[]
 }
 
 model Person {
@@ -38,6 +42,7 @@ model Person {
   settlementsTo   Settlement[]      @relation("SettlementTo")
   selfOf          User?             @relation("SelfPerson")
   memberships     WorkspaceMember[]
+  udharEntries    UdharEntry[]
 }
 
 model Workspace {
@@ -71,8 +76,10 @@ model Expense {
   createdAt   DateTime         @default(now())
   workspaceId String?
   ownerId     String?
+  accountId   String?
   owner       User?            @relation("PersonalExpenses", fields: [ownerId], references: [id])
   workspace   Workspace?       @relation(fields: [workspaceId], references: [id])
+  account     Account?         @relation("AccountExpenses", fields: [accountId], references: [id])
   payments    ExpensePayment[]
   splits      ExpenseSplit[]
 }
@@ -108,9 +115,11 @@ model Settlement {
   date         DateTime  @default(now())
   note         String?
   batchId      String?
+  accountId    String?
   fromPerson   Person    @relation("SettlementFrom", fields: [fromPersonId], references: [id])
   toPerson     Person    @relation("SettlementTo", fields: [toPersonId], references: [id])
   workspace    Workspace @relation(fields: [workspaceId], references: [id])
+  account      Account?  @relation("AccountSettlements", fields: [accountId], references: [id])
 }
 
 model Category {
@@ -126,3 +135,75 @@ model Category {
 
   @@unique([ownerId, name])
 }
+
+model Account {
+  id        String            @id @default(cuid())
+  ownerId   String
+  name      String
+  type      String            @default("CASH") // CASH | BANK | WALLET | UDHAR_KHATA
+  balance   Decimal           @default(0) @db.Decimal(10, 2)
+  color     String?           @default("#0F5C53")
+  icon      String?           @default("wallet")
+  createdAt DateTime          @default(now())
+
+  owner          User              @relation(fields: [ownerId], references: [id])
+  transfersFrom    AccountTransfer[] @relation("TransferFrom")
+  transfersTo      AccountTransfer[] @relation("TransferTo")
+  expenses         Expense[]         @relation("AccountExpenses")
+  deposits         AccountDeposit[]  @relation("AccountDeposits")
+  settlements      Settlement[]      @relation("AccountSettlements")
+  udharEntries     UdharEntry[]      @relation("AccountUdhar")
+  udharSettlements UdharEntry[]      @relation("AccountUdharSettled")
+
+  @@unique([ownerId, name])
+}
+
+model AccountTransfer {
+  id            String   @id @default(cuid())
+  ownerId       String
+  fromAccountId String
+  toAccountId   String
+  amount        Decimal  @db.Decimal(10, 2)
+  note          String?
+  date          DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  owner       User    @relation(fields: [ownerId], references: [id])
+  fromAccount Account @relation("TransferFrom", fields: [fromAccountId], references: [id])
+  toAccount   Account @relation("TransferTo", fields: [toAccountId], references: [id])
+}
+
+model AccountDeposit {
+  id        String   @id @default(cuid())
+  ownerId   String
+  accountId String
+  amount    Decimal  @db.Decimal(10, 2)
+  source    String   @default("Salary") // Salary, Freelance, Gift, Deposit, Profit, Other
+  note      String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  owner   User    @relation(fields: [ownerId], references: [id])
+  account Account @relation("AccountDeposits", fields: [accountId], references: [id])
+}
+
+model UdharEntry {
+  id              String    @id @default(cuid())
+  ownerId         String
+  personId        String
+  type            String    // "LENA" (Maine Diye / Receivable) | "DENA" (Maine Liye / Payable)
+  amount          Decimal   @db.Decimal(10, 2)
+  note            String?
+  date            DateTime  @default(now())
+  isSettled       Boolean   @default(false)
+  settledAt       DateTime?
+  accountId       String?
+  settleAccountId String?
+  createdAt       DateTime  @default(now())
+
+  owner         User     @relation(fields: [ownerId], references: [id])
+  person        Person   @relation(fields: [personId], references: [id])
+  account       Account? @relation("AccountUdhar", fields: [accountId], references: [id])
+  settleAccount Account? @relation("AccountUdharSettled", fields: [settleAccountId], references: [id])
+}
+

@@ -10,6 +10,7 @@ const globalSettleSchema = z.object({
     toPersonId: z.string(),
     amount: z.number().positive(),
     note: z.string().optional(),
+    accountId: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
-    const { fromPersonId, toPersonId, amount, note } = parsed.data;
+    const { fromPersonId, toPersonId, amount, note, accountId } = parsed.data;
 
     if (fromPersonId === toPersonId) {
         return NextResponse.json(
@@ -107,6 +108,17 @@ export async function POST(req: NextRequest) {
     let remaining = amount;
     const created = [];
 
+    let verifiedAccountId: string | undefined = undefined;
+    if (accountId) {
+        const acc = await prisma.account.findUnique({ where: { id: accountId } });
+        if (acc && acc.ownerId === user.id) {
+            verifiedAccountId = acc.id;
+        }
+    }
+
+    const isSelfPayer = fromPersonId === user.selfPersonId;
+    const isSelfReceiver = toPersonId === user.selfPersonId;
+
     for (const c of candidates) {
         if (remaining <= 0) break;
         const allocate = Math.round(Math.min(remaining, c.owed) * 100) / 100;
@@ -119,11 +131,27 @@ export async function POST(req: NextRequest) {
                 amount: allocate,
                 note: note ? note : undefined,
                 batchId,
+                accountId: verifiedAccountId,
             },
-            include: { workspace: true },
+            include: { workspace: true, account: true },
         });
         created.push(settlement);
         remaining = Math.round((remaining - allocate) * 100) / 100;
+    }
+
+    if (verifiedAccountId && created.length > 0) {
+        const totalSettled = created.reduce((s, r) => s + Number(r.amount), 0);
+        if (isSelfPayer) {
+            await prisma.account.update({
+                where: { id: verifiedAccountId },
+                data: { balance: { decrement: totalSettled } },
+            });
+        } else if (isSelfReceiver) {
+            await prisma.account.update({
+                where: { id: verifiedAccountId },
+                data: { balance: { increment: totalSettled } },
+            });
+        }
     }
 
     return NextResponse.json({ batchId, settlements: created, totalOwedBefore: totalOwed });

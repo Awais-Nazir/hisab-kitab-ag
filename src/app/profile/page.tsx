@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
 import { CURRENCIES } from "@/lib/currency";
 import { useCurrency } from "@/context/CurrencyContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface User {
   id: string;
@@ -19,6 +20,9 @@ export default function ProfilePage() {
   const { currency, updateCurrency } = useCurrency();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameSuccess, setNameSuccess] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState("PKR");
   const [savingCurrency, setSavingCurrency] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -27,6 +31,7 @@ export default function ProfilePage() {
     apiFetch<{ user: User }>("/api/auth/me")
       .then((res) => {
         setUser(res.user);
+        setName(res.user.name || "");
         setSelectedCurrency(res.user.currency || "PKR");
       })
       .catch(() => router.push("/login"))
@@ -38,6 +43,27 @@ export default function ProfilePage() {
       setSelectedCurrency(currency);
     }
   }, [currency]);
+
+  async function handleSaveName(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || savingName) return;
+    setSavingName(true);
+    setNameSuccess(false);
+    try {
+      const res = await apiFetch<{ user: User }>("/api/auth/me", {
+        method: "PATCH",
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      setUser(res.user);
+      setName(res.user.name);
+      setNameSuccess(true);
+      setTimeout(() => setNameSuccess(false), 3000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update name");
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function handleSaveCurrency() {
     setSavingCurrency(true);
@@ -135,23 +161,64 @@ export default function ProfilePage() {
               )}
             </div>
 
+            {/* Theme Preference Setting */}
+            <div className="bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-serif font-bold text-base text-[#162B27]">
+                    Interface Appearance
+                  </h3>
+                  <p className="text-xs text-[#6B7268] mt-0.5">
+                    Switch between Light, Dark, or System mode.
+                  </p>
+                </div>
+                <ThemeToggle />
+              </div>
+            </div>
+
             <div className="space-y-4 pt-2">
-              <div>
-                <label className="text-xs font-semibold text-[#6B7268] uppercase tracking-wider block mb-1">
+              <form onSubmit={handleSaveName}>
+                <label className="text-xs font-semibold text-[#6B7268] dark:text-stone-400 uppercase tracking-wider block mb-1">
                   Display Name
                 </label>
-                <div className="p-3 bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl text-sm font-medium text-[#162B27]">
-                  {user?.name}
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="flex-1 px-4 py-2.5 bg-[#FAF8F5] dark:bg-[#141816] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl text-sm font-medium text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    placeholder="Your Name"
+                  />
+                  <button
+                    type="submit"
+                    disabled={savingName || name.trim() === user?.name}
+                    className="bg-[#0F5C53] hover:bg-[#0A3F38] text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {savingName ? "Saving..." : "Save Name"}
+                  </button>
                 </div>
-              </div>
+                {nameSuccess && (
+                  <p className="text-xs font-semibold text-[#1E7D46] mt-1.5 flex items-center gap-1">
+                    ✓ Name updated successfully!
+                  </p>
+                )}
+              </form>
 
               <div>
-                <label className="text-xs font-semibold text-[#6B7268] uppercase tracking-wider block mb-1">
+                <label className="text-xs font-semibold text-[#6B7268] dark:text-stone-400 uppercase tracking-wider block mb-1">
                   Email Address
                 </label>
-                <div className="p-3 bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl text-sm font-medium text-[#162B27]">
-                  {user?.email}
-                </div>
+                <input
+                  type="email"
+                  value={user?.email || ""}
+                  disabled
+                  title="Email address cannot be modified"
+                  className="w-full px-4 py-2.5 bg-stone-100 dark:bg-stone-800/40 border border-[#E5E0D8] dark:border-[#28332E] rounded-xl text-sm font-medium text-stone-500 dark:text-stone-400 cursor-not-allowed select-none opacity-80"
+                />
+                <p className="text-[11px] text-stone-400 dark:text-stone-500 mt-1">
+                  Account email address is permanently bound and cannot be edited.
+                </p>
               </div>
             </div>
 

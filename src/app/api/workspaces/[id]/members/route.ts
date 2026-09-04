@@ -28,7 +28,7 @@ export async function GET(
         include: { person: true },
     });
 
-    return NextResponse.json({ members });
+    return NextResponse.json({ members, workspace });
 }
 
 export async function POST(

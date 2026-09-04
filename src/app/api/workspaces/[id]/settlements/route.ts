@@ -8,6 +8,8 @@ const settleSchema = z.object({
     toPersonId: z.string(),
     amount: z.number().positive(),
     note: z.string().optional(),
+    accountId: z.string().optional(),
+    date: z.string().optional(),
 });
 
 export async function POST(
@@ -49,14 +51,50 @@ export async function POST(
         );
     }
 
-    const settlement = await prisma.settlement.create({
-        data: {
-            workspaceId,
-            fromPersonId: parsed.data.fromPersonId,
-            toPersonId: parsed.data.toPersonId,
-            amount: parsed.data.amount,
-            note: parsed.data.note,
-        },
+    const { fromPersonId, toPersonId, amount, note, accountId, date } = parsed.data;
+
+    let verifiedAccountId: string | undefined = undefined;
+    if (accountId) {
+        const acc = await prisma.account.findUnique({ where: { id: accountId } });
+        if (acc && acc.ownerId === user.id) {
+            verifiedAccountId = acc.id;
+        }
+    }
+
+    const isSelfPayer = fromPersonId === user.selfPersonId;
+    const isSelfReceiver = toPersonId === user.selfPersonId;
+
+    const settlement = await prisma.$transaction(async (tx) => {
+        const s = await tx.settlement.create({
+            data: {
+                workspaceId,
+                fromPersonId,
+                toPersonId,
+                amount,
+                note,
+                accountId: verifiedAccountId,
+                date: date ? new Date(date) : new Date(),
+            },
+            include: { fromPerson: true, toPerson: true, account: true },
+        });
+
+        if (verifiedAccountId) {
+            if (isSelfPayer) {
+                // User paid out of this account -> decrement
+                await tx.account.update({
+                    where: { id: verifiedAccountId },
+                    data: { balance: { decrement: amount } },
+                });
+            } else if (isSelfReceiver) {
+                // User received into this account -> increment
+                await tx.account.update({
+                    where: { id: verifiedAccountId },
+                    data: { balance: { increment: amount } },
+                });
+            }
+        }
+
+        return s;
     });
 
     return NextResponse.json({ settlement });
@@ -78,7 +116,7 @@ export async function GET(
 
     const settlements = await prisma.settlement.findMany({
         where: { workspaceId },
-        include: { fromPerson: true, toPerson: true },
+        include: { fromPerson: true, toPerson: true, account: true },
         orderBy: { date: "desc" },
     });
 

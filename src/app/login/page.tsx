@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,30 +33,35 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F2EEE9] relative flex items-center justify-center p-4 overflow-hidden select-none">
+    <div className="min-h-screen bg-[#F2EEE9] dark:bg-[#111413] relative flex items-center justify-center p-4 overflow-hidden select-none transition-colors duration-200">
+      {/* Theme toggle in top right corner */}
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
+
       {/* Ambient background decorative organic shapes */}
-      <div className="absolute top-12 right-12 w-48 h-48 md:w-64 md:h-64 rounded-full bg-[#E8D9B5]/80 pointer-events-none -z-0 blur-[1px]" />
-      <div className="absolute -bottom-12 -left-12 w-72 h-72 md:w-96 md:h-96 rounded-full bg-[#C2DBD2]/80 pointer-events-none -z-0 blur-[1px]" />
+      <div className="absolute top-12 right-12 w-48 h-48 md:w-64 md:h-64 rounded-full bg-[#E8D9B5]/80 dark:bg-[#0F5C53]/15 pointer-events-none -z-0 blur-[1px] transition-colors" />
+      <div className="absolute -bottom-12 -left-12 w-72 h-72 md:w-96 md:h-96 rounded-full bg-[#C2DBD2]/80 dark:bg-[#10B981]/10 pointer-events-none -z-0 blur-[1px] transition-colors" />
 
       {/* Main Login Card */}
-      <div className="relative z-10 w-full max-w-[420px] bg-white rounded-3xl shadow-xl shadow-stone-900/5 border border-[#E5E0D8] overflow-hidden">
+      <div className="relative z-10 w-full max-w-[420px] bg-white dark:bg-[#19201D] rounded-3xl shadow-xl shadow-stone-900/5 dark:shadow-2xl border border-[#E5E0D8] dark:border-[#28332E] overflow-hidden transition-colors">
         {/* Top gradient stripe matching Figma */}
         <div className="h-1.5 w-full bg-gradient-to-r from-[#4EAA9C] via-[#0F5C53] to-[#0A3F38]" />
 
         <div className="p-8 sm:p-10">
           {/* Brand Emblem */}
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-[#0F5C53]/10 text-[#0F5C53] flex items-center justify-center mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-[#0F5C53]/10 dark:bg-[#0F5C53]/30 text-[#0F5C53] dark:text-[#34D399] flex items-center justify-center mb-3">
               <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
                 <path d="M6 6h10" />
                 <path d="M6 10h10" />
               </svg>
             </div>
-            <h1 className="font-serif font-bold text-3xl text-[#162B27] tracking-tight">
+            <h1 className="font-serif font-bold text-3xl text-[#162B27] dark:text-white tracking-tight">
               Ledger
             </h1>
-            <p className="text-xs text-[#6B7268] mt-1 font-medium tracking-wide">
+            <p className="text-xs text-[#6B7268] dark:text-[#95A19B] mt-1 font-medium tracking-wide">
               Clarity in Every Entry
             </p>
           </div>
@@ -68,8 +74,8 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email field */}
-            <div className="border-b border-[#E0DBD2] focus-within:border-[#0F5C53] pb-1 transition-colors">
-              <label className="block text-[11px] font-semibold text-[#6B7268] uppercase tracking-wider mb-1">
+            <div className="border-b border-[#E0DBD2] dark:border-[#28332E] focus-within:border-[#0F5C53] dark:focus-within:border-[#10B981] pb-1 transition-colors">
+              <label className="block text-[11px] font-semibold text-[#6B7268] dark:text-[#95A19B] uppercase tracking-wider mb-1">
                 Email Address
               </label>
               <input
@@ -78,13 +84,13 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full text-sm text-[#162B27] bg-transparent focus:outline-none py-1 placeholder:text-stone-300"
+                className="w-full text-sm text-[#162B27] dark:text-white bg-transparent focus:outline-none py-1 placeholder:text-stone-300 dark:placeholder:text-stone-600"
               />
             </div>
 
             {/* Password field with toggle */}
-            <div className="border-b border-[#E0DBD2] focus-within:border-[#0F5C53] pb-1 transition-colors relative">
-              <label className="block text-[11px] font-semibold text-[#6B7268] uppercase tracking-wider mb-1">
+            <div className="border-b border-[#E0DBD2] dark:border-[#28332E] focus-within:border-[#0F5C53] dark:focus-within:border-[#10B981] pb-1 transition-colors relative">
+              <label className="block text-[11px] font-semibold text-[#6B7268] dark:text-[#95A19B] uppercase tracking-wider mb-1">
                 Password
               </label>
               <div className="flex items-center">
@@ -94,12 +100,12 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full text-sm text-[#162B27] bg-transparent focus:outline-none py-1 placeholder:text-stone-300 pr-8"
+                  className="w-full text-sm text-[#162B27] dark:text-white bg-transparent focus:outline-none py-1 placeholder:text-stone-300 dark:placeholder:text-stone-600 pr-8"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="p-1 text-stone-400 hover:text-stone-700 transition-colors"
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors"
                 >
                   {showPassword ? (
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -123,9 +129,9 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded text-[#0F5C53] focus:ring-[#0F5C53] accent-[#0F5C53]"
+                  className="w-3.5 h-3.5 rounded text-[#0F5C53] dark:text-[#10B981] focus:ring-[#0F5C53] accent-[#0F5C53] dark:accent-[#10B981]"
                 />
-                <span className="text-xs text-[#5A6863]">Remember me</span>
+                <span className="text-xs text-[#5A6863] dark:text-[#95A19B]">Remember me</span>
               </label>
             </div>
 
@@ -133,17 +139,17 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-4 bg-[#0A3F38] hover:bg-[#072F2A] text-white py-3 rounded-xl font-semibold text-sm shadow-sm hover:shadow transition-all disabled:opacity-50 cursor-pointer active:scale-[0.99]"
+              className="w-full mt-4 bg-[#0A3F38] hover:bg-[#072F2A] dark:bg-[#10B981] dark:hover:bg-[#059669] dark:text-[#111413] text-white py-3 rounded-xl font-semibold text-sm shadow-sm hover:shadow transition-all disabled:opacity-50 cursor-pointer active:scale-[0.99]"
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
           {/* Divider & Switch link */}
-          <div className="mt-8 pt-6 border-t border-[#F0ECE6] text-center">
-            <p className="text-xs text-[#6B7268]">
+          <div className="mt-8 pt-6 border-t border-[#F0ECE6] dark:border-[#28332E] text-center">
+            <p className="text-xs text-[#6B7268] dark:text-[#95A19B]">
               Don&apos;t have an account?{" "}
-              <Link href="/signup" className="font-semibold text-[#0F5C53] hover:underline ml-1">
+              <Link href="/signup" className="font-semibold text-[#0F5C53] dark:text-[#34D399] hover:underline ml-1">
                 Create one
               </Link>
             </p>

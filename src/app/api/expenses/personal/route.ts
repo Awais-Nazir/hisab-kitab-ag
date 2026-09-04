@@ -7,6 +7,7 @@ const createPersonalExpenseSchema = z.object({
     amount: z.number().positive(),
     description: z.string().min(1),
     category: z.string().optional(),
+    accountId: z.string().optional(),
     date: z.string().optional(), // ISO date string
 });
 
@@ -23,16 +24,41 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const { amount, description, category, date } = parsed.data;
+    const { amount, description, category, accountId, date } = parsed.data;
 
-    const expense = await prisma.expense.create({
-        data: {
-            amount,
-            description,
-            category,
-            date: date ? new Date(date) : new Date(),
-            ownerId: user.id,
-        },
+    let verifiedAccountId: string | undefined;
+    if (accountId) {
+        const acc = await prisma.account.findUnique({
+            where: { id: accountId },
+        });
+        if (acc && acc.ownerId === user.id) {
+            verifiedAccountId = acc.id;
+        }
+    }
+
+    const expense = await prisma.$transaction(async (tx) => {
+        const exp = await tx.expense.create({
+            data: {
+                amount,
+                description,
+                category,
+                accountId: verifiedAccountId,
+                date: date ? new Date(date) : new Date(),
+                ownerId: user.id,
+            },
+            include: {
+                account: true,
+            },
+        });
+
+        if (verifiedAccountId) {
+            await tx.account.update({
+                where: { id: verifiedAccountId },
+                data: { balance: { decrement: amount } },
+            });
+        }
+
+        return exp;
     });
 
     return NextResponse.json({ expense });
@@ -44,6 +70,9 @@ export async function GET() {
 
     const expenses = await prisma.expense.findMany({
         where: { ownerId: user.id },
+        include: {
+            account: true,
+        },
         orderBy: { date: "desc" },
     });
 

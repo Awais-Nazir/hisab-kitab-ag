@@ -12,6 +12,7 @@ const updateExpenseSchema = z.object({
     amount: z.number().positive(),
     description: z.string().min(1),
     category: z.string().optional(),
+    accountId: z.string().optional(),
     date: z.string().optional(),
     splits: z.array(shareEntrySchema).min(1),
     payments: z.array(shareEntrySchema).min(1),
@@ -40,7 +41,7 @@ export async function PATCH(
     if (!parsed.success) {
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
-    const { amount, description, category, date, splits, payments } = parsed.data;
+    const { amount, description, category, accountId, date, splits, payments } = parsed.data;
 
     const splitSum = splits.reduce((s, x) => s + x.amount, 0);
     if (Math.abs(splitSum - amount) > 0.01) {
@@ -72,6 +73,18 @@ export async function PATCH(
         );
     }
 
+    let verifiedAccountId: string | null | undefined = undefined;
+    if (accountId !== undefined) {
+        if (accountId) {
+            const acc = await prisma.account.findUnique({ where: { id: accountId } });
+            if (acc && acc.ownerId === user.id) {
+                verifiedAccountId = acc.id;
+            }
+        } else {
+            verifiedAccountId = null;
+        }
+    }
+
     const expense = await prisma.$transaction(async (tx) => {
         await tx.expenseSplit.deleteMany({ where: { expenseId } });
         await tx.expensePayment.deleteMany({ where: { expenseId } });
@@ -81,11 +94,12 @@ export async function PATCH(
                 amount,
                 description,
                 category,
+                ...(verifiedAccountId !== undefined ? { accountId: verifiedAccountId } : {}),
                 date: date ? new Date(date) : existing.date,
                 splits: { create: splits.map((s) => ({ personId: s.personId, shareAmount: s.amount })) },
                 payments: { create: payments.map((p) => ({ personId: p.personId, amountPaid: p.amount })) },
             },
-            include: { splits: { include: { person: true } }, payments: { include: { person: true } } },
+            include: { splits: { include: { person: true } }, payments: { include: { person: true } }, account: true },
         });
     });
 

@@ -27,7 +27,7 @@ export async function GET() {
     const monthName = now.toLocaleString("default", { month: "long" });
 
     // Fetch personal expenses, shared splits, and user categories in parallel
-    const [personalExpenses, mySplits, userCategories] = await Promise.all([
+    let [personalExpenses, mySplits, userCategories] = await Promise.all([
         prisma.expense.findMany({
             where: {
                 ownerId: user.id,
@@ -51,8 +51,22 @@ export async function GET() {
         }),
     ]);
 
-    // Map custom categories by name
-    const categoryMap = new Map(userCategories.map((c) => [c.name.toLowerCase(), c]));
+    // If user has NO categories in DB at all (e.g. brand new user), seed defaults once
+    if (userCategories.length === 0) {
+        await prisma.category.createMany({
+            data: Object.entries(DEFAULT_CATEGORY_METAS).map(([name, meta]) => ({
+                ownerId: user.id,
+                name,
+                budget: meta.defaultBudget,
+                icon: meta.icon,
+                color: meta.color,
+            })),
+            skipDuplicates: true,
+        });
+        userCategories = await prisma.category.findMany({
+            where: { ownerId: user.id },
+        });
+    }
 
     // Aggregate spending by category
     const spentByCategory: Record<string, { total: number; count: number }> = {};
@@ -71,9 +85,11 @@ export async function GET() {
         spentByCategory[cat].count += 1;
     }
 
-    // Collect all distinct category names
+    // Refresh category map with latest user categories
+    const categoryMap = new Map(userCategories.map((c) => [c.name.toLowerCase(), c]));
+
+    // Collect all distinct category names from user's categories + any category with active spending
     const allCategoryNames = new Set([
-        ...Object.keys(DEFAULT_CATEGORY_METAS),
         ...userCategories.map((c) => c.name),
         ...Object.keys(spentByCategory),
     ]);

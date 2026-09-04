@@ -12,6 +12,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { ThemeProvider } from "@/context/ThemeContext";
+import { CurrencyProvider } from "@/context/CurrencyContext";
+
 export const metadata = {
   title: "Hisab Kitab",
   description: "Personal and shared expense tracker",
@@ -32,11 +35,33 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body
-        className="min-h-full flex flex-col">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function() {
+              try {
+                var theme = localStorage.getItem('hisab_theme');
+                var isDark = theme === 'dark' || (theme !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (e) {}
+            })()`
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col">
         <RegisterServiceWorker />
-        {children}</body>
+        <ThemeProvider>
+          <CurrencyProvider>
+            {children}
+          </CurrencyProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

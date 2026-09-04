@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
 
@@ -12,7 +12,21 @@ function dayBounds(offsetDays: number) {
     return { start, end, label: start.toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) };
 }
 
-export async function GET() {
+function weekBounds(offsetWeeks: number) {
+    const now = new Date();
+    const end = new Date(now);
+    end.setDate(end.getDate() - offsetWeeks * 7);
+    end.setHours(23, 59, 59, 999);
+
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+
+    const label = `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(undefined, { day: "numeric" })}`;
+    return { start, end, label };
+}
+
+export async function GET(req: NextRequest) {
     const { user, errorResponse } = await requireUser();
     if (!user) return errorResponse;
 
@@ -23,10 +37,15 @@ export async function GET() {
         );
     }
 
-    const days = Array.from({ length: 7 }, (_, i) => dayBounds(6 - i)); // oldest → newest
+    const range = req.nextUrl.searchParams.get("range") || "week";
+
+    const intervals =
+        range === "month"
+            ? Array.from({ length: 4 }, (_, i) => weekBounds(3 - i))
+            : Array.from({ length: 7 }, (_, i) => dayBounds(6 - i));
 
     const results = await Promise.all(
-        days.map(async ({ start, end, label }) => {
+        intervals.map(async ({ start, end, label }) => {
             const [personal, mySplits] = await Promise.all([
                 prisma.expense.findMany({
                     where: { ownerId: user.id, date: { gte: start, lte: end } },

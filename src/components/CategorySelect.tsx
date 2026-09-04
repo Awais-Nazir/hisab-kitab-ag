@@ -41,7 +41,11 @@ export function CategorySelect({
     }, []);
 
     const allNames = Array.from(
-        new Set([...DEFAULT_CATEGORIES, ...customCategories.map((c) => c.name)])
+        new Set(
+            customCategories.length > 0
+                ? customCategories.map((c) => c.name)
+                : DEFAULT_CATEGORIES
+        )
     );
 
     async function handleSelect(e: React.ChangeEvent<HTMLSelectElement>) {

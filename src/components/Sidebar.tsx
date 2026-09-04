@@ -59,6 +59,16 @@ export function Sidebar({ userName = "Account Admin", onLogout }: SidebarProps) 
       ),
     },
     {
+      label: "Accounts",
+      href: "/accounts",
+      icon: (active: boolean) => (
+        <svg className={`w-5 h-5 ${active ? "text-white" : "text-[#162B27]/70"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="20" height="14" x="2" y="5" rx="2" />
+          <line x1="2" x2="22" y1="10" y2="10" />
+        </svg>
+      ),
+    },
+    {
       label: "Profile",
       href: "/profile",
       icon: (active: boolean) => (
@@ -71,7 +81,7 @@ export function Sidebar({ userName = "Account Admin", onLogout }: SidebarProps) 
   ];
 
   return (
-    <aside className="w-64 h-screen fixed left-0 top-0 bottom-0 bg-[#F4F1EA] border-r border-[#E5E0D8] hidden md:flex flex-col justify-between z-30 select-none">
+    <aside className="w-64 h-screen fixed left-0 top-0 bottom-0 bg-[#F4F1EA] dark:bg-[#151A18] border-r border-[#E5E0D8] dark:border-[#28332E] hidden md:flex flex-col justify-between z-30 select-none transition-colors duration-200">
       {/* Top section: Logo & Nav items */}
       <div className="pt-7 px-4">
         {/* Brand Logo */}
@@ -83,7 +93,7 @@ export function Sidebar({ userName = "Account Admin", onLogout }: SidebarProps) 
               <path d="M6 10h10" />
             </svg>
           </div>
-          <span className="font-serif font-bold text-2xl tracking-tight text-[#162B27]">
+          <span className="font-serif font-bold text-2xl tracking-tight text-[#162B27] dark:text-white">
             Hisab Kitab
           </span>
         </Link>
@@ -103,7 +113,7 @@ export function Sidebar({ userName = "Account Admin", onLogout }: SidebarProps) 
                 className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl font-medium text-sm transition-all ${
                   isActive
                     ? "bg-[#0F5C53] text-white shadow-sm font-semibold"
-                    : "text-[#3E4D48] hover:bg-[#EAE4DC] hover:text-[#162B27]"
+                    : "text-[#3E4D48] dark:text-stone-300 hover:bg-[#EAE4DC] dark:hover:bg-[#202925] hover:text-[#162B27] dark:hover:text-white"
                 }`}
               >
                 {item.icon(isActive)}
@@ -115,17 +125,17 @@ export function Sidebar({ userName = "Account Admin", onLogout }: SidebarProps) 
       </div>
 
       {/* Bottom user card */}
-      <div className="p-4 border-t border-[#E5E0D8]">
-        <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#EAE4DC] transition-colors">
+      <div className="p-4 border-t border-[#E5E0D8] dark:border-[#28332E]">
+        <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#EAE4DC] dark:hover:bg-[#202925] transition-colors">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-full bg-[#0F5C53]/15 border border-[#0F5C53]/20 flex items-center justify-center text-[#0F5C53] font-semibold font-serif text-sm flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-[#0F5C53]/15 border border-[#0F5C53]/20 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] font-semibold font-serif text-sm flex-shrink-0">
               {userName.slice(0, 2).toUpperCase()}
             </div>
             <div className="truncate">
-              <p className="text-xs font-semibold text-[#162B27] truncate leading-tight">
+              <p className="text-xs font-semibold text-[#162B27] dark:text-white truncate leading-tight">
                 {userName}
               </p>
-              <p className="text-[10px] uppercase tracking-wider font-bold text-[#0F5C53]/80 mt-0.5">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-[#0F5C53]/80 dark:text-[#34D399] mt-0.5">
                 Premium
               </p>
             </div>

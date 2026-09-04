@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --color-bg: #F6F5F1;
   --color-surface: #FFFFFF;
@@ -253,4 +255,89 @@ h1, h2, h3 {
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   margin-bottom: 1rem;
+}
+
+/* ==========================================================================
+   Dark Mode Engine (System / Dark Theme)
+   ========================================================================== */
+
+html.dark {
+  --color-bg: #111413;
+  --color-surface: #19201D;
+  --color-ink: #F2F5F3;
+  --color-ink-muted: #95A19B;
+  --color-border: #28332E;
+  --color-primary: #10B981;
+  --color-primary-hover: #059669;
+  --color-positive: #22C55E;
+  --color-negative: #EF4444;
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #111413 !important;
+  color: #F2F5F3 !important;
+}
+
+html.dark .bg-white {
+  background-color: #19201D !important;
+}
+
+html.dark .bg-\[\#FAF8F5\],
+html.dark .bg-\[\#F6F5F1\],
+html.dark .bg-\[\#F4F1EA\],
+html.dark .bg-\[\#F2EEE9\] {
+  background-color: #141816 !important;
+}
+
+html.dark .border-\[\#E5E0D8\],
+html.dark .border-\[\#E3E1D9\],
+html.dark .border-\[\#F0ECE6\],
+html.dark .border-\[\#EAE5DC\],
+html.dark .border-\[\#EBE8E1\] {
+  border-color: #28332E !important;
+}
+
+html.dark .text-\[\#162B27\],
+html.dark .text-\[\#1B211F\] {
+  color: #F2F5F3 !important;
+}
+
+html.dark .text-\[\#6B7268\],
+html.dark .text-\[\#5A6863\],
+html.dark .text-\[\#3E4D48\] {
+  color: #95A19B !important;
+}
+
+html.dark .text-stone-400 {
+  color: #6E7C76 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background-color: #141816 !important;
+  color: #F2F5F3 !important;
+  border-color: #28332E !important;
+}
+
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  background-color: #19201D !important;
+  border-color: #10B981 !important;
+}
+
+html.dark .divide-\[\#F0ECE6\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #28332E !important;
+}
+
+html.dark .shadow-xs,
+html.dark .shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+html.dark .shadow-md,
+html.dark .shadow-2xl {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
 }

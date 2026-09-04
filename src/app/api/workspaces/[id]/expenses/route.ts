@@ -12,6 +12,7 @@ const createExpenseSchema = z.object({
     amount: z.number().positive(),
     description: z.string().min(1),
     category: z.string().optional(),
+    accountId: z.string().optional(),
     date: z.string().optional(),
     splits: z.array(shareEntrySchema).min(1),
     payments: z.array(shareEntrySchema).min(1),
@@ -39,7 +40,7 @@ export async function POST(
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { amount, description, category, date, splits, payments } = parsed.data;
+    const { amount, description, category, accountId, date, splits, payments } = parsed.data;
 
     const splitSum = splits.reduce((s, x) => s + x.amount, 0);
     if (Math.abs(splitSum - amount) > 0.01) {
@@ -76,24 +77,49 @@ export async function POST(
         );
     }
 
-    const expense = await prisma.expense.create({
-        data: {
-            amount,
-            description,
-            category,
-            date: date ? new Date(date) : new Date(),
-            workspaceId,
-            splits: {
-                create: splits.map((s) => ({ personId: s.personId, shareAmount: s.amount })),
+    let verifiedAccountId: string | undefined;
+    if (accountId) {
+        const acc = await prisma.account.findUnique({ where: { id: accountId } });
+        if (acc && acc.ownerId === user.id) {
+            verifiedAccountId = acc.id;
+        }
+    }
+
+    // Find how much was paid by user (selfPersonId)
+    const selfPayment = payments.find((p) => p.personId === user.selfPersonId);
+    const selfPaidAmount = selfPayment ? selfPayment.amount : 0;
+
+    const expense = await prisma.$transaction(async (tx) => {
+        const exp = await tx.expense.create({
+            data: {
+                amount,
+                description,
+                category,
+                accountId: verifiedAccountId,
+                date: date ? new Date(date) : new Date(),
+                workspaceId,
+                splits: {
+                    create: splits.map((s) => ({ personId: s.personId, shareAmount: s.amount })),
+                },
+                payments: {
+                    create: payments.map((p) => ({ personId: p.personId, amountPaid: p.amount })),
+                },
             },
-            payments: {
-                create: payments.map((p) => ({ personId: p.personId, amountPaid: p.amount })),
+            include: {
+                splits: { include: { person: true } },
+                payments: { include: { person: true } },
+                account: true,
             },
-        },
-        include: {
-            splits: { include: { person: true } },
-            payments: { include: { person: true } },
-        },
+        });
+
+        if (verifiedAccountId && selfPaidAmount > 0) {
+            await tx.account.update({
+                where: { id: verifiedAccountId },
+                data: { balance: { decrement: selfPaidAmount } },
+            });
+        }
+
+        return exp;
     });
 
     return NextResponse.json({ expense });
@@ -120,6 +146,7 @@ export async function GET(
         include: {
             splits: { include: { person: true } },
             payments: { include: { person: true } },
+            account: true,
         },
         orderBy: { date: "desc" },
     });

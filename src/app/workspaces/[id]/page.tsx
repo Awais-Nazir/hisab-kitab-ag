@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { CategorySelect } from "@/components/CategorySelect";
+import { AccountSelect } from "@/components/AccountSelect";
 import { AppLayout } from "@/components/AppLayout";
 import { useCurrency } from "@/context/CurrencyContext";
+import { calculateEqualSplits } from "@/lib/splits";
 
 interface Person {
   id: string;
@@ -32,11 +34,21 @@ interface Payment {
   person: Person;
 }
 
+interface AccountInfo {
+  id: string;
+  name: string;
+  type: string;
+  color?: string | null;
+  icon?: string | null;
+}
+
 interface Expense {
   id: string;
   amount: string;
   description: string;
   category: string | null;
+  accountId?: string | null;
+  account?: AccountInfo | null;
   date: string;
   splits: Split[];
   payments: Payment[];
@@ -54,8 +66,16 @@ interface Settlement {
   amount: string;
   date: string;
   note: string | null;
+  accountId?: string | null;
+  account?: AccountInfo | null;
   fromPerson: Person;
   toPerson: Person;
+}
+
+interface DateGroup {
+  label: string;
+  dateKey: string;
+  expenses: Expense[];
 }
 
 function todayDateStr() {
@@ -109,6 +129,88 @@ function getCategoryIcon(cat: string | null) {
   );
 }
 
+function groupExpensesByDate(expenses: Expense[]): DateGroup[] {
+  const groups: Record<string, Expense[]> = {};
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const yest = new Date();
+  yest.setDate(yest.getDate() - 1);
+  const yestStr = yest.toISOString().slice(0, 10);
+
+  for (const exp of expenses) {
+    const key = exp.date ? exp.date.slice(0, 10) : todayStr;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(exp);
+  }
+
+  const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+  return sortedKeys.map((key) => {
+    let label = key;
+    if (key === todayStr) {
+      label = "Today";
+    } else if (key === yestStr) {
+      label = "Yesterday";
+    } else {
+      const d = new Date(key + "T12:00:00");
+      label = d.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+      });
+    }
+    return {
+      label,
+      dateKey: key,
+      expenses: groups[key],
+    };
+  });
+}
+
+interface SettlementDateGroup {
+  label: string;
+  dateKey: string;
+  settlements: Settlement[];
+}
+
+function groupSettlementsByDate(settlements: Settlement[]): SettlementDateGroup[] {
+  const groups: Record<string, Settlement[]> = {};
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const yest = new Date();
+  yest.setDate(yest.getDate() - 1);
+  const yestStr = yest.toISOString().slice(0, 10);
+
+  for (const s of settlements) {
+    const key = s.date ? s.date.slice(0, 10) : todayStr;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(s);
+  }
+
+  const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+  return sortedKeys.map((key) => {
+    let label = key;
+    if (key === todayStr) {
+      label = "Today";
+    } else if (key === yestStr) {
+      label = "Yesterday";
+    } else {
+      const d = new Date(key + "T12:00:00");
+      label = d.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+      });
+    }
+    return {
+      label,
+      dateKey: key,
+      settlements: groups[key],
+    };
+  });
+}
+
 export default function WorkspaceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -132,48 +234,69 @@ export default function WorkspaceDetailPage() {
   const [category, setCategory] = useState("");
   const [expDate, setExpDate] = useState(todayDateStr);
   const [expTime, setExpTime] = useState(nowTimeStr);
+  const [accountId, setAccountId] = useState("");
   const [submittingExp, setSubmittingExp] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
-  // Split & Payment config
+  // Payer Configuration: "single" | "multiple"
+  const [payerMode, setPayerMode] = useState<"single" | "multiple">("single");
   const [payerId, setPayerId] = useState("");
+  const [customPayments, setCustomPayments] = useState<Record<string, string>>({});
+
+  // Split Configuration: "equal" | "custom"
+  const [splitMode, setSplitMode] = useState<"equal" | "custom">("equal");
   const [splitSelected, setSplitSelected] = useState<Set<string>>(new Set());
+  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
 
   // Settlement Form State
   const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
+  const [editingSettlementId, setEditingSettlementId] = useState<string | null>(null);
   const [settleFrom, setSettleFrom] = useState("");
   const [settleTo, setSettleTo] = useState("");
   const [settleAmount, setSettleAmount] = useState("");
+  const [settleDate, setSettleDate] = useState(todayDateStr);
+  const [settleAccountId, setSettleAccountId] = useState("");
   const [settling, setSettling] = useState(false);
 
   // Add Member State
   const [selectedContactId, setSelectedContactId] = useState("");
   const [addingMember, setAddingMember] = useState(false);
 
+  const selfMember = members.find((m) => m.person.isSelf);
+  const selfPersonId = selfMember?.personId;
+
   async function loadData() {
+    if (!id) return;
     try {
       const [wsRes, expRes, balRes, setRes, peopleRes] = await Promise.all([
-        apiFetch<{ members: Member[]; workspace: { name: string } }>(`/api/workspaces/${id}/members`),
+        apiFetch<{ members: Member[]; workspace?: { name: string } }>(`/api/workspaces/${id}/members`),
         apiFetch<{ expenses: Expense[] }>(`/api/workspaces/${id}/expenses`),
         apiFetch<{ balances: Balance[] }>(`/api/workspaces/${id}/balances`),
         apiFetch<{ settlements: Settlement[] }>(`/api/workspaces/${id}/settlements`),
         apiFetch<{ people: Person[] }>("/api/people"),
       ]);
-      setWorkspaceName(wsRes.workspace.name);
-      setMembers(wsRes.members);
-      setExpenses(expRes.expenses);
-      setBalances(balRes.balances);
-      setSettlements(setRes.settlements);
-      setContacts(peopleRes.people);
+      setWorkspaceName(wsRes.workspace?.name || "Workspace");
+      setMembers(wsRes.members || []);
+      setExpenses(expRes.expenses || []);
+      setBalances(balRes.balances || []);
+      setSettlements(setRes.settlements || []);
+      setContacts(peopleRes.people || []);
 
       // Default payer and splits if empty
-      if (!payerId && wsRes.members.length > 0) {
+      if (wsRes.members && wsRes.members.length > 0) {
         const selfMem = wsRes.members.find((m) => m.person.isSelf);
-        setPayerId(selfMem?.personId || wsRes.members[0].personId);
-        setSplitSelected(new Set(wsRes.members.map((m) => m.personId)));
+        if (!payerId) {
+          setPayerId(selfMem?.personId || wsRes.members[0].personId);
+        }
+        if (splitSelected.size === 0) {
+          setSplitSelected(new Set(wsRes.members.map((m) => m.personId)));
+        }
       }
-    } catch {
-      router.push("/workspaces");
+    } catch (err) {
+      console.error("Failed to load workspace data:", err);
+      if (err instanceof Error && (err.message.includes("404") || err.message.includes("Not found"))) {
+        router.push("/workspaces");
+      }
     } finally {
       setLoading(false);
     }
@@ -207,40 +330,179 @@ export default function WorkspaceDetailPage() {
     500,
     ...balances.map((b) => Math.abs(b.netBalance) * 1.3)
   );
-  // Calculate percentage offset: 50% is center (0)
   const tiltPercent = Math.max(5, Math.min(95, 50 + (myNet / maxBalanceRange) * 50));
+
+  // Compute equal split map live (with integer rounding and extra remainder to "Me")
+  const parsedAmount = parseFloat(amount) || 0;
+  const equalSplitsMap = useMemo(() => {
+    return calculateEqualSplits(parsedAmount, Array.from(splitSelected), selfPersonId);
+  }, [parsedAmount, splitSelected, selfPersonId]);
+
+  // Check how much "Me" paid in the modal
+  const selfPaidAmountInModal = useMemo(() => {
+    if (payerMode === "single") {
+      return payerId === selfPersonId ? parsedAmount : 0;
+    }
+    return parseFloat(customPayments[selfPersonId || ""] || "0") || 0;
+  }, [payerMode, payerId, selfPersonId, parsedAmount, customPayments]);
+
+  // Custom Paid sum & difference
+  const totalCustomPaid = useMemo(() => {
+    return Object.values(customPayments).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  }, [customPayments]);
+
+  // Custom Split sum & difference
+  const totalCustomSplit = useMemo(() => {
+    return Object.values(customSplits).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  }, [customSplits]);
+
+  function resetExpenseForm() {
+    setEditingExpenseId(null);
+    setAmount("");
+    setDescription("");
+    setCategory("");
+    setAccountId("");
+    setExpDate(todayDateStr());
+    setExpTime(nowTimeStr());
+    setPayerMode("single");
+    const selfMem = members.find((m) => m.person.isSelf);
+    setPayerId(selfMem?.personId || (members[0]?.personId ?? ""));
+    setCustomPayments({});
+    setSplitMode("equal");
+    setSplitSelected(new Set(members.map((m) => m.personId)));
+    setCustomSplits({});
+  }
+
+  function handleOpenEdit(exp: Expense) {
+    setEditingExpenseId(exp.id);
+    setAmount(exp.amount);
+    setDescription(exp.description);
+    setCategory(exp.category || "");
+    setAccountId(exp.accountId || "");
+    setExpDate(exp.date.slice(0, 10));
+    setExpTime(exp.date.slice(11, 16));
+
+    // Configure Payer
+    if (exp.payments.length === 1) {
+      setPayerMode("single");
+      setPayerId(exp.payments[0].personId);
+      setCustomPayments({});
+    } else {
+      setPayerMode("multiple");
+      const cPay: Record<string, string> = {};
+      exp.payments.forEach((p) => {
+        cPay[p.personId] = p.amountPaid;
+      });
+      setCustomPayments(cPay);
+    }
+
+    // Configure Split
+    const expAmt = parseFloat(exp.amount) || 0;
+    const splitIds = exp.splits.map((s) => s.personId);
+    const expectedEqual = calculateEqualSplits(expAmt, splitIds, selfPersonId);
+    const isExactEqual = exp.splits.every(
+      (s) => Math.abs(parseFloat(s.shareAmount) - (expectedEqual[s.personId] ?? 0)) < 0.01
+    );
+
+    if (isExactEqual) {
+      setSplitMode("equal");
+      setSplitSelected(new Set(splitIds));
+      setCustomSplits({});
+    } else {
+      setSplitMode("custom");
+      const cSplit: Record<string, string> = {};
+      exp.splits.forEach((s) => {
+        cSplit[s.personId] = s.shareAmount;
+      });
+      setCustomSplits(cSplit);
+      setSplitSelected(new Set(splitIds));
+    }
+
+    setIsExpenseModalOpen(true);
+  }
 
   async function handleAddExpense(e: React.FormEvent) {
     e.preventDefault();
     if (submittingExp) return;
+
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       alert("Please enter a valid amount");
       return;
     }
-    if (splitSelected.size === 0) {
-      alert("Select at least one member to split with");
-      return;
+
+    // Prepare payments
+    let paymentsPayload: { personId: string; amount: number }[] = [];
+    if (payerMode === "single") {
+      if (!payerId) {
+        alert("Please select who paid for the expense");
+        return;
+      }
+      paymentsPayload = [{ personId: payerId, amount: numAmount }];
+    } else {
+      paymentsPayload = members
+        .map((m) => ({
+          personId: m.personId,
+          amount: parseFloat(customPayments[m.personId] || "0") || 0,
+        }))
+        .filter((p) => p.amount > 0);
+
+      const sumPaid = paymentsPayload.reduce((s, p) => s + p.amount, 0);
+      if (Math.abs(sumPaid - numAmount) > 0.01) {
+        alert(
+          `Total paid (${symbol}${sumPaid.toFixed(2)}) must equal total amount (${symbol}${numAmount.toFixed(2)}). Difference: ${symbol}${Math.abs(sumPaid - numAmount).toFixed(2)}`
+        );
+        return;
+      }
+    }
+
+    // Prepare splits
+    let splitsPayload: { personId: string; amount: number }[] = [];
+    if (splitMode === "equal") {
+      const splitArray = Array.from(splitSelected);
+      if (splitArray.length === 0) {
+        alert("Select at least one member to split with");
+        return;
+      }
+      const splitsMap = calculateEqualSplits(numAmount, splitArray, selfPersonId);
+      splitsPayload = splitArray.map((personId) => ({
+        personId,
+        amount: splitsMap[personId] ?? 0,
+      }));
+    } else {
+      splitsPayload = members
+        .map((m) => ({
+          personId: m.personId,
+          amount: parseFloat(customSplits[m.personId] || "0") || 0,
+        }))
+        .filter((s) => s.amount > 0);
+
+      const sumSplit = splitsPayload.reduce((s, x) => s + x.amount, 0);
+      if (Math.abs(sumSplit - numAmount) > 0.01) {
+        alert(
+          `Total split (${symbol}${sumSplit.toFixed(2)}) must equal total amount (${symbol}${numAmount.toFixed(2)}). Difference: ${symbol}${Math.abs(sumSplit - numAmount).toFixed(2)}`
+        );
+        return;
+      }
+    }
+
+    // Check if account is required when "Me" paid
+    const myPayment = paymentsPayload.find((p) => p.personId === selfPersonId);
+    if (myPayment && myPayment.amount > 0 && !accountId) {
+      const confirmNoAccount = confirm("You haven't selected an account (Kaha se hoyi ha). Proceed without deducting from an account?");
+      if (!confirmNoAccount) return;
     }
 
     setSubmittingExp(true);
     try {
-      const splitArray = Array.from(splitSelected);
-      const splitShare = Math.round((numAmount / splitArray.length) * 100) / 100;
-      const splits = splitArray.map((personId) => ({
-        personId,
-        amount: splitShare,
-      }));
-
-      const payments = [{ personId: payerId, amount: numAmount }];
-
       const payload = {
         amount: numAmount,
         description,
         category: category || undefined,
+        accountId: myPayment && myPayment.amount > 0 && accountId ? accountId : undefined,
         date: new Date(`${expDate}T${expTime}`).toISOString(),
-        payments,
-        splits,
+        payments: paymentsPayload,
+        splits: splitsPayload,
       };
 
       if (editingExpenseId) {
@@ -255,10 +517,7 @@ export default function WorkspaceDetailPage() {
         });
       }
 
-      setAmount("");
-      setDescription("");
-      setCategory("");
-      setEditingExpenseId(null);
+      resetExpenseForm();
       setIsExpenseModalOpen(false);
       await loadData();
     } catch (err) {
@@ -296,21 +555,45 @@ export default function WorkspaceDetailPage() {
     }
   }
 
+  function handleOpenEditSettle(s: Settlement) {
+    setEditingSettlementId(s.id);
+    setSettleFrom(s.fromPerson.id);
+    setSettleTo(s.toPerson.id);
+    setSettleAmount(Math.round(parseFloat(s.amount)).toString());
+    setSettleAccountId(s.accountId || "");
+    setSettleDate(s.date ? s.date.slice(0, 10) : todayDateStr());
+    setIsSettleModalOpen(true);
+  }
+
   async function handleSubmitSettle(e: React.FormEvent) {
     e.preventDefault();
     if (settling || !settleFrom || !settleTo || settleFrom === settleTo) return;
     setSettling(true);
     try {
-      await apiFetch(`/api/workspaces/${id}/settlements`, {
-        method: "POST",
-        body: JSON.stringify({
-          fromPersonId: settleFrom,
-          toPersonId: settleTo,
-          amount: parseFloat(settleAmount),
-          date: new Date().toISOString(),
-        }),
-      });
+      const payload = {
+        fromPersonId: settleFrom,
+        toPersonId: settleTo,
+        amount: parseFloat(settleAmount),
+        accountId: settleAccountId || undefined,
+        date: new Date(`${settleDate}T12:00:00`).toISOString(),
+      };
+
+      if (editingSettlementId) {
+        await apiFetch(`/api/workspaces/${id}/settlements/${editingSettlementId}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiFetch(`/api/workspaces/${id}/settlements`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+      }
+
+      setEditingSettlementId(null);
       setSettleAmount("");
+      setSettleAccountId("");
+      setSettleDate(todayDateStr());
       setIsSettleModalOpen(false);
       await loadData();
     } catch (err) {
@@ -334,6 +617,9 @@ export default function WorkspaceDetailPage() {
     (c) => !members.some((m) => m.personId === c.id)
   );
 
+  const groupedExpenses = useMemo(() => groupExpensesByDate(expenses), [expenses]);
+  const groupedSettlements = useMemo(() => groupSettlementsByDate(settlements), [settlements]);
+
   if (loading) {
     return (
       <AppLayout title="Workspace" subtitle="Shared Ledger">
@@ -346,10 +632,14 @@ export default function WorkspaceDetailPage() {
     <AppLayout
       title={workspaceName || "Workspace"}
       subtitle="Shared Ledger"
-      onAddEntry={() => setIsExpenseModalOpen(true)}
+      onAddEntry={() => {
+        resetExpenseForm();
+        setIsExpenseModalOpen(true);
+      }}
+      addEntryLabel="Add Expense"
     >
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header Bar matching Figma */}
+        {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -376,7 +666,7 @@ export default function WorkspaceDetailPage() {
               onClick={() => {
                 setSettleFrom(myNet < 0 ? (selfBalanceObj?.personId ?? "") : "");
                 setSettleTo(myNet > 0 ? (selfBalanceObj?.personId ?? "") : "");
-                setSettleAmount(Math.abs(myNet) > 0 ? Math.abs(myNet).toFixed(2) : "");
+                setSettleAmount(Math.abs(myNet) > 0 ? Math.abs(myNet).toFixed(0) : "");
                 setIsSettleModalOpen(true);
               }}
               className="bg-[#FAF8F5] hover:bg-[#F2EEE9] border border-[#E5E0D8] text-[#162B27] px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
@@ -385,10 +675,7 @@ export default function WorkspaceDetailPage() {
             </button>
             <button
               onClick={() => {
-                setEditingExpenseId(null);
-                setAmount("");
-                setDescription("");
-                setCategory("");
+                resetExpenseForm();
                 setIsExpenseModalOpen(true);
               }}
               className="bg-[#0F5C53] hover:bg-[#0A3F38] text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
@@ -401,7 +688,7 @@ export default function WorkspaceDetailPage() {
           </div>
         </div>
 
-        {/* Hero Tug-of-War Balance Equilibrium Card matching Figma */}
+        {/* Hero Tug-of-War Balance Equilibrium Card */}
         <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 sm:p-8 shadow-xs">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
             {/* Left: Your Net Position */}
@@ -410,7 +697,7 @@ export default function WorkspaceDetailPage() {
                 Your Net Position
               </span>
               <div className={`font-serif font-bold text-3xl sm:text-4xl mt-1 ${myNet > 0 ? "text-[#1E7D46]" : myNet < 0 ? "text-[#A8441F]" : "text-[#162B27]"}`}>
-                {myNet > 0 ? "+" : myNet < 0 ? "-" : ""}{symbol}{Math.abs(myNet).toFixed(2)}
+                {myNet > 0 ? "+" : myNet < 0 ? "-" : ""}{symbol}{Math.round(Math.abs(myNet))}
               </div>
               <p className="text-xs text-[#6B7268] mt-1">
                 {myNet > 0
@@ -437,9 +724,7 @@ export default function WorkspaceDetailPage() {
 
               {/* Equilibrium Track */}
               <div className="relative w-full h-3.5 bg-[#EAE5DC] rounded-full overflow-hidden my-2">
-                {/* Center marker line */}
                 <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-stone-400 z-10" />
-                {/* Active Tug fill */}
                 {myNet >= 0 ? (
                   <div
                     className="absolute top-0 bottom-0 bg-[#0F5C53] rounded-r-full transition-all duration-500"
@@ -467,9 +752,9 @@ export default function WorkspaceDetailPage() {
               </div>
 
               <div className="flex items-center justify-between text-[10px] text-[#6B7268] mt-1 font-medium">
-                <span>-{symbol}{maxBalanceRange.toFixed(0)}</span>
-                <span className="text-stone-400">0.00</span>
-                <span>+{symbol}{maxBalanceRange.toFixed(0)}</span>
+                <span>-{symbol}{Math.round(maxBalanceRange)}</span>
+                <span className="text-stone-400">0</span>
+                <span>+{symbol}{Math.round(maxBalanceRange)}</span>
               </div>
             </div>
 
@@ -480,7 +765,7 @@ export default function WorkspaceDetailPage() {
                   Total Shared Spend
                 </span>
                 <span className="font-serif font-bold text-lg text-[#162B27]">
-                  {symbol}{totalSpend.toFixed(2)}
+                  {symbol}{Math.round(totalSpend)}
                 </span>
               </div>
               <div>
@@ -488,18 +773,18 @@ export default function WorkspaceDetailPage() {
                   You Paid / Fair Share
                 </span>
                 <span className="text-xs font-semibold text-[#162B27]">
-                  {symbol}{myPaid.toFixed(2)} <span className="text-stone-400">/</span> {symbol}{myShare.toFixed(2)}
+                  {symbol}{Math.round(myPaid)} <span className="text-stone-400">/</span> {symbol}{Math.round(myShare)}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Main Content: 2-Column Grid matching Figma */}
+        {/* Main Content: 2-Column Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* Main Column (2 Cols): Transactions & Settlements Feed */}
           <div className="lg:col-span-2 space-y-5">
-            {/* Filter Tabs matching Figma */}
+            {/* Filter Tabs */}
             <div className="flex items-center justify-between">
               <div className="flex bg-[#FAF8F5] border border-[#E5E0D8] p-1 rounded-xl text-xs font-medium">
                 <button
@@ -542,89 +827,116 @@ export default function WorkspaceDetailPage() {
               </span>
             </div>
 
-            {/* Expenses List */}
+            {/* Date-wise Grouped Expenses List */}
             {filterTab !== "settlements" && (
-              <div className="space-y-3">
-                {expenses.map((exp) => {
-                  const myPaidSplit = exp.payments.find((p) => p.person.isSelf);
-                  const myShareSplit = exp.splits.find((s) => s.person.isSelf);
-                  const paidByMe = myPaidSplit ? parseFloat(myPaidSplit.amountPaid) : 0;
-                  const myShareAmt = myShareSplit ? parseFloat(myShareSplit.shareAmount) : 0;
-                  const impact = paidByMe - myShareAmt;
-
-                  const payerText = exp.payments.map((p) => (p.person.isSelf ? "You" : p.person.name)).join(", ");
-
-                  return (
-                    <div
-                      key={exp.id}
-                      className="bg-white border border-[#E5E0D8] rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between hover:border-[#0F5C53]/40 transition-colors"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] border border-[#E5E0D8] text-[#0F5C53] flex items-center justify-center flex-shrink-0">
-                          {getCategoryIcon(exp.category)}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm text-[#162B27]">
-                            {exp.description}
-                          </p>
-                          <p className="text-xs text-[#6B7268] mt-0.5">
-                            Paid by <span className="font-medium text-[#162B27]">{payerText}</span> • Split between {exp.splits.length} {exp.splits.length === 1 ? "person" : "people"} • {new Date(exp.date).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <span className="font-serif font-bold text-sm text-[#162B27] block">
-                            {symbol}{Number(exp.amount).toFixed(2)}
-                          </span>
-                          {/* Personal Impact Chip matching Figma */}
-                          <span
-                            className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md mt-0.5 ${
-                              impact > 0
-                                ? "bg-emerald-50 text-[#1E7D46] border border-emerald-200"
-                                : impact < 0
-                                ? "bg-rose-50 text-[#A8441F] border border-rose-200"
-                                : "bg-stone-50 text-stone-600 border border-stone-200"
-                            }`}
-                          >
-                            {impact > 0 ? `+${symbol}${impact.toFixed(2)} to balance` : impact < 0 ? `-${symbol}${Math.abs(impact).toFixed(2)} to balance` : "0.00 net"}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingExpenseId(exp.id);
-                              setAmount(exp.amount);
-                              setDescription(exp.description);
-                              setCategory(exp.category || "");
-                              setExpDate(exp.date.slice(0, 10));
-                              setExpTime(exp.date.slice(11, 16));
-                              setIsExpenseModalOpen(true);
-                            }}
-                            className="p-1 text-stone-400 hover:text-stone-700 text-xs cursor-pointer"
-                            title="Edit"
-                          >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteExpense(exp.id)}
-                            className="p-1 text-stone-400 hover:text-rose-600 text-xs cursor-pointer"
-                            title="Delete"
-                          >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
+              <div className="space-y-6">
+                {groupedExpenses.map((group) => (
+                  <div key={group.dateKey} className="space-y-2.5">
+                    {/* Date Header matching Dashboard */}
+                    <div className="flex items-center gap-3 pt-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7268] bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[#E5E0D8]">
+                        {group.label}
+                      </span>
+                      <div className="flex-1 h-[1px] bg-[#EBE8E1]" />
+                      <span className="text-[11px] text-[#6B7268] font-medium">
+                        {group.expenses.length} {group.expenses.length === 1 ? "expense" : "expenses"}
+                      </span>
                     </div>
-                  );
-                })}
+
+                    {/* Expenses under this date */}
+                    <div className="space-y-2.5">
+                      {group.expenses.map((exp) => {
+                        const myPaidSplit = exp.payments.find((p) => p.person.isSelf);
+                        const myShareSplit = exp.splits.find((s) => s.person.isSelf);
+                        const paidByMe = myPaidSplit ? parseFloat(myPaidSplit.amountPaid) : 0;
+                        const myShareAmt = myShareSplit ? parseFloat(myShareSplit.shareAmount) : 0;
+                        const impact = Math.round(paidByMe - myShareAmt);
+
+                        const payerText = exp.payments
+                          .map((p) => {
+                            const name = p.person.isSelf ? "You" : p.person.name;
+                            return exp.payments.length > 1
+                              ? `${name} (${symbol}${Math.round(parseFloat(p.amountPaid))})`
+                              : name;
+                          })
+                          .join(", ");
+
+                        return (
+                          <div
+                            key={exp.id}
+                            className="bg-white border border-[#E5E0D8] rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between hover:border-[#0F5C53]/40 transition-colors"
+                          >
+                            <div className="flex items-center gap-3.5">
+                              <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] border border-[#E5E0D8] text-[#0F5C53] flex items-center justify-center flex-shrink-0">
+                                {getCategoryIcon(exp.category)}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-semibold text-sm text-[#162B27]">
+                                    {exp.description}
+                                  </p>
+                                  {exp.account && (
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 text-[#0F5C53] border border-emerald-200">
+                                      💳 {exp.account.name}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-[#6B7268] mt-0.5">
+                                  Paid by <span className="font-medium text-[#162B27]">{payerText}</span> • Split between {exp.splits.length} {exp.splits.length === 1 ? "person" : "people"}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <span className="font-serif font-bold text-sm text-[#162B27] block">
+                                  {symbol}{Math.round(parseFloat(exp.amount))}
+                                </span>
+                                <span
+                                  className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md mt-0.5 ${
+                                    impact > 0
+                                      ? "bg-emerald-50 text-[#1E7D46] border border-emerald-200"
+                                      : impact < 0
+                                      ? "bg-rose-50 text-[#A8441F] border border-rose-200"
+                                      : "bg-stone-50 text-stone-600 border border-stone-200"
+                                  }`}
+                                >
+                                  {impact > 0
+                                    ? `+${symbol}${impact} to balance`
+                                    : impact < 0
+                                    ? `-${symbol}${Math.abs(impact)} to balance`
+                                    : "0 net"}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleOpenEdit(exp)}
+                                  className="p-1 text-stone-400 hover:text-stone-700 text-xs cursor-pointer"
+                                  title="Edit"
+                                >
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteExpense(exp.id)}
+                                  className="p-1 text-stone-400 hover:text-rose-600 text-xs cursor-pointer"
+                                  title="Delete"
+                                >
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
 
                 {expenses.length === 0 && (
                   <div className="bg-white border border-dashed border-[#E5E0D8] rounded-2xl p-12 text-center text-[#6B7268]">
@@ -635,43 +947,74 @@ export default function WorkspaceDetailPage() {
               </div>
             )}
 
-            {/* Settlements List */}
+            {/* Settlements List Grouped by Date */}
             {filterTab !== "expenses" && settlements.length > 0 && (
-              <div className="space-y-3 pt-2">
+              <div className="space-y-4 pt-2">
                 <div className="text-[11px] uppercase tracking-wider font-bold text-[#6B7268] flex items-center gap-2">
                   <span>Settlement History</span>
                   <span className="flex-1 h-[1px] bg-[#EBE8E1]" />
                 </div>
-                {settlements.map((s) => (
-                  <div
-                    key={s.id}
-                    className="bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl p-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-100 text-[#0F5C53] flex items-center justify-center">
-                        ✓
-                      </div>
-                      <div>
-                        <p className="font-medium text-xs text-[#162B27]">
-                          <span className="font-bold">{s.fromPerson.isSelf ? "You" : s.fromPerson.name}</span> paid{" "}
-                          <span className="font-bold">{s.toPerson.isSelf ? "You" : s.toPerson.name}</span>
-                        </p>
-                        <p className="text-[11px] text-[#6B7268] mt-0.5">
-                          {new Date(s.date).toLocaleDateString()}
-                        </p>
-                      </div>
+                {groupedSettlements.map((group) => (
+                  <div key={group.dateKey} className="space-y-2">
+                    <div className="text-[11px] font-bold text-[#6B7268] uppercase tracking-wider px-1">
+                      {group.label}
                     </div>
+                    <div className="space-y-2.5">
+                      {group.settlements.map((s) => (
+                        <div
+                          key={s.id}
+                          className="bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl p-4 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-[#0F5C53] flex items-center justify-center font-bold text-xs">
+                              ✓
+                            </div>
+                            <div>
+                              <p className="font-medium text-xs text-[#162B27]">
+                                <span className="font-bold">{s.fromPerson.isSelf ? "You" : s.fromPerson.name}</span> paid{" "}
+                                <span className="font-bold">{s.toPerson.isSelf ? "You" : s.toPerson.name}</span>
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-[11px] text-[#6B7268]">
+                                  {new Date(s.date).toLocaleDateString()}
+                                </p>
+                                {s.account && (
+                                  <span className="text-[10px] px-2 py-0.2 rounded-full bg-emerald-50 text-[#0F5C53] border border-emerald-200 font-medium">
+                                    💳 {s.account.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className="font-serif font-bold text-sm text-[#0F5C53]">
-                        {symbol}{Number(s.amount).toFixed(2)}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteSettle(s.id)}
-                        className="text-stone-400 hover:text-rose-600 text-xs cursor-pointer p-1"
-                      >
-                        ✕
-                      </button>
+                          <div className="flex items-center gap-3">
+                            <span className="font-serif font-bold text-sm text-[#0F5C53]">
+                              {symbol}{Math.round(parseFloat(s.amount))}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleOpenEditSettle(s)}
+                                className="p-1 text-stone-400 hover:text-stone-700 text-xs cursor-pointer"
+                                title="Edit settlement"
+                              >
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSettle(s.id)}
+                                className="p-1 text-stone-400 hover:text-rose-600 text-xs cursor-pointer"
+                                title="Delete settlement"
+                              >
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -679,9 +1022,8 @@ export default function WorkspaceDetailPage() {
             )}
           </div>
 
-          {/* Side Rail (1 Col): Members List & Quick Actions matching Figma */}
+          {/* Side Rail (1 Col): Members List & Quick Actions */}
           <div className="space-y-6">
-            {/* Members & Balances Card */}
             <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 shadow-xs">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-serif font-bold text-xl text-[#162B27]">
@@ -709,15 +1051,15 @@ export default function WorkspaceDetailPage() {
                         </p>
                         <p className={`text-[11px] font-medium ${b.netBalance > 0 ? "text-[#1E7D46]" : b.netBalance < 0 ? "text-[#A8441F]" : "text-stone-400"}`}>
                           {b.netBalance > 0
-                            ? `Owed ${symbol}${b.netBalance.toFixed(2)}`
+                            ? `Owed ${symbol}${Math.round(b.netBalance)}`
                             : b.netBalance < 0
-                            ? `Owes ${symbol}${Math.abs(b.netBalance).toFixed(2)}`
+                            ? `Owes ${symbol}${Math.round(Math.abs(b.netBalance))}`
                             : "Settled"}
                         </p>
                       </div>
                     </div>
 
-                    {!b.isSelf && Math.abs(b.netBalance) > 0.01 && (
+                    {!b.isSelf && Math.abs(b.netBalance) > 0.5 && (
                       <button
                         onClick={() => {
                           if (b.netBalance < 0) {
@@ -729,7 +1071,7 @@ export default function WorkspaceDetailPage() {
                             setSettleFrom(selfBalanceObj?.personId ?? "");
                             setSettleTo(b.personId);
                           }
-                          setSettleAmount(Math.abs(b.netBalance).toFixed(2));
+                          setSettleAmount(Math.round(Math.abs(b.netBalance)).toString());
                           setIsSettleModalOpen(true);
                         }}
                         className="text-[11px] font-semibold text-[#0F5C53] hover:underline cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-[#E5E0D8]"
@@ -779,31 +1121,37 @@ export default function WorkspaceDetailPage() {
         </div>
       </div>
 
-      {/* Add / Edit Shared Expense Modal */}
+      {/* Add / Edit Shared Expense Modal with Custom Paid, Custom Split & Account Select */}
       {isExpenseModalOpen && (
         <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 max-w-lg w-full shadow-2xl my-8">
+          <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27]">
-                {editingExpenseId ? "Edit Shared Expense" : "Add Shared Expense"}
-              </h3>
+              <div>
+                <h3 className="font-serif font-bold text-xl text-[#162B27]">
+                  {editingExpenseId ? "Edit Shared Expense" : "Add Shared Expense"}
+                </h3>
+                <p className="text-xs text-[#6B7268] mt-0.5">
+                  Whole integer splits • Remainder to you • Track payment source
+                </p>
+              </div>
               <button
                 onClick={() => setIsExpenseModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 cursor-pointer"
+                className="p-1 text-stone-400 hover:text-stone-700 cursor-pointer text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleAddExpense} className="space-y-4">
+              {/* Amount & Description */}
               <div>
                 <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
                   Amount ({symbol})
                 </label>
                 <input
                   type="number"
-                  step="0.01"
-                  placeholder="0.00"
+                  step="1"
+                  placeholder="0"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
@@ -826,62 +1174,341 @@ export default function WorkspaceDetailPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Paid By</label>
-                  <select
-                    value={payerId}
-                    onChange={(e) => setPayerId(e.target.value)}
-                    className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 text-[#162B27]"
-                  >
-                    {members.map((m) => (
-                      <option key={m.personId} value={m.personId}>
-                        {m.person.isSelf ? "You" : m.person.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Category</label>
-                  <CategorySelect value={category} onChange={setCategory} />
-                </div>
-              </div>
-
-              {/* Split With Selectors */}
+              {/* Category */}
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-2">
-                  Split Equally With:
+                <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                  Category
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {members.map((m) => {
-                    const isChecked = splitSelected.has(m.personId);
-                    return (
-                      <label
-                        key={m.personId}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                          isChecked
-                            ? "bg-emerald-50/60 border-[#0F5C53] text-[#0F5C53] font-semibold"
-                            : "bg-[#FAF8F5] border-[#E5E0D8] text-[#6B7268]"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {
-                            const next = new Set(splitSelected);
-                            if (next.has(m.personId)) next.delete(m.personId);
-                            else next.add(m.personId);
-                            setSplitSelected(next);
-                          }}
-                          className="w-3.5 h-3.5 accent-[#0F5C53]"
-                        />
-                        <span>{m.person.isSelf ? "You" : m.person.name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+                <CategorySelect value={category} onChange={setCategory} />
               </div>
 
+              {/* PAYER SECTION (Single vs Multiple / Custom Paid) */}
+              <div className="p-3.5 bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] uppercase font-bold text-[#162B27] tracking-wider">
+                    Who Paid?
+                  </label>
+                  <div className="flex bg-stone-200/60 p-0.5 rounded-lg text-[11px] font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setPayerMode("single")}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        payerMode === "single"
+                          ? "bg-white text-[#0F5C53] font-bold shadow-xs"
+                          : "text-[#6B7268]"
+                      }`}
+                    >
+                      Single Payer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPayerMode("multiple");
+                        if (Object.keys(customPayments).length === 0 && payerId) {
+                          setCustomPayments({ [payerId]: amount });
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        payerMode === "multiple"
+                          ? "bg-white text-[#0F5C53] font-bold shadow-xs"
+                          : "text-[#6B7268]"
+                      }`}
+                    >
+                      Multiple / Custom Paid
+                    </button>
+                  </div>
+                </div>
+
+                {payerMode === "single" ? (
+                  <div>
+                    <select
+                      value={payerId}
+                      onChange={(e) => setPayerId(e.target.value)}
+                      className="w-full text-xs bg-white border border-[#E5E0D8] rounded-xl px-3 py-2 text-[#162B27] font-medium"
+                    >
+                      {members.map((m) => (
+                        <option key={m.personId} value={m.personId}>
+                          {m.person.isSelf ? "You (Paid full amount)" : `${m.person.name} (Paid full amount)`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {members.map((m) => {
+                        const val = customPayments[m.personId] || "";
+                        return (
+                          <div key={m.personId} className="flex items-center gap-2 bg-white border border-[#E5E0D8] p-2 rounded-xl">
+                            <span className="text-xs font-medium text-[#162B27] flex-1 truncate">
+                              {m.person.isSelf ? "You" : m.person.name}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-[#6B7268]">{symbol}</span>
+                              <input
+                                type="number"
+                                step="1"
+                                placeholder="0"
+                                value={val}
+                                onChange={(e) => {
+                                  setCustomPayments({
+                                    ...customPayments,
+                                    [m.personId]: e.target.value,
+                                  });
+                                }}
+                                className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] border border-[#E5E0D8] rounded-lg px-2 py-1 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Paid Validation status */}
+                    <div className="flex items-center justify-between text-[11px] pt-1 px-1">
+                      <span className="text-[#6B7268]">
+                        Total Paid:{" "}
+                        <strong className="text-[#162B27]">
+                          {symbol}{totalCustomPaid.toFixed(0)}
+                        </strong>{" "}
+                        / {symbol}{parsedAmount.toFixed(0)}
+                      </span>
+                      {Math.abs(totalCustomPaid - parsedAmount) < 0.01 && parsedAmount > 0 ? (
+                        <span className="text-emerald-700 font-bold">✓ Matches total</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!selfPersonId) return;
+                            const otherPaid = Object.entries(customPayments).reduce(
+                              (sum, [pid, v]) => (pid === selfPersonId ? sum : sum + (parseFloat(v) || 0)),
+                              0
+                            );
+                            const rem = Math.max(0, parsedAmount - otherPaid);
+                            setCustomPayments({
+                              ...customPayments,
+                              [selfPersonId]: rem.toFixed(0),
+                            });
+                          }}
+                          className="text-[#0F5C53] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
+                        >
+                          Fill remainder to You
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ACCOUNT SELECTION: Shown whenever "Me" is paying (Kaha se hoyi ha) */}
+              {selfPaidAmountInModal > 0 && (
+                <div className="p-3.5 bg-emerald-50/50 border border-emerald-200 rounded-2xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] uppercase font-bold text-[#0F5C53] tracking-wider">
+                      Paid From Account (Kaha se hoyi ha)
+                    </label>
+                    <span className="text-[10px] text-emerald-800 font-medium">
+                      Your payment: {symbol}{Math.round(selfPaidAmountInModal)}
+                    </span>
+                  </div>
+                  <AccountSelect
+                    value={accountId}
+                    onChange={setAccountId}
+                    label=""
+                    placeholder="Select payment source (Cash, NayaPay, SadaPay...)"
+                  />
+                  <p className="text-[10px] text-[#6B7268] mt-1">
+                    Deducts {symbol}{Math.round(selfPaidAmountInModal)} directly from this account balance.
+                  </p>
+                </div>
+              )}
+
+              {/* SPLIT SECTION (Equal vs Custom Split) */}
+              <div className="p-3.5 bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-[11px] uppercase font-bold text-[#162B27] tracking-wider block">
+                      Split Between
+                    </label>
+                  </div>
+                  <div className="flex bg-stone-200/60 p-0.5 rounded-lg text-[11px] font-medium">
+                    <button
+                      type="button"
+                      onClick={() => setSplitMode("equal")}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        splitMode === "equal"
+                          ? "bg-white text-[#0F5C53] font-bold shadow-xs"
+                          : "text-[#6B7268]"
+                      }`}
+                    >
+                      Equal (Integer)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSplitMode("custom");
+                        if (Object.keys(customSplits).length === 0) {
+                          const initial: Record<string, string> = {};
+                          for (const m of members) {
+                            if (splitSelected.has(m.personId)) {
+                              initial[m.personId] = (equalSplitsMap[m.personId] || 0).toString();
+                            }
+                          }
+                          setCustomSplits(initial);
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        splitMode === "custom"
+                          ? "bg-white text-[#0F5C53] font-bold shadow-xs"
+                          : "text-[#6B7268]"
+                      }`}
+                    >
+                      Custom Amounts
+                    </button>
+                  </div>
+                </div>
+
+                {splitMode === "equal" ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {members.map((m) => {
+                        const isChecked = splitSelected.has(m.personId);
+                        const assignedShare = isChecked ? equalSplitsMap[m.personId] || 0 : 0;
+                        const isSelf = m.person.isSelf;
+                        const baseShare = splitSelected.size > 0 ? Math.floor(parsedAmount / splitSelected.size) : 0;
+                        const hasExtraRupee = isSelf && isChecked && assignedShare > baseShare;
+
+                        return (
+                          <label
+                            key={m.personId}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                              isChecked
+                                ? "bg-white border-[#0F5C53] shadow-xs"
+                                : "bg-[#FAF8F5] border-[#E5E0D8] text-stone-400 opacity-60"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  const next = new Set(splitSelected);
+                                  if (next.has(m.personId)) next.delete(m.personId);
+                                  else next.add(m.personId);
+                                  setSplitSelected(next);
+                                }}
+                                className="w-3.5 h-3.5 accent-[#0F5C53]"
+                              />
+                              <span className="font-semibold text-[#162B27]">
+                                {isSelf ? "You" : m.person.name}
+                              </span>
+                            </div>
+
+                            {isChecked && parsedAmount > 0 && (
+                              <div className="text-right">
+                                <span className="font-mono font-bold text-[#0F5C53]">
+                                  {symbol}{assignedShare}
+                                </span>
+                                {hasExtraRupee && (
+                                  <span className="block text-[9px] font-bold text-amber-700">
+                                    (+{assignedShare - baseShare} remainder to you)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-[#6B7268] pt-1">
+                      No fractions or decimals. Any remainder is assigned to You to keep sums exact.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {members.map((m) => {
+                        const val = customSplits[m.personId] || "";
+                        return (
+                          <div key={m.personId} className="flex items-center gap-2 bg-white border border-[#E5E0D8] p-2 rounded-xl">
+                            <span className="text-xs font-medium text-[#162B27] flex-1 truncate">
+                              {m.person.isSelf ? "You" : m.person.name}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-[#6B7268]">{symbol}</span>
+                              <input
+                                type="number"
+                                step="1"
+                                placeholder="0"
+                                value={val}
+                                onChange={(e) => {
+                                  setCustomSplits({
+                                    ...customSplits,
+                                    [m.personId]: e.target.value,
+                                  });
+                                }}
+                                className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] border border-[#E5E0D8] rounded-lg px-2 py-1 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Split Validation status */}
+                    <div className="flex items-center justify-between text-[11px] pt-1 px-1">
+                      <span className="text-[#6B7268]">
+                        Total Split:{" "}
+                        <strong className="text-[#162B27]">
+                          {symbol}{totalCustomSplit.toFixed(0)}
+                        </strong>{" "}
+                        / {symbol}{parsedAmount.toFixed(0)}
+                      </span>
+                      {Math.abs(totalCustomSplit - parsedAmount) < 0.01 && parsedAmount > 0 ? (
+                        <span className="text-emerald-700 font-bold">✓ Matches total</span>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const eq = calculateEqualSplits(parsedAmount, members.map((m) => m.personId), selfPersonId);
+                              const mapped: Record<string, string> = {};
+                              for (const [pid, amt] of Object.entries(eq)) {
+                                mapped[pid] = amt.toString();
+                              }
+                              setCustomSplits(mapped);
+                            }}
+                            className="text-[#0F5C53] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
+                          >
+                            Divide Evenly
+                          </button>
+                          {selfPersonId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const otherSplits = Object.entries(customSplits).reduce(
+                                  (sum, [pid, v]) => (pid === selfPersonId ? sum : sum + (parseFloat(v) || 0)),
+                                  0
+                                );
+                                const rem = Math.max(0, parsedAmount - otherSplits);
+                                setCustomSplits({
+                                  ...customSplits,
+                                  [selfPersonId]: rem.toFixed(0),
+                                });
+                              }}
+                              className="text-[#0F5C53] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
+                            >
+                              Remainder to You
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Date & Time */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Date</label>
@@ -905,6 +1532,7 @@ export default function WorkspaceDetailPage() {
                 </div>
               </div>
 
+              {/* Action Buttons */}
               <div className="pt-3 flex gap-2">
                 <button
                   type="button"
@@ -926,16 +1554,19 @@ export default function WorkspaceDetailPage() {
         </div>
       )}
 
-      {/* Record Settlement Modal */}
+      {/* Record / Edit Settlement Modal */}
       {isSettleModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 max-w-sm w-full shadow-2xl">
+        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27]">
-                Record Settlement
+                {editingSettlementId ? "Edit Settlement" : "Record Settlement"}
               </h3>
               <button
-                onClick={() => setIsSettleModalOpen(false)}
+                onClick={() => {
+                  setEditingSettlementId(null);
+                  setIsSettleModalOpen(false);
+                }}
                 className="p-1 text-stone-400 hover:text-stone-700 cursor-pointer"
               >
                 ✕
@@ -977,25 +1608,64 @@ export default function WorkspaceDetailPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
-                  Amount ({symbol})
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={settleAmount}
-                  onChange={(e) => setSettleAmount(e.target.value)}
-                  required
-                  className="w-full text-xl font-serif font-bold bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3 py-2 text-[#162B27]"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                    Amount ({symbol})
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    placeholder="0"
+                    value={settleAmount}
+                    onChange={(e) => setSettleAmount(e.target.value)}
+                    required
+                    className="w-full text-lg font-serif font-bold bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3 py-2 text-[#162B27]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={settleDate}
+                    onChange={(e) => setSettleDate(e.target.value)}
+                    required
+                    className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 text-[#162B27]"
+                  />
+                </div>
               </div>
+
+              {/* Account Selection if user is involved */}
+              {(settleTo === selfPersonId || settleFrom === selfPersonId) && (
+                <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-[#0F5C53] tracking-wider block">
+                    {settleTo === selfPersonId
+                      ? "Deposit into Account (Kaha aayenge)"
+                      : "Pay from Account (Kaha se de rahe ho)"}
+                  </label>
+                  <AccountSelect
+                    value={settleAccountId}
+                    onChange={setSettleAccountId}
+                    label=""
+                    placeholder={settleTo === selfPersonId ? "Select deposit account..." : "Select payment account..."}
+                  />
+                  <p className="text-[10px] text-[#6B7268]">
+                    {settleTo === selfPersonId
+                      ? "Amount will be added directly to this account balance."
+                      : "Amount will be deducted directly from this account balance."}
+                  </p>
+                </div>
+              )}
 
               <div className="pt-2 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsSettleModalOpen(false)}
+                  onClick={() => {
+                    setEditingSettlementId(null);
+                    setIsSettleModalOpen(false);
+                  }}
                   className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] hover:bg-[#FAF8F5] rounded-xl cursor-pointer"
                 >
                   Cancel
@@ -1005,7 +1675,9 @@ export default function WorkspaceDetailPage() {
                   disabled={settling}
                   className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  {settling ? "Recording..." : "Record Settlement"}
+                  {settling
+                    ? (editingSettlementId ? "Saving..." : "Recording...")
+                    : (editingSettlementId ? "Save Changes" : "Record Settlement")}
                 </button>
               </div>
             </form>

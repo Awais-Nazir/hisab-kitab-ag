@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { CategorySelect } from "@/components/CategorySelect";
+import { AccountSelect } from "@/components/AccountSelect";
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { GlobalSettlementSection } from "@/components/GlobalSettlementSection";
 import { LenaDenaRow } from "@/components/LenaDenaRow";
@@ -110,10 +111,14 @@ export default function DashboardPage() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [toAccountId, setToAccountId] = useState("");
+  const [incomeSource, setIncomeSource] = useState("Salary");
   const [expDate, setExpDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [expTime, setExpTime] = useState(() => new Date().toTimeString().slice(0, 5));
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [trendRange, setTrendRange] = useState<"week" | "month">("week");
 
   // Quick Workspace Modal State
   const [showGlobalSettle, setShowGlobalSettle] = useState(false);
@@ -129,7 +134,7 @@ export default function DashboardPage() {
           apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
           apiFetch<{ expenses: Expense[] }>("/api/expenses/personal"),
           apiFetch<Overview>("/api/stats/overview"),
-          apiFetch<{ days: TrendDay[] }>("/api/stats/last7days"),
+          apiFetch<{ days: TrendDay[] }>("/api/stats/last7days?range=week"),
         ]);
         setWorkspaces(wsRes.workspaces);
         setExpenses(expRes.expenses);
@@ -144,11 +149,21 @@ export default function DashboardPage() {
     load();
   }, [router]);
 
+  async function handleRangeChange(range: "week" | "month") {
+    setTrendRange(range);
+    try {
+      const res = await apiFetch<{ days: TrendDay[] }>(`/api/stats/last7days?range=${range}`);
+      setTrend(res.days);
+    } catch {
+      // non-critical
+    }
+  }
+
   async function refreshStats() {
     try {
       const [overviewRes, trendRes] = await Promise.all([
         apiFetch<Overview>("/api/stats/overview"),
-        apiFetch<{ days: TrendDay[] }>("/api/stats/last7days"),
+        apiFetch<{ days: TrendDay[] }>(`/api/stats/last7days?range=${trendRange}`),
       ]);
       setOverview(overviewRes);
       setTrend(trendRes.days);
@@ -157,42 +172,92 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleSubmitExpense(e: React.FormEvent) {
+  async function handleSubmitQuickEntry(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
+    const num = parseFloat(amount);
+    if (isNaN(num) || num <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const payload = {
-        amount: parseFloat(amount),
-        description,
-        category: category || undefined,
-        date: new Date(`${expDate}T${expTime}`).toISOString(),
-      };
-      if (editingId) {
-        const res = await apiFetch<{ expense: Expense }>(`/api/expenses/personal/${editingId}`, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-        setExpenses((prev) => prev.map((e) => (e.id === editingId ? res.expense : e)));
-        setEditingId(null);
-      } else {
-        const res = await apiFetch<{ expense: Expense }>("/api/expenses/personal", {
+      if (entryType === "income") {
+        if (!accountId) {
+          alert("Please select the destination account to deposit income");
+          setSubmitting(false);
+          return;
+        }
+        await apiFetch(`/api/accounts/${accountId}/deposit`, {
           method: "POST",
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            amount: num,
+            source: incomeSource,
+            note: description.trim() || undefined,
+            date: new Date(`${expDate}T${expTime}`).toISOString(),
+          }),
         });
-        setExpenses((prev) =>
-          [res.expense, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        );
+        alert("Income deposited into account successfully!");
+      } else if (entryType === "transfer") {
+        if (!accountId) {
+          alert("Please select From account");
+          setSubmitting(false);
+          return;
+        }
+        if (!toAccountId || accountId === toAccountId) {
+          alert("Please select a different destination account");
+          setSubmitting(false);
+          return;
+        }
+        await apiFetch("/api/accounts/transfer", {
+          method: "POST",
+          body: JSON.stringify({
+            fromAccountId: accountId,
+            toAccountId: toAccountId,
+            amount: num,
+            note: description.trim() || undefined,
+          }),
+        });
+        alert("Transfer completed successfully!");
+      } else {
+        // Expense
+        const payload = {
+          amount: num,
+          description: description.trim() || "Expense",
+          category: category || undefined,
+          accountId: accountId || undefined,
+          date: new Date(`${expDate}T${expTime}`).toISOString(),
+        };
+        if (editingId) {
+          const res = await apiFetch<{ expense: Expense }>(`/api/expenses/personal/${editingId}`, {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          });
+          setExpenses((prev) => prev.map((e) => (e.id === editingId ? res.expense : e)));
+          setEditingId(null);
+        } else {
+          const res = await apiFetch<{ expense: Expense }>("/api/expenses/personal", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          setExpenses((prev) =>
+            [res.expense, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          );
+        }
       }
+
       setAmount("");
       setDescription("");
       setCategory("");
+      setAccountId("");
+      setToAccountId("");
       setExpDate(new Date().toISOString().slice(0, 10));
       setExpTime(new Date().toTimeString().slice(0, 5));
       setQuickEntryOpen(false);
       await refreshStats();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to save expense");
+      alert(err instanceof Error ? err.message : "Failed to save entry");
     } finally {
       setSubmitting(false);
     }
@@ -262,6 +327,7 @@ export default function DashboardPage() {
       title="Dashboard"
       subtitle="Private Ledger #001"
       onAddEntry={() => setQuickEntryOpen(true)}
+      addEntryLabel="Add Expense"
     >
       <div className="max-w-7xl mx-auto">
         {/* Header Title Section matching Figma */}
@@ -389,7 +455,9 @@ export default function DashboardPage() {
 
             <div>
               <button
-                onClick={() => setShowGlobalSettle(true)}
+                onClick={() => {
+                  document.getElementById("dashboard-settlements-card")?.scrollIntoView({ behavior: "smooth" });
+                }}
                 className="bg-white hover:bg-stone-100 text-[#0A3F38] text-xs font-semibold px-4 py-2 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95"
               >
                 Settle Now →
@@ -398,19 +466,35 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 7-Day Spending Trend Section matching Figma */}
-        <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 mb-8 shadow-xs">
+        {/* 7-Day / 30-Day Spending Trend Section matching Figma */}
+        <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 mb-8 shadow-xs">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-serif font-bold text-xl text-[#162B27]">
-              7-Day Spending Trend
+            <h2 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+              {trendRange === "week" ? "7-Day Spending Trend" : "30-Day Spending Trend"}
             </h2>
-            <div className="flex items-center gap-1 bg-[#FAF8F5] border border-[#E5E0D8] p-1 rounded-xl text-xs font-medium">
-              <span className="px-3 py-1 bg-white rounded-lg shadow-xs text-[#0F5C53] font-semibold">
+            <div className="flex items-center gap-1 bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] p-1 rounded-xl text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => handleRangeChange("week")}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  trendRange === "week"
+                    ? "bg-white dark:bg-[#202925] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                    : "text-[#6B7268] dark:text-stone-400 hover:text-[#162B27] dark:hover:text-white"
+                }`}
+              >
                 Week
-              </span>
-              <span className="px-3 py-1 text-[#6B7268]">
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRangeChange("month")}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  trendRange === "month"
+                    ? "bg-white dark:bg-[#202925] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                    : "text-[#6B7268] dark:text-stone-400 hover:text-[#162B27] dark:hover:text-white"
+                }`}
+              >
                 Month
-              </span>
+              </button>
             </div>
           </div>
 
@@ -668,7 +752,7 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              <form onSubmit={handleSubmitExpense} className="space-y-3.5">
+              <form onSubmit={handleSubmitQuickEntry} className="space-y-3.5">
                 <div>
                   <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
                     Amount ({symbol})
@@ -684,49 +768,138 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
-                    What was this for?
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Groceries, Blue Tokai Coffee"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    required
-                    className="w-full text-xs text-[#162B27] bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3.5 py-2.5 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
-                  />
-                </div>
+                {entryType === "expense" && (
+                  <>
+                    <div>
+                      <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                        What was this for?
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Groceries, Blue Tokai Coffee"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        required
+                        className="w-full text-xs text-[#162B27] bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3.5 py-2.5 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                      />
+                    </div>
 
-                <div>
-                  <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
-                    Category
-                  </label>
-                  <CategorySelect value={category} onChange={setCategory} />
-                </div>
+                    <div>
+                      <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                        Category
+                      </label>
+                      <CategorySelect value={category} onChange={setCategory} />
+                    </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Date</label>
-                    <input
-                      type="date"
-                      value={expDate}
-                      onChange={(e) => setExpDate(e.target.value)}
-                      required
-                      className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
-                    />
+                    <div>
+                      <AccountSelect value={accountId} onChange={setAccountId} label="Paid From (Kaha se hoyi ha)" />
+                    </div>
+                  </>
+                )}
+
+                {entryType === "income" && (
+                  <>
+                    <div>
+                      <AccountSelect
+                        value={accountId}
+                        onChange={setAccountId}
+                        label="Deposit Into Account (Kaha aayenge)"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                        Income Source
+                      </label>
+                      <select
+                        value={incomeSource}
+                        onChange={(e) => setIncomeSource(e.target.value)}
+                        className="w-full text-xs text-[#162B27] bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3.5 py-2.5 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                      >
+                        <option value="Salary">Salary (تنخواہ)</option>
+                        <option value="Freelance">Freelance / Contract</option>
+                        <option value="Profit">Business Profit / Dividend</option>
+                        <option value="Cash Deposit">Cash Deposit (کیش جمع)</option>
+                        <option value="Gift">Gift / Transfer</option>
+                        <option value="Other">Other Income</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                        Note / Description (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Monthly salary from TechCorp"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="w-full text-xs text-[#162B27] bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3.5 py-2.5 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {entryType === "transfer" && (
+                  <>
+                    <div>
+                      <AccountSelect
+                        value={accountId}
+                        onChange={setAccountId}
+                        label="From Account (Kaha se)"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <AccountSelect
+                        value={toAccountId}
+                        onChange={setToAccountId}
+                        label="To Account (Kaha par)"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                        Transfer Note (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. ATM withdrawal to cash wallet"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="w-full text-xs text-[#162B27] bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3.5 py-2.5 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {entryType !== "transfer" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={expDate}
+                        onChange={(e) => setExpDate(e.target.value)}
+                        required
+                        className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Time</label>
+                      <input
+                        type="time"
+                        value={expTime}
+                        onChange={(e) => setExpTime(e.target.value)}
+                        required
+                        className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Time</label>
-                    <input
-                      type="time"
-                      value={expTime}
-                      onChange={(e) => setExpTime(e.target.value)}
-                      required
-                      className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
-                    />
-                  </div>
-                </div>
+                )}
 
                 <div className="pt-2">
                   <button
@@ -734,7 +907,15 @@ export default function DashboardPage() {
                     disabled={submitting}
                     className="w-full bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-3 rounded-xl text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer disabled:opacity-50"
                   >
-                    {submitting ? "Saving..." : editingId ? "Update Entry" : "+ Save Entry"}
+                    {submitting
+                      ? "Processing..."
+                      : entryType === "income"
+                      ? "+ Deposit Income"
+                      : entryType === "transfer"
+                      ? "Transfer Funds →"
+                      : editingId
+                      ? "Update Entry"
+                      : "+ Save Expense"}
                   </button>
                   {editingId && (
                     <button
@@ -750,7 +931,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Settlements Card matching Figma */}
-            <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 shadow-xs">
+            <div id="dashboard-settlements-card" className="bg-white border border-[#E5E0D8] rounded-3xl p-6 shadow-xs">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-serif font-bold text-xl text-[#162B27]">
                   Settlements
@@ -876,10 +1057,10 @@ export default function DashboardPage() {
 
       {/* Quick Entry Modal when triggered from Top Header "+ Add Entry" or Mobile "+" */}
       {quickEntryOpen && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 max-w-md w-full shadow-2xl">
+        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-md w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27]">
+              <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 {editingId ? "Edit Expense" : "New Entry"}
               </h3>
               <button
@@ -887,7 +1068,7 @@ export default function DashboardPage() {
                   setQuickEntryOpen(false);
                   if (editingId) handleCancelEdit();
                 }}
-                className="p-1 text-stone-400 hover:text-stone-700 cursor-pointer"
+                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
@@ -895,9 +1076,9 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmitExpense} className="space-y-3.5">
+            <form onSubmit={handleSubmitQuickEntry} className="space-y-3.5">
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
                   Amount ({symbol})
                 </label>
                 <input
@@ -908,12 +1089,12 @@ export default function DashboardPage() {
                   onChange={(e) => setAmount(e.target.value)}
                   required
                   autoFocus
-                  className="w-full text-2xl font-serif font-bold text-[#162B27] bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3.5 py-2 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                  className="w-full text-2xl font-serif font-bold text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3.5 py-2 focus:bg-white dark:focus:bg-[#19201D] focus:outline-none focus:border-[#0F5C53]"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
                   What was this for?
                 </label>
                 <input
@@ -922,36 +1103,40 @@ export default function DashboardPage() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   required
-                  className="w-full text-xs text-[#162B27] bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3.5 py-2.5 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                  className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#19201D] focus:outline-none focus:border-[#0F5C53]"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
                   Category
                 </label>
                 <CategorySelect value={category} onChange={setCategory} />
               </div>
 
+              <div>
+                <AccountSelect value={accountId} onChange={setAccountId} label="Paid From (Kaha se hoyi ha)" />
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Date</label>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Date</label>
                   <input
                     type="date"
                     value={expDate}
                     onChange={(e) => setExpDate(e.target.value)}
                     required
-                    className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] text-[#162B27] dark:text-white border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 focus:bg-white dark:focus:bg-[#19201D] focus:outline-none focus:border-[#0F5C53]"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Time</label>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Time</label>
                   <input
                     type="time"
                     value={expTime}
                     onChange={(e) => setExpTime(e.target.value)}
                     required
-                    className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] text-[#162B27] dark:text-white border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 focus:bg-white dark:focus:bg-[#19201D] focus:outline-none focus:border-[#0F5C53]"
                   />
                 </div>
               </div>
@@ -963,7 +1148,7 @@ export default function DashboardPage() {
                     setQuickEntryOpen(false);
                     if (editingId) handleCancelEdit();
                   }}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] hover:bg-[#FAF8F5] rounded-xl cursor-pointer"
+                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>

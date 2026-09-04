@@ -44,6 +44,13 @@ export async function PATCH(req: NextRequest) {
         },
     });
 
+    if (parsed.data.name && user.selfPersonId) {
+        await prisma.person.update({
+            where: { id: user.selfPersonId },
+            data: { name: parsed.data.name },
+        });
+    }
+
     return NextResponse.json({
         user: {
             id: updated.id,
