@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -51,18 +52,14 @@ export default function SignupPage() {
         <div className="p-8 sm:p-10">
           {/* Brand Emblem */}
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="w-12 h-12 rounded-2xl bg-[#0F5C53]/10 dark:bg-[#0F5C53]/30 text-[#0F5C53] dark:text-[#34D399] flex items-center justify-center mb-3">
-              <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-                <path d="M6 6h10" />
-                <path d="M6 10h10" />
-              </svg>
+            <div className="mb-3 hover:scale-105 transition-transform">
+              <BrandLogo variant="icon" size={56} href={null} />
             </div>
             <h1 className="font-serif font-bold text-3xl text-[#162B27] dark:text-white tracking-tight">
-              Begin Your Journey
+              Hisab Kitab
             </h1>
             <p className="text-xs text-[#6B7268] dark:text-[#95A19B] mt-1 font-medium tracking-wide">
-              Create a space for clarity and calm.
+              Create your account &amp; begin tracking
             </p>
           </div>
 

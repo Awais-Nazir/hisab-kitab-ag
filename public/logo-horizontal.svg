@@ -1,0 +1,57 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 140" width="600" height="140">
+  <defs>
+    <linearGradient id="hzBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F5C53"/>
+      <stop offset="100%" stop-color="#083832"/>
+    </linearGradient>
+    <linearGradient id="hzGold" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D97706"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#FDE68A"/>
+    </linearGradient>
+    <linearGradient id="hzLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#147266"/>
+      <stop offset="100%" stop-color="#093C35"/>
+    </linearGradient>
+    <linearGradient id="hzRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A8A7C"/>
+      <stop offset="100%" stop-color="#0B423A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left Icon Emblem (100x100) -->
+  <g transform="translate(20, 20)">
+    <rect width="100" height="100" rx="26" fill="url(#hzBg)"/>
+    <rect x="1" y="1" width="98" height="98" rx="25" fill="none" stroke="#268F80" stroke-width="1.5" stroke-opacity="0.4"/>
+
+    <!-- Scaled Book -->
+    <g transform="matrix(0.18 0 0 0.18 4 6)">
+      <!-- Left Page -->
+      <path d="M256 376 C220 352 142 346 76 366 C68 368 60 362 60 354 L60 142 C60 135 66 129 74 126 C142 108 222 114 256 136 Z" 
+            fill="url(#hzLeft)" stroke="#1CA694" stroke-width="2"/>
+      <!-- Right Page -->
+      <path d="M256 376 C292 352 370 346 436 366 C444 368 452 362 452 354 L452 142 C452 135 446 129 438 126 C370 108 290 114 256 136 Z" 
+            fill="url(#hzRight)" stroke="#1CA694" stroke-width="2"/>
+      <!-- Lines -->
+      <rect x="110" y="180" width="94" height="15" rx="7.5" fill="#A7F3D0" opacity="0.7"/>
+      <rect x="110" y="220" width="112" height="15" rx="7.5" fill="#A7F3D0" opacity="0.5"/>
+      <rect x="110" y="260" width="76" height="15" rx="7.5" fill="#A7F3D0" opacity="0.4"/>
+      <!-- Ribbon -->
+      <path d="M242 108 L270 108 L270 206 L256 190 L242 206 Z" fill="#F59E0B"/>
+      <!-- Gold Growth -->
+      <path d="M218 248 L274 314 C279 320 287 320 292 314 L436 150 C442 143 453 145 457 153 C460 160 458 168 451 175 L294 354 C286 363 272 363 264 354 L198 276 C190 267 192 254 202 247 C207 244 213 244 218 248 Z" 
+            fill="url(#hzGold)"/>
+      <circle cx="452" cy="142" r="17" fill="url(#hzGold)"/>
+      <circle cx="452" cy="142" r="8" fill="#FFFBEB"/>
+    </g>
+  </g>
+
+  <!-- Typography -->
+  <text x="145" y="74" font-family="Georgia, 'Times New Roman', serif" font-weight="bold" font-size="44" fill="#0F5C53" letter-spacing="-0.5">
+    Hisab<tspan fill="#D97706">.</tspan><tspan fill="#162B27" font-weight="600">Kitab</tspan>
+  </text>
+  <text x="147" y="100" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="12" fill="#6B7268" letter-spacing="3.5">
+    LEDGER &amp; EXPENSE TRACKER
+  </text>
+</svg>

@@ -1,0 +1,72 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="emeraldLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#147266"/>
+      <stop offset="60%" stop-color="#0F5C53"/>
+      <stop offset="100%" stop-color="#093C35"/>
+    </linearGradient>
+    <linearGradient id="emeraldRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#198477"/>
+      <stop offset="60%" stop-color="#0E574E"/>
+      <stop offset="100%" stop-color="#072F2A"/>
+    </linearGradient>
+    <linearGradient id="goldGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#B45309"/>
+      <stop offset="35%" stop-color="#F59E0B"/>
+      <stop offset="85%" stop-color="#FCD34D"/>
+      <stop offset="100%" stop-color="#FEF3C7"/>
+    </linearGradient>
+    <linearGradient id="goldRibbon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <filter id="subtleDrop" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#021411" flood-opacity="0.35"/>
+    </filter>
+    <filter id="goldShine" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#F59E0B" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#subtleDrop)">
+    <!-- Back Cover Shadow/Base -->
+    <path d="M256 394 C218 368 132 360 64 382 C54 385 44 377 44 366 L44 148 C44 138 53 130 63 127 C135 106 220 114 256 138 C292 114 377 106 449 127 C459 130 468 138 468 148 L468 366 C468 377 458 385 448 382 C380 360 294 368 256 394 Z" 
+          fill="#062420" />
+
+    <!-- Left Book Page Outer -->
+    <path d="M256 376 C220 352 142 346 76 366 C68 368 60 362 60 354 L60 142 C60 135 66 129 74 126 C142 108 222 114 256 136 Z" 
+          fill="url(#emeraldLeft)" stroke="#167366" stroke-width="2" stroke-opacity="0.5"/>
+
+    <!-- Right Book Page Outer -->
+    <path d="M256 376 C292 352 370 346 436 366 C444 368 452 362 452 354 L452 142 C452 135 446 129 438 126 C370 108 290 114 256 136 Z" 
+          fill="url(#emeraldRight)" stroke="#167366" stroke-width="2" stroke-opacity="0.5"/>
+
+    <!-- Inside Page Highlights -->
+    <path d="M256 366 C224 345 154 340 94 357 L94 148 C154 132 224 136 256 156 Z" 
+          fill="#0F665C" opacity="0.4"/>
+    <path d="M256 366 C288 345 358 340 418 357 L418 148 C358 132 288 136 256 156 Z" 
+          fill="#14756A" opacity="0.4"/>
+
+    <!-- Center Fold Glow -->
+    <path d="M254 136 L254 378 C255.3 379 256.7 379 258 378 L258 136 C256.7 135 255.3 135 254 136 Z" 
+          fill="#5EEAD4" opacity="0.7"/>
+
+    <!-- Left Page: Elegant Ledger Entry Bars -->
+    <rect x="110" y="180" width="94" height="14" rx="7" fill="#A7F3D0" opacity="0.55"/>
+    <rect x="110" y="218" width="112" height="14" rx="7" fill="#A7F3D0" opacity="0.45"/>
+    <rect x="110" y="256" width="76" height="14" rx="7" fill="#A7F3D0" opacity="0.38"/>
+    <rect x="110" y="294" width="102" height="14" rx="7" fill="#A7F3D0" opacity="0.28"/>
+
+    <!-- Gold Bookmark Ribbon from Top Center Fold -->
+    <path d="M242 108 L270 108 L270 206 L256 190 L242 206 Z" fill="url(#goldRibbon)" filter="url(#goldShine)"/>
+
+    <!-- Right Page: Dynamic Upward Wealth / Checkmark (Balancing the Hisab) -->
+    <path d="M218 248 L274 314 C279 320 287 320 292 314 L436 150 C442 143 453 145 457 153 C460 160 458 168 451 175 L294 354 C286 363 272 363 264 354 L198 276 C190 267 192 254 202 247 C207 244 213 244 218 248 Z" 
+          fill="url(#goldGradient)" filter="url(#goldShine)"/>
+
+    <!-- Luminous Financial Spark / Coin at Checkmark Summit -->
+    <circle cx="452" cy="142" r="16" fill="url(#goldGradient)" filter="url(#goldShine)"/>
+    <circle cx="452" cy="142" r="8" fill="#FFFBEB"/>
+  </g>
+</svg>

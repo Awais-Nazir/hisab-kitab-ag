@@ -1,0 +1,36 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="favBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#11685E"/>
+      <stop offset="100%" stop-color="#083832"/>
+    </linearGradient>
+    <linearGradient id="favGold" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D97706"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#FDE68A"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="16" fill="url(#favBg)"/>
+  
+  <!-- Left page -->
+  <path d="M32 46 C27 43 18 42 10 44 L10 20 C18 18 27 19 32 22 Z" fill="#14756A"/>
+  <rect x="14" y="24" width="10" height="2.5" rx="1.25" fill="#A7F3D0" opacity="0.85"/>
+  <rect x="14" y="29" width="12" height="2.5" rx="1.25" fill="#A7F3D0" opacity="0.65"/>
+  <rect x="14" y="34" width="8" height="2.5" rx="1.25" fill="#A7F3D0" opacity="0.55"/>
+
+  <!-- Right page -->
+  <path d="M32 46 C37 43 46 42 54 44 L54 20 C46 18 37 19 32 22 Z" fill="#0E544C"/>
+
+  <!-- Center fold -->
+  <line x1="32" y1="22" x2="32" y2="46" stroke="#5EEAD4" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Gold Ribbon -->
+  <path d="M30 18 L34 18 L34 27 L32 25 L30 27 Z" fill="#F59E0B"/>
+
+  <!-- Bold Gold Growth Tick -->
+  <path d="M26 33 L33 40 C34 41 35.5 41 36.5 40 L53 23 C54 22 54 20.5 53 19.5 C52 18.5 50.5 18.5 49.5 19.5 L34.5 35 L29.5 30 C28.5 29 27 29 26 30 C25 31 25 32 26 33 Z" fill="url(#favGold)"/>
+  
+  <circle cx="53" cy="19" r="3" fill="#FDE68A"/>
+</svg>

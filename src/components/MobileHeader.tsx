@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ThemeToggle } from "./ThemeToggle";
+import { BrandLogo } from "./BrandLogo";
 
 interface MobileHeaderProps {
   title?: string;
@@ -27,11 +28,7 @@ export function MobileHeader({
   return (
     <header className="h-14 px-3 sm:px-4 border-b border-[#E5E0D8] dark:border-[#28332E] bg-[#FAF8F5]/90 dark:bg-[#121514]/90 backdrop-blur-md flex md:hidden items-center justify-between sticky top-0 z-30">
       <div className="flex items-center gap-2">
-        <Link href="/dashboard" className="w-7 h-7 rounded-full bg-[#0F5C53] flex items-center justify-center text-white shadow-xs">
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-          </svg>
-        </Link>
+        <BrandLogo variant="icon" size={28} href="/dashboard" />
         <h1 className="font-serif font-bold text-base text-[#162B27] dark:text-white truncate max-w-[130px] sm:max-w-[200px]">
           {title}
         </h1>

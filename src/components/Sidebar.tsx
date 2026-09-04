@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BrandLogo } from "./BrandLogo";
 
 interface SidebarProps {
   userName?: string;
@@ -85,18 +86,9 @@ export function Sidebar({ userName = "Account Admin", onLogout }: SidebarProps) 
       {/* Top section: Logo & Nav items */}
       <div className="pt-7 px-4">
         {/* Brand Logo */}
-        <Link href="/dashboard" className="flex items-center gap-3 px-3 mb-8 group">
-          <div className="w-8 h-8 rounded-full bg-[#0F5C53] flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-              <path d="M6 6h10" />
-              <path d="M6 10h10" />
-            </svg>
-          </div>
-          <span className="font-serif font-bold text-2xl tracking-tight text-[#162B27] dark:text-white">
-            Hisab Kitab
-          </span>
-        </Link>
+        <div className="px-2 mb-8">
+          <BrandLogo variant="mark" size={38} showText={true} />
+        </div>
 
         {/* Navigation list */}
         <nav className="space-y-1.5">
