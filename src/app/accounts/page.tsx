@@ -265,8 +265,20 @@ export default function AccountsPage() {
         if (!udharAccountId) {
           setUdharAccountId(accRes.accounts[0].id);
         }
-        setSelectedAccountForActivity((prev) => prev || accRes.accounts[0]);
-        fetchActivitiesForAccount(accRes.accounts[0].id);
+        let chosenAcc = accRes.accounts[0];
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get("tab") === "udhar") {
+            setActiveTab("udhar");
+          }
+          const accId = params.get("accountId");
+          if (accId) {
+            const found = accRes.accounts.find((a) => a.id === accId);
+            if (found) chosenAcc = found;
+          }
+        }
+        setSelectedAccountForActivity(chosenAcc);
+        fetchActivitiesForAccount(chosenAcc.id);
       }
     } catch (err) {
       console.error("Failed to load accounts data:", err);
