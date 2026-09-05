@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ThemeToggle } from "./ThemeToggle";
 import { BrandLogo } from "./BrandLogo";
 import { apiFetch } from "@/lib/api";
 import { useCurrency } from "@/context/CurrencyContext";
@@ -47,6 +46,17 @@ export function MobileHeader({
       setSearchQuery("");
       setResults([]);
     }
+  }, [isSearchOpen]);
+
+  // Close data-only search overlay on Escape
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape" && isSearchOpen) {
+        setIsSearchOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
   }, [isSearchOpen]);
 
   useEffect(() => {
@@ -115,7 +125,6 @@ export function MobileHeader({
             </button>
           )}
           {action}
-          <ThemeToggle />
           <Link href="/profile" className="w-7 h-7 rounded-full bg-[#0F5C53]/15 border border-[#0F5C53]/30 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] font-serif font-semibold text-xs">
             {userName.slice(0, 2).toUpperCase()}
           </Link>
@@ -124,7 +133,12 @@ export function MobileHeader({
 
       {/* Mobile Search Overlay Modal */}
       {isSearchOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex flex-col md:hidden p-3 animate-in fade-in duration-150">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsSearchOpen(false);
+          }}
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex flex-col md:hidden p-3 animate-in fade-in duration-150"
+        >
           <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-3 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
             {/* Search Input Bar */}
             <div className="flex items-center gap-2 pb-2 border-b border-[#E5E0D8] dark:border-[#1E2824]">

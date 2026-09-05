@@ -292,6 +292,17 @@ export default function AccountsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Close data-only mobile account activity ledger modal on Escape
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape" && isMobileActivityOpen) {
+        setIsMobileActivityOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isMobileActivityOpen]);
+
   async function handleTransfer(e: React.FormEvent) {
     e.preventDefault();
     if (transferring || !fromAccountId || !toAccountId || fromAccountId === toAccountId) return;
@@ -1338,7 +1349,12 @@ export default function AccountsPage() {
 
       {/* MODAL 1: MOBILE ACCOUNT ACTIVITY & TIME LEDGER (Opens on mobile screens or when tapped) */}
       {isMobileActivityOpen && selectedAccountForActivity && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsMobileActivityOpen(false);
+          }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto"
+        >
           <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between pb-4 border-b border-[#F0ECE6] dark:border-[#1E2824]">
               <div>

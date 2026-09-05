@@ -69,7 +69,11 @@ export async function GET(req: NextRequest) {
     const personalExpenses = await prisma.expense.findMany({
       where: {
         ownerId: user.id,
+        workspaceId: null,
         date: { gte: startOfDay, lte: endOfDay },
+      },
+      include: {
+        account: { select: { id: true, name: true } },
       },
       orderBy: { date: "desc" },
     });
@@ -79,25 +83,87 @@ export async function GET(req: NextRequest) {
       where: {
         personId: user.selfPersonId,
         expense: {
-          workspace: { ownerId: user.id },
           date: { gte: startOfDay, lte: endOfDay },
         },
       },
       include: {
-        expense: { include: { workspace: true } },
+        expense: {
+          include: {
+            workspace: { select: { id: true, name: true } },
+            account: { select: { id: true, name: true } },
+            payments: {
+              include: {
+                person: { select: { id: true, name: true, isSelf: true } },
+              },
+            },
+            splits: {
+              include: {
+                person: { select: { id: true, name: true, isSelf: true } },
+              },
+            },
+          },
+        },
       },
+      orderBy: { expense: { date: "desc" } },
     });
 
-    const workspaceTotals = new Map<string, number>();
-    for (const split of mySplitsToday) {
-      const wsName = split.expense.workspace?.name ?? "Workspace";
-      workspaceTotals.set(wsName, (workspaceTotals.get(wsName) ?? 0) + Number(split.shareAmount));
-    }
-    const workspaceSummaries = Array.from(workspaceTotals.entries()).map(([workspaceName, total]) => ({
-      workspaceName,
-      total,
-    }));
+    const workspaceMap = new Map<
+      string,
+      {
+        workspaceName: string;
+        total: number;
+        expenses: Array<{
+          id: string;
+          description: string;
+          workspaceName: string;
+          totalAmount: number;
+          myShare: number;
+          category?: string | null;
+          paidBy?: string;
+          accountName?: string | null;
+          splitCount?: number;
+        }>;
+      }
+    >();
 
+    for (const split of mySplitsToday) {
+      const exp = split.expense;
+      const wsName = exp.workspace?.name ?? "Shared Workspace";
+
+      if (!workspaceMap.has(wsName)) {
+        workspaceMap.set(wsName, {
+          workspaceName: wsName,
+          total: 0,
+          expenses: [],
+        });
+      }
+
+      const wsGroup = workspaceMap.get(wsName)!;
+      const shareAmount = Number(split.shareAmount);
+      wsGroup.total += shareAmount;
+
+      let paidBy = "Workspace";
+      if (exp.payments && exp.payments.length > 0) {
+        const payers = exp.payments.map((p) =>
+          p.person.id === user.selfPersonId || p.person.isSelf ? "You" : p.person.name
+        );
+        paidBy = payers.join(", ");
+      }
+
+      wsGroup.expenses.push({
+        id: exp.id,
+        description: exp.description,
+        workspaceName: wsName,
+        totalAmount: Number(exp.amount),
+        myShare: shareAmount,
+        category: exp.category,
+        paidBy,
+        accountName: exp.account?.name || null,
+        splitCount: exp.splits ? exp.splits.length : 1,
+      });
+    }
+
+    const workspaceSummaries = Array.from(workspaceMap.values());
     const sharedTotal = workspaceSummaries.reduce((s, w) => s + w.total, 0);
 
     if (personalTotal > 0 || workspaceSummaries.length > 0 || force) {
@@ -112,6 +178,7 @@ export async function GET(req: NextRequest) {
             description: e.description,
             amount: Number(e.amount),
             category: e.category,
+            accountName: e.account?.name || null,
           })),
         }
       );

@@ -162,13 +162,13 @@ export default function ProfilePage() {
             </div>
 
             {/* Theme Preference Setting */}
-            <div className="bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl p-5">
+            <div className="bg-[#FAF8F5] dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-2xl p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-serif font-bold text-base text-[#162B27]">
+                  <h3 className="font-serif font-bold text-base text-[#162B27] dark:text-white">
                     Interface Appearance
                   </h3>
-                  <p className="text-xs text-[#6B7268] mt-0.5">
+                  <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-0.5">
                     Switch between Light, Dark, or System mode.
                   </p>
                 </div>

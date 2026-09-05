@@ -32,6 +32,35 @@ interface StatsResponse {
   allocation: AllocationSlice[];
 }
 
+interface CategoryExpenseItem {
+  id: string;
+  amount: number | string;
+  description: string;
+  date: string;
+  account?: { id: string; name: string; color?: string } | null;
+}
+
+function groupExpensesByDate(expenses: CategoryExpenseItem[]) {
+  const groups: { dateKey: string; items: CategoryExpenseItem[] }[] = [];
+  const map: Record<string, CategoryExpenseItem[]> = {};
+
+  for (const exp of expenses) {
+    const d = new Date(exp.date);
+    const dateKey = d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    if (!map[dateKey]) {
+      map[dateKey] = [];
+      groups.push({ dateKey, items: map[dateKey] });
+    }
+    map[dateKey].push(exp);
+  }
+  return groups;
+}
+
 function CategoryIcon({ icon }: { icon: string }) {
   switch (icon) {
     case "home":
@@ -72,6 +101,15 @@ function CategoryIcon({ icon }: { icon: string }) {
           <polyline points="17 2 12 7 7 2" />
         </svg>
       );
+    case "users":
+      return (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
     default:
       return (
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -98,6 +136,38 @@ export default function CategoriesPage() {
   const [editName, setEditName] = useState("");
   const [editBudget, setEditBudget] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Category Details (Date-wise Expenses) Modal State (Data-only: closes on click outside & Escape)
+  const [selectedCatForDetails, setSelectedCatForDetails] = useState<CategoryStat | null>(null);
+  const [catExpenses, setCatExpenses] = useState<CategoryExpenseItem[]>([]);
+  const [loadingCatExpenses, setLoadingCatExpenses] = useState(false);
+
+  async function handleOpenCategoryDetails(cat: CategoryStat) {
+    setSelectedCatForDetails(cat);
+    setLoadingCatExpenses(true);
+    try {
+      const targetParam = cat.id && !cat.id.startsWith("def-") ? cat.id : cat.name;
+      const res = await apiFetch<{ expenses: CategoryExpenseItem[] }>(
+        `/api/categories/${encodeURIComponent(targetParam)}?name=${encodeURIComponent(cat.name)}`
+      );
+      setCatExpenses(res.expenses || []);
+    } catch {
+      setCatExpenses([]);
+    } finally {
+      setLoadingCatExpenses(false);
+    }
+  }
+
+  // Close data-only category details modal on Escape
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape" && selectedCatForDetails) {
+        setSelectedCatForDetails(null);
+      }
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [selectedCatForDetails]);
 
   async function loadData() {
     try {
@@ -153,7 +223,8 @@ export default function CategoriesPage() {
 
     setSavingEdit(true);
     try {
-      await apiFetch(`/api/categories/${encodeURIComponent(editingCat.id)}`, {
+      const targetParam = editingCat.id && !editingCat.id.startsWith("def-") ? editingCat.id : editingCat.name;
+      await apiFetch(`/api/categories/${encodeURIComponent(targetParam)}?name=${encodeURIComponent(editingCat.name)}`, {
         method: "PATCH",
         body: JSON.stringify({
           name: cleanName,
@@ -177,9 +248,20 @@ export default function CategoriesPage() {
     if (!confirm(`Are you sure you want to delete category "${cat.name}"?`)) return;
 
     try {
-      await apiFetch(`/api/categories/${encodeURIComponent(cat.id || cat.name)}`, {
+      const targetParam = cat.id && !cat.id.startsWith("def-") ? cat.id : cat.name;
+      await apiFetch(`/api/categories/${encodeURIComponent(targetParam)}?name=${encodeURIComponent(cat.name)}`, {
         method: "DELETE",
       });
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              categories: prev.categories.filter(
+                (c) => c.id !== cat.id && c.name.toLowerCase().trim() !== cat.name.toLowerCase().trim()
+              ),
+            }
+          : prev
+      );
       await loadData();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete category");
@@ -329,12 +411,13 @@ export default function CategoriesPage() {
               {data?.categories.map((cat) => (
                 <div
                   key={cat.id || cat.name}
-                  className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs flex flex-col justify-between hover:border-[#0F5C53]/40 transition-colors"
+                  onClick={() => handleOpenCategoryDetails(cat)}
+                  className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs flex flex-col justify-between hover:border-[#0F5C53]/60 dark:hover:border-[#10B981]/50 hover:shadow-md transition-all cursor-pointer group"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <div
-                        className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs"
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs transition-transform group-hover:scale-105"
                         style={{ backgroundColor: `${cat.color}18`, color: cat.color }}
                       >
                         <CategoryIcon icon={cat.icon} />
@@ -347,7 +430,8 @@ export default function CategoriesPage() {
                           </span>
                         )}
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setEditingCat(cat);
                             setEditName(cat.name);
                             setEditBudget(cat.budget.toString());
@@ -361,7 +445,10 @@ export default function CategoriesPage() {
                         </button>
                         {cat.count === 0 && (
                           <button
-                            onClick={() => handleDeleteCategory(cat)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCategory(cat);
+                            }}
                             className="p-1.5 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                             title="Delete Category"
                           >
@@ -543,6 +630,132 @@ export default function CategoriesPage() {
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+            )}
+
+            {/* Category Details Modal: Date-wise Expenses (Data-only: closes on click outside & Escape) */}
+            {selectedCatForDetails && (
+              <div
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setSelectedCatForDetails(null);
+                }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto"
+              >
+                <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl my-auto max-h-[85vh] flex flex-col">
+                  {/* Header */}
+                  <div className="flex items-start justify-between pb-4 border-b border-[#F0ECE6] dark:border-[#1E2824]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-[#0F5C53]/10 dark:bg-emerald-500/15 text-[#0F5C53] dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+                        <CategoryIcon icon={selectedCatForDetails.icon} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                            {selectedCatForDetails.name}
+                          </h3>
+                          {selectedCatForDetails.budget > 0 && (
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                selectedCatForDetails.spent > selectedCatForDetails.budget
+                                  ? "bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400"
+                                  : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
+                              }`}
+                            >
+                              {selectedCatForDetails.spent > selectedCatForDetails.budget
+                                ? "Over Budget"
+                                : `${Math.round((selectedCatForDetails.spent / selectedCatForDetails.budget) * 100)}%`}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-0.5">
+                          Spent: <strong className="text-[#162B27] dark:text-white">{symbol}{Math.round(selectedCatForDetails.spent).toLocaleString()}</strong>
+                          {selectedCatForDetails.budget > 0 && (
+                            <> • Budget: <strong>{symbol}{Math.round(selectedCatForDetails.budget).toLocaleString()}</strong></>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCatForDetails(null)}
+                      className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229] transition-colors cursor-pointer text-base font-bold"
+                      aria-label="Close"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Body: Date-wise Expenses */}
+                  <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-1">
+                    {loadingCatExpenses ? (
+                      <div className="py-12 flex flex-col items-center justify-center gap-2">
+                        <svg className="w-6 h-6 animate-spin text-[#0F5C53] dark:text-[#34D399]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                          <path d="M12 2a10 10 0 0 1 10 10" />
+                        </svg>
+                        <p className="text-xs text-[#6B7268] dark:text-[#8E9C95]">Loading expenses...</p>
+                      </div>
+                    ) : catExpenses.length === 0 ? (
+                      <div className="py-12 text-center">
+                        <div className="w-12 h-12 mx-auto rounded-2xl bg-stone-100 dark:bg-[#1A2229] flex items-center justify-center text-stone-400 mb-2">
+                          <CategoryIcon icon={selectedCatForDetails.icon} />
+                        </div>
+                        <p className="text-sm font-semibold text-[#162B27] dark:text-white">No expenses yet</p>
+                        <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-0.5">
+                          No expenses have been recorded for {selectedCatForDetails.name} this month.
+                        </p>
+                      </div>
+                    ) : (
+                      groupExpensesByDate(catExpenses).map((group) => {
+                        const dayTotal = group.items.reduce(
+                          (sum, item) => sum + (Number(item.amount) || 0),
+                          0
+                        );
+                        return (
+                          <div key={group.dateKey}>
+                            <div className="flex items-center justify-between sticky top-0 bg-white/95 dark:bg-[#13191E]/95 backdrop-blur-xs py-1.5 z-10 border-b border-[#F0ECE6] dark:border-[#1E2824] mb-2">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7268] dark:text-[#8E9C95]">
+                                {group.dateKey}
+                              </span>
+                              <span className="text-[11px] font-semibold text-[#162B27] dark:text-stone-300">
+                                Total: {symbol}{Math.round(dayTotal).toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              {group.items.map((exp) => (
+                                <div
+                                  key={exp.id}
+                                  className="flex items-center justify-between p-2.5 rounded-2xl bg-[#FAF8F5] dark:bg-[#19201D] border border-[#E5E0D8]/60 dark:border-[#28332E]/60 hover:border-[#0F5C53]/30 dark:hover:border-[#10B981]/30 transition-colors"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-7 h-7 rounded-lg bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#28332E] flex items-center justify-center text-[#0F5C53] dark:text-[#10B981] flex-shrink-0">
+                                      <CategoryIcon icon={selectedCatForDetails.icon} />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-[#162B27] dark:text-white truncate">
+                                        {exp.description || selectedCatForDetails.name}
+                                      </p>
+                                      {exp.account && (
+                                        <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] truncate">
+                                          Paid via {exp.account.name}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex-shrink-0 pl-2">
+                                    <span className="font-serif font-bold text-xs text-[#162B27] dark:text-white">
+                                      -{symbol}{Math.round(Number(exp.amount)).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
             )}

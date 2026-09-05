@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { Sidebar } from "./Sidebar";
 import { TopHeader } from "./TopHeader";
@@ -25,6 +25,14 @@ interface AppLayoutProps {
   mobileAction?: React.ReactNode;
 }
 
+const MOBILE_TABS = [
+  "/dashboard",
+  "/workspaces",
+  "/accounts",
+  "/people",
+  "/categories",
+];
+
 export function AppLayout({
   children,
   title = "Dashboard",
@@ -34,7 +42,78 @@ export function AppLayout({
   mobileAction,
 }: AppLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
+  // Swipe left / right gesture navigation ONLY on mobile screen
+  useEffect(() => {
+    function handleTouchStart(e: TouchEvent) {
+      if (typeof window === "undefined" || window.innerWidth >= 768) return;
+      if (e.touches.length !== 1) return;
+
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.closest("input") ||
+          target.closest("textarea") ||
+          target.closest("select") ||
+          target.closest("button") ||
+          target.closest("[role='dialog']") ||
+          target.closest(".recharts-responsive-container") ||
+          target.closest(".overflow-x-auto"))
+      ) {
+        return;
+      }
+
+      touchStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        time: Date.now(),
+      };
+    }
+
+    function handleTouchEnd(e: TouchEvent) {
+      if (!touchStartRef.current || typeof window === "undefined" || window.innerWidth >= 768) return;
+      if (e.changedTouches.length !== 1) return;
+
+      const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+      const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+      const elapsed = Date.now() - touchStartRef.current.time;
+      touchStartRef.current = null;
+
+      // Require significant horizontal distance, predominantly horizontal vector, and quick swipe
+      if (Math.abs(deltaX) < 60 || Math.abs(deltaX) < Math.abs(deltaY) * 1.5 || elapsed > 500) {
+        return;
+      }
+
+      const currentIndex = MOBILE_TABS.findIndex((tab) =>
+        tab === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(tab)
+      );
+
+      if (deltaX < 0) {
+        // Swiped Left (finger right to left) -> Navigate to Next Page
+        if (currentIndex !== -1 && currentIndex < MOBILE_TABS.length - 1) {
+          router.push(MOBILE_TABS[currentIndex + 1]);
+        }
+      } else {
+        // Swiped Right (finger left to right) -> Navigate to Previous Page
+        if (pathname.startsWith("/workspaces/") && pathname !== "/workspaces") {
+          router.push("/workspaces");
+        } else if (currentIndex > 0) {
+          router.push(MOBILE_TABS[currentIndex - 1]);
+        }
+      }
+    }
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [pathname, router]);
 
   useEffect(() => {
     apiFetch<{ user: User }>("/api/auth/me")

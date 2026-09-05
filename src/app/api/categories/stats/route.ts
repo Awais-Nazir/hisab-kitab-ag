@@ -13,6 +13,7 @@ const DEFAULT_CATEGORY_METAS: Record<string, { icon: string; color: string; defa
     "Entertainment": { icon: "film", color: "#7B61FF", defaultBudget: 300 },
     "Health": { icon: "activity", color: "#1E7D46", defaultBudget: 300 },
     "Education": { icon: "book-open", color: "#0F5C53", defaultBudget: 400 },
+    "Shared": { icon: "users", color: "#0F5C53", defaultBudget: 1500 },
 };
 
 const PALETTE = ["#E5A93C", "#0F5C53", "#4EA89B", "#C94A29", "#7B61FF", "#54B5A6", "#1E7D46", "#D97706"];
@@ -68,7 +69,7 @@ export async function GET() {
         });
     }
 
-    // Aggregate spending by category
+    // Build category spending totals
     const spentByCategory: Record<string, { total: number; count: number }> = {};
 
     for (const exp of personalExpenses) {
@@ -85,24 +86,63 @@ export async function GET() {
         spentByCategory[cat].count += 1;
     }
 
-    // Refresh category map with latest user categories
-    const categoryMap = new Map(userCategories.map((c) => [c.name.toLowerCase(), c]));
+    // Build a map of user categories already present in database
+    const existingNameMap = new Map(userCategories.map((c) => [c.name.toLowerCase().trim(), c]));
 
-    // Collect all distinct category names from user's categories + any category with active spending
-    const allCategoryNames = new Set([
-        ...userCategories.map((c) => c.name),
-        ...Object.keys(spentByCategory),
-    ]);
+    // Only ensure categories that have ACTIVE spending but are missing from DB
+    const categoriesToCreate: Array<{
+        ownerId: string;
+        name: string;
+        budget: number;
+        icon: string;
+        color: string;
+    }> = [];
 
-    const categoriesList = Array.from(allCategoryNames).map((name, index) => {
-        const meta = DEFAULT_CATEGORY_METAS[name] || {};
-        const userCat = categoryMap.get(name.toLowerCase());
-        const spentData = spentByCategory[name] ?? { total: 0, count: 0 };
+    for (const catName of Object.keys(spentByCategory)) {
+        const trimmed = catName.trim();
+        if (!trimmed) continue;
+        const lower = trimmed.toLowerCase();
+        if (!existingNameMap.has(lower)) {
+            const meta = DEFAULT_CATEGORY_METAS[trimmed] || {};
+            categoriesToCreate.push({
+                ownerId: user.id,
+                name: trimmed,
+                budget: meta.defaultBudget ?? 1000,
+                icon: meta.icon || "tag",
+                color: meta.color || PALETTE[categoriesToCreate.length % PALETTE.length],
+            });
+            existingNameMap.set(lower, null as any);
+        }
+    }
 
-        const budget = userCat?.budget
-            ? Number(userCat.budget)
-            : meta.defaultBudget ?? 1000;
+    // Bulk create missing spending categories if any
+    if (categoriesToCreate.length > 0) {
+        await prisma.category.createMany({
+            data: categoriesToCreate,
+            skipDuplicates: true,
+        });
+        // Reload all categories from DB
+        userCategories = await prisma.category.findMany({
+            where: { ownerId: user.id },
+        });
+    }
 
+    // Map each real database category to its stats
+    const categoriesList = userCategories.map((userCat, index) => {
+        const meta = DEFAULT_CATEGORY_METAS[userCat.name] || {};
+        
+        // Sum spending matching this category case-insensitively
+        let spentData = { total: 0, count: 0 };
+        for (const [k, v] of Object.entries(spentByCategory)) {
+            if (k.toLowerCase().trim() === userCat.name.toLowerCase().trim()) {
+                spentData = {
+                    total: spentData.total + v.total,
+                    count: spentData.count + v.count,
+                };
+            }
+        }
+
+        const budget = userCat?.budget ? Number(userCat.budget) : meta.defaultBudget ?? 1000;
         const color = userCat?.color || meta.color || PALETTE[index % PALETTE.length];
         const icon = userCat?.icon || meta.icon || "tag";
         const spent = Math.round(spentData.total * 100) / 100;
@@ -110,8 +150,8 @@ export async function GET() {
         const isOverBudget = spent > budget;
 
         return {
-            id: userCat?.id || `def-${index}`,
-            name,
+            id: userCat.id,
+            name: userCat.name,
             spent,
             budget,
             utilizedPercent,
