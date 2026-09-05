@@ -48,7 +48,7 @@ export function AccountSelect({
   return (
     <div>
       {label && (
-        <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+        <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
           {label}
         </label>
       )}
@@ -57,7 +57,7 @@ export function AccountSelect({
         onChange={(e) => onChange(e.target.value)}
         required={required}
         disabled={loading}
-        className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3 py-2 text-[#162B27] focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+        className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3 py-2 text-[#162B27] dark:text-white focus:bg-white dark:focus:bg-[#1A201D] focus:outline-none focus:border-[#0F5C53]"
       >
         {loading ? (
           <option value="">Loading accounts...</option>

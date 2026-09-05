@@ -194,6 +194,7 @@ export default function AccountsPage() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
   const [activityFilter, setActivityFilter] = useState<"ALL" | "IN" | "OUT">("ALL");
+  const [isMobileActivityOpen, setIsMobileActivityOpen] = useState(false);
 
   // Udhar Khata Filter: "all" | "lena" | "dene"
   const [udharFilter, setUdharFilter] = useState<"all" | "lena" | "dene">("all");
@@ -212,6 +213,26 @@ export default function AccountsPage() {
   const [settlingEntry, setSettlingEntry] = useState<UdharEntryItem | null>(null);
   const [settleAccountId, setSettleAccountId] = useState("");
   const [settling, setSettling] = useState(false);
+
+  async function fetchActivitiesForAccount(accId: string) {
+    setLoadingActivities(true);
+    try {
+      const res = await apiFetch<{ activities: ActivityItem[] }>(`/api/accounts/${accId}/activity`);
+      setActivities(res.activities || []);
+    } catch (err) {
+      console.error("Failed to load activity:", err);
+    } finally {
+      setLoadingActivities(false);
+    }
+  }
+
+  function handleSelectAccount(acc: Account) {
+    setSelectedAccountForActivity(acc);
+    fetchActivitiesForAccount(acc.id);
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setIsMobileActivityOpen(true);
+    }
+  }
 
   async function loadData() {
     try {
@@ -244,6 +265,8 @@ export default function AccountsPage() {
         if (!udharAccountId) {
           setUdharAccountId(accRes.accounts[0].id);
         }
+        setSelectedAccountForActivity((prev) => prev || accRes.accounts[0]);
+        fetchActivitiesForAccount(accRes.accounts[0].id);
       }
     } catch (err) {
       console.error("Failed to load accounts data:", err);
@@ -256,20 +279,6 @@ export default function AccountsPage() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function openActivityModal(acc: Account) {
-    setSelectedAccountForActivity(acc);
-    setLoadingActivities(true);
-    setActivities([]);
-    try {
-      const res = await apiFetch<{ activities: ActivityItem[] }>(`/api/accounts/${acc.id}/activity`);
-      setActivities(res.activities);
-    } catch (err) {
-      console.error("Failed to load activity:", err);
-    } finally {
-      setLoadingActivities(false);
-    }
-  }
 
   async function handleTransfer(e: React.FormEvent) {
     e.preventDefault();
@@ -447,6 +456,20 @@ export default function AccountsPage() {
   // Calculations
   const totalBalance = accounts.reduce((s, a) => s + parseFloat(a.balance.toString()), 0);
 
+  const unsettledUdharCount = useMemo(() => {
+    return udharEntries.filter((e) => !e.isSettled).length;
+  }, [udharEntries]);
+
+  const topAccount = useMemo(() => {
+    if (accounts.length === 0) return null;
+    return [...accounts].sort((a, b) => parseFloat(b.balance.toString()) - parseFloat(a.balance.toString()))[0];
+  }, [accounts]);
+
+  const topAccountPercent = useMemo(() => {
+    if (!topAccount || totalBalance <= 0) return 0;
+    return Math.round((parseFloat(topAccount.balance.toString()) / totalBalance) * 100);
+  }, [topAccount, totalBalance]);
+
   // Udhar Khata filtered lists (purely based on UdharEntry, not workspace expenses)
   const lenaPeople = useMemo(() => udharPeople.filter((p) => p.totalLena > 0), [udharPeople]);
   const denePeople = useMemo(() => udharPeople.filter((p) => p.totalDena > 0), [udharPeople]);
@@ -481,64 +504,94 @@ export default function AccountsPage() {
         {/* Top Header & Switcher */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="text-[11px] uppercase tracking-wider font-bold text-[#0F5C53] dark:text-[#34D399]">
-              Liquidity & Credit
+            <div className="text-[11px] uppercase tracking-wider font-bold text-[#0F5C53] dark:text-[#10B981] flex items-center gap-1.5">
+              <span>General Ledger</span>
+              <span>›</span>
+              <span className="text-[#5A6863] dark:text-[#8E9C95]">Active Folio</span>
             </div>
-            <h1 className="font-serif font-bold text-3xl md:text-4xl text-[#162B27] dark:text-white tracking-tight">
-              Accounts & Wallets
+            <h1 className="font-serif font-bold text-3xl md:text-4xl text-[#162B27] dark:text-white tracking-tight mt-0.5">
+              {activeTab === "accounts" ? "Accounts & Wallets" : "Credit & Udhar Ledger"}
             </h1>
           </div>
 
           {/* Tab Switcher: Accounts vs Udhar Khata */}
-          <div className="flex items-center gap-2">
-            <div className="flex bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] p-1 rounded-2xl text-xs font-semibold">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex bg-[#FAF8F5] dark:bg-[#0D131A] border border-[#E5E0D8] dark:border-[#1E2824] p-1 rounded-2xl text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setActiveTab("accounts")}
-                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                   activeTab === "accounts"
                     ? "bg-[#0F5C53] text-white shadow-xs"
-                    : "text-[#6B7268] dark:text-stone-400 hover:text-[#162B27] dark:hover:text-white"
+                    : "text-[#5A6863] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
                 }`}
               >
-                <span>💳 Wallets & Banks</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === "accounts" ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300"}`}>
+                <span>💳 My Accounts &amp; Wallets</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === "accounts" ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-[#1E2824] text-stone-700 dark:text-stone-300"}`}>
                   {accounts.length}
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("udhar")}
-                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                   activeTab === "udhar"
                     ? "bg-[#0F5C53] text-white shadow-xs"
-                    : "text-[#6B7268] dark:text-stone-400 hover:text-[#162B27] dark:hover:text-white"
+                    : "text-[#5A6863] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
                 }`}
               >
-                <span>📖 Udhar Khata</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === "udhar" ? "bg-white/20 text-white" : "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300"}`}>
-                  {udharPeople.length}
-                </span>
+                <span>📖 Udhar Khata (Credit Book)</span>
+                {unsettledUdharCount > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === "udhar" ? "bg-amber-400 text-slate-950" : "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300"}`}>
+                    {unsettledUdharCount} pending
+                  </span>
+                )}
               </button>
             </div>
+
+            {/* Master Reveal / Hide All Balances button */}
+            <button
+              type="button"
+              onClick={toggleAllBalances}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl text-[#5A6863] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] shadow-xs hover:border-[#0F5C53] dark:hover:border-[#10B981] transition-all cursor-pointer"
+            >
+              {isAllRevealed ? (
+                <>
+                  <svg className="w-4 h-4 text-[#5A6863] dark:text-[#8E9C95]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                  <span>Hide All</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 text-[#5A6863] dark:text-[#8E9C95]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span>Reveal All</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
         {/* VIEW 1: ACCOUNTS & WALLETS */}
         {activeTab === "accounts" && (
           <div className="space-y-6">
-            {/* Total Balance Hero Card */}
-            <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 sm:p-8 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            {/* Total Balance Luxury Hero Card */}
+            <div className="bg-[#0B3B36] dark:bg-[#092823] text-white border border-[#145C50] dark:border-[#134D41] rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+              <div className="absolute -right-16 -top-16 w-64 h-64 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
                 <div>
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="text-xs uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block">
-                      Total Available Balance
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-emerald-300/80 bg-white/10 px-2.5 py-0.5 rounded-full">
+                      PKR Reserves • Total Consolidated Liquidity
                     </span>
                     <button
                       type="button"
                       onClick={toggleGlobalBalance}
-                      className="p-1 rounded-lg text-stone-400 hover:text-[#162B27] dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
+                      className="p-1 rounded-lg text-emerald-200/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                       title={showGlobalBalance ? "Hide total balance" : "Show total balance"}
                     >
                       {showGlobalBalance ? (
@@ -553,41 +606,14 @@ export default function AccountsPage() {
                         </svg>
                       )}
                     </button>
-
-                    <span className="text-stone-300 dark:text-stone-700 select-none">|</span>
-
-                    <button
-                      type="button"
-                      onClick={toggleAllBalances}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-lg text-stone-600 dark:text-stone-300 hover:text-[#0F5C53] dark:hover:text-emerald-400 bg-[#FAF8F5] dark:bg-[#141816] hover:bg-[#F2EEE9] dark:hover:bg-stone-800 border border-[#E5E0D8] dark:border-[#28332E] transition-all cursor-pointer shadow-2xs"
-                      title={isAllRevealed ? "Hide all balances at once" : "Reveal all balances at once"}
-                    >
-                      {isAllRevealed ? (
-                        <>
-                          <svg className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                            <line x1="1" y1="1" x2="23" y2="23" />
-                          </svg>
-                          <span>Hide All</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                          <span>Reveal All</span>
-                        </>
-                      )}
-                    </button>
                   </div>
-                  <div className="font-serif font-bold text-4xl sm:text-5xl text-[#162B27] dark:text-white mt-1">
+                  <div className="font-serif font-bold text-4xl sm:text-5xl text-white mt-2 tracking-tight">
                     {showGlobalBalance ? `${symbol}${Math.round(totalBalance).toLocaleString()}` : "••••••"}
                   </div>
-                  <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-1.5 flex items-center gap-2">
-                    <span>{accounts.length} active payment sources</span>
+                  <p className="text-xs text-emerald-100/70 mt-1.5 flex items-center gap-2">
+                    <span>{accounts.length} active funding accounts</span>
                     <span>•</span>
-                    <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Click any account to view date & time ledger</span>
+                    <span className="text-emerald-300 font-medium">Select any account below to inspect date-grouped transactions</span>
                   </p>
                 </div>
 
@@ -597,239 +623,479 @@ export default function AccountsPage() {
                       if (accounts.length > 0) setDepositAccountId(accounts[0].id);
                       setIsDepositModalOpen(true);
                     }}
-                    className="bg-[#0F5C53] hover:bg-[#0A3F38] text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                    className="bg-[#E5A93C] hover:bg-[#D4982B] text-[#13191E] px-4 py-2.5 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-1.5"
                   >
-                    <span>+ Add Income / Salary</span>
+                    <span>+ Direct Deposit</span>
                   </button>
                   <button
                     onClick={() => setIsTransferModalOpen(true)}
-                    className="bg-[#FAF8F5] dark:bg-[#151A18] hover:bg-[#F2EEE9] dark:hover:bg-[#202925] border border-[#E5E0D8] dark:border-[#28332E] text-[#162B27] dark:text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                    className="bg-white/10 hover:bg-white/15 border border-white/20 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                   >
-                    <span>⇄ Transfer Funds</span>
+                    <span>⇄ Inter-Account Transfer</span>
                   </button>
                   <button
                     onClick={() => setIsAddAccountModalOpen(true)}
-                    className="bg-white dark:bg-[#19201D] hover:bg-stone-50 dark:hover:bg-stone-800 border border-[#E5E0D8] dark:border-[#28332E] text-[#6B7268] dark:text-stone-300 hover:text-[#162B27] dark:hover:text-white px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                    className="bg-white/10 hover:bg-white/15 border border-white/20 text-emerald-100 hover:text-white px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                   >
                     + New Account
                   </button>
                 </div>
               </div>
+
+              {/* Portfolio Allocation Breakdown Bar */}
+              {totalBalance > 0 && accounts.length > 0 && (
+                <div className="mt-6 pt-5 border-t border-white/10 relative z-10">
+                  <div className="flex items-center justify-between text-xs mb-2 text-emerald-100/80">
+                    <span className="font-semibold uppercase tracking-wider text-[10px]">Portfolio Allocation</span>
+                    <span className="text-[11px] font-medium text-emerald-200">
+                      {topAccount ? `${topAccount.name} holds ${topAccountPercent}%` : ""}
+                    </span>
+                  </div>
+                  <div className="h-2.5 w-full bg-black/25 rounded-full overflow-hidden flex gap-0.5 p-0.5">
+                    {accounts.map((acc, idx) => {
+                      const bal = Math.max(0, parseFloat(acc.balance.toString()));
+                      const pct = totalBalance > 0 ? (bal / totalBalance) * 100 : 0;
+                      if (pct <= 0) return null;
+                      const fallbackColors = ["#34D399", "#2DD4BF", "#FBBF24", "#38BDF8", "#818CF8", "#C084FC"];
+                      const barColor = acc.color || fallbackColors[idx % fallbackColors.length];
+                      return (
+                        <div
+                          key={acc.id}
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: barColor }}
+                          title={`${acc.name}: ${pct.toFixed(1)}%`}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 mt-2.5 text-[11px] text-emerald-100/70">
+                    {accounts.slice(0, 5).map((acc) => {
+                      const bal = Math.max(0, parseFloat(acc.balance.toString()));
+                      const pct = totalBalance > 0 ? Math.round((bal / totalBalance) * 100) : 0;
+                      return (
+                        <span key={acc.id} className="inline-flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: acc.color || "#10B981" }} />
+                          <span>{acc.name} ({pct}%)</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Accounts Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {accounts.map((acc) => {
-                const bal = parseFloat(acc.balance.toString());
-                const isAccVisible = visibleAccountIds.has(acc.id);
+            {/* Two-Column Desktop Layout: Left Cards & Right Folio Ledger */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: Accounts Grid & Transfers */}
+              <div className="lg:col-span-7 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-serif font-bold text-lg text-[#162B27] dark:text-white">
+                    Wallets & Accounts ({accounts.length})
+                  </h3>
+                  <span className="text-xs text-[#5A6863] dark:text-[#8E9C95]">
+                    Tap card to switch folio
+                  </span>
+                </div>
 
-                return (
-                  <div
-                    key={acc.id}
-                    onClick={() => openActivityModal(acc)}
-                    className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-5 sm:p-6 shadow-xs hover:border-[#0F5C53] dark:hover:border-[#34D399] hover:shadow-md transition-all cursor-pointer relative group flex flex-col justify-between min-h-[170px]"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-bold text-white shadow-xs"
-                            style={{ backgroundColor: acc.color || "#0F5C53" }}
-                          >
-                            {acc.type === "BANK" ? "🏛️" : acc.type === "CASH" ? "💵" : acc.type === "UDHAR_KHATA" ? "📖" : "📱"}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {accounts.map((acc) => {
+                    const bal = parseFloat(acc.balance.toString());
+                    const isAccVisible = visibleAccountIds.has(acc.id);
+                    const isSelected = selectedAccountForActivity?.id === acc.id;
+
+                    return (
+                      <div
+                        key={acc.id}
+                        onClick={() => handleSelectAccount(acc)}
+                        className={`bg-white dark:bg-[#13191E] border rounded-3xl p-5 shadow-xs transition-all cursor-pointer relative group flex flex-col justify-between min-h-[170px] ${
+                          isSelected
+                            ? "border-[#0F5C53] dark:border-[#10B981] ring-2 ring-[#0F5C53]/20 dark:ring-[#10B981]/20 shadow-md"
+                            : "border-[#E5E0D8] dark:border-[#1E2824] hover:border-[#0F5C53] dark:hover:border-[#10B981]"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className="w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-bold text-white shadow-xs"
+                                style={{ backgroundColor: acc.color || "#0F5C53" }}
+                              >
+                                {acc.type === "BANK" ? "🏛️" : acc.type === "CASH" ? "💵" : acc.type === "UDHAR_KHATA" ? "📖" : "📱"}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <h4 className="font-serif font-bold text-base text-[#162B27] dark:text-white leading-snug group-hover:text-[#0F5C53] dark:group-hover:text-[#10B981] transition-colors">
+                                    {acc.name}
+                                  </h4>
+                                  {isSelected && (
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Active Folio" />
+                                  )}
+                                </div>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-[#5A6863] dark:text-[#8E9C95]">
+                                  {acc.type.replace("_", " ")}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Edit Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingAccountId(acc.id);
+                                setEditAccName(acc.name);
+                                setEditAccType(acc.type);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="p-1.5 rounded-lg text-stone-400 hover:text-[#162B27] dark:hover:text-white hover:bg-[#FAF8F5] dark:hover:bg-[#1E2824] transition-all cursor-pointer text-xs"
+                              title="Edit Account Name"
+                            >
+                              ✏️
+                            </button>
                           </div>
-                          <div>
-                            <h3 className="font-serif font-bold text-lg text-[#162B27] dark:text-white leading-snug group-hover:text-[#0F5C53] dark:group-hover:text-[#34D399] transition-colors">
-                              {acc.name}
-                            </h3>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B7268] dark:text-stone-400">
-                              {acc.type.replace("_", " ")}
+
+                          <div className="mt-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block">
+                                Current Balance
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => toggleAccountBalance(acc.id, e)}
+                                className="p-1 rounded-md text-stone-400 hover:text-[#162B27] dark:hover:text-white hover:bg-[#FAF8F5] dark:hover:bg-[#1E2824] transition-colors cursor-pointer"
+                                title={isAccVisible ? "Hide balance" : "Show balance"}
+                              >
+                                {isAccVisible ? (
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                    <line x1="1" y1="1" x2="23" y2="23" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
+                            <span className="font-serif font-bold text-2xl text-[#162B27] dark:text-white">
+                              {isAccVisible ? `${symbol}${Math.round(bal).toLocaleString()}` : "••••••"}
                             </span>
                           </div>
                         </div>
 
-                        {/* Edit Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingAccountId(acc.id);
-                            setEditAccName(acc.name);
-                            setEditAccType(acc.type);
-                            setIsEditModalOpen(true);
-                          }}
-                          className="p-1.5 rounded-lg text-stone-400 hover:text-[#162B27] dark:hover:text-white hover:bg-[#FAF8F5] dark:hover:bg-stone-800 transition-all cursor-pointer text-xs"
-                          title="Edit Account Name"
-                        >
-                          ✏️
-                        </button>
-                      </div>
-
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block">
-                            Current Balance
+                        <div className="mt-4 pt-3 border-t border-[#F0ECE6] dark:border-[#1E2824] flex items-center justify-between text-xs">
+                          <span className="text-[#0F5C53] dark:text-[#10B981] font-semibold text-[11px] group-hover:underline flex items-center gap-1">
+                            {isSelected ? "Active Ledger •" : "View Ledger →"}
                           </span>
                           <button
                             type="button"
-                            onClick={(e) => toggleAccountBalance(acc.id, e)}
-                            className="p-1 rounded-md text-stone-400 hover:text-[#162B27] dark:hover:text-white hover:bg-[#FAF8F5] dark:hover:bg-stone-800 transition-colors cursor-pointer"
-                            title={isAccVisible ? "Hide balance" : "Show balance"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDepositAccountId(acc.id);
+                              setIsDepositModalOpen(true);
+                            }}
+                            className="text-[11px] font-semibold bg-[#FAF8F5] dark:bg-[#1A2229] hover:bg-[#EAE5DC] dark:hover:bg-[#202925] text-[#162B27] dark:text-white px-2.5 py-1 rounded-lg border border-[#E5E0D8] dark:border-[#1E2824]"
                           >
-                            {isAccVisible ? (
-                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                                <line x1="1" y1="1" x2="23" y2="23" />
-                              </svg>
-                            ) : (
-                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                <circle cx="12" cy="12" r="3" />
-                              </svg>
-                            )}
+                            + Deposit
                           </button>
                         </div>
-                        <span className="font-serif font-bold text-2xl text-[#162B27] dark:text-white">
-                          {isAccVisible ? `${symbol}${Math.round(bal).toLocaleString()}` : "••••••"}
-                        </span>
                       </div>
+                    );
+                  })}
+
+                  {/* Dashed Add Account Card */}
+                  <button
+                    type="button"
+                    onClick={() => setIsAddAccountModalOpen(true)}
+                    className="border-2 border-dashed border-[#E5E0D8] dark:border-[#1E2824] hover:border-[#0F5C53] dark:hover:border-[#10B981] rounded-3xl p-5 flex flex-col items-center justify-center text-center group min-h-[170px] bg-[#FAF8F5]/50 dark:bg-[#13191E]/50 hover:bg-white dark:hover:bg-[#13191E] transition-all cursor-pointer"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-stone-500 dark:text-stone-400 group-hover:text-[#0F5C53] dark:group-hover:text-[#10B981] flex items-center justify-center text-lg font-bold shadow-2xs mb-2 transition-colors">
+                      +
+                    </div>
+                    <span className="font-semibold text-xs text-[#162B27] dark:text-white">
+                      Add New Account
+                    </span>
+                    <span className="text-[10px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                      Bank, Mobile Wallet or Cash
+                    </span>
+                  </button>
+                </div>
+
+                {/* Transfers History */}
+                {transfers.length > 0 && (
+                  <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-serif font-bold text-lg text-[#162B27] dark:text-white">
+                        Recent Inter-Account Transfers
+                      </h3>
+                      <span className="text-xs text-[#5A6863] dark:text-[#8E9C95]">
+                        {transfers.length} transfers
+                      </span>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-[#F0ECE6] dark:border-[#28332E] flex items-center justify-between text-xs">
-                      <span className="text-[#0F5C53] dark:text-[#34D399] font-semibold text-[11px] group-hover:underline flex items-center gap-1">
-                        View Activity & Time →
+                    <div className="divide-y divide-[#F0ECE6] dark:divide-[#1E2824]">
+                      {transfers.slice(0, 6).map((t) => (
+                        <div key={t.id} className="py-3 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-stone-600 dark:text-stone-400 flex items-center justify-center text-xs">
+                              ⇄
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-[#162B27] dark:text-white">
+                                <span>{t.fromAccount.name}</span>
+                                <span className="text-stone-400 mx-1.5">→</span>
+                                <span>{t.toAccount.name}</span>
+                              </p>
+                              <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                                {formatDateTime(t.date)} {t.note ? `• ${t.note}` : ""}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
+                            {symbol}{Math.round(parseFloat(t.amount.toString()))}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Desktop Active Folio Ledger */}
+              <div className="hidden lg:block lg:col-span-5 sticky top-6">
+                <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 shadow-xs space-y-5">
+                  <div className="flex items-start justify-between pb-4 border-b border-[#F0ECE6] dark:border-[#1E2824]">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#5A6863] dark:text-[#8E9C95]">
+                        Active Folio Ledger
                       </span>
+                      <h3 className="font-serif font-bold text-2xl text-[#162B27] dark:text-white mt-0.5">
+                        {selectedAccountForActivity?.name || "Select Account"}
+                      </h3>
+                      <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5 flex items-center gap-2">
+                        <span>Balance:</span>
+                        <strong className="text-[#162B27] dark:text-white font-semibold">
+                          {selectedAccountForActivity
+                            ? (visibleAccountIds.has(selectedAccountForActivity.id)
+                              ? `${symbol}${Math.round(parseFloat(selectedAccountForActivity.balance.toString())).toLocaleString()}`
+                              : "••••••")
+                            : "-"}
+                        </strong>
+                        <span>•</span>
+                        <span>{selectedAccountForActivity?.type.replace("_", " ") || ""}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDepositAccountId(acc.id);
-                          setIsDepositModalOpen(true);
+                        onClick={() => {
+                          if (selectedAccountForActivity) {
+                            setDepositAccountId(selectedAccountForActivity.id);
+                            setIsDepositModalOpen(true);
+                          }
                         }}
-                        className="text-[11px] font-semibold bg-[#FAF8F5] dark:bg-[#151A18] hover:bg-[#EAE5DC] dark:hover:bg-[#202925] text-[#162B27] dark:text-white px-2.5 py-1 rounded-lg border border-[#E5E0D8] dark:border-[#28332E]"
+                        className="px-3 py-1.5 bg-[#0F5C53] hover:bg-[#0A3F38] text-white rounded-xl text-xs font-semibold shadow-xs cursor-pointer"
                       >
                         + Deposit
                       </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Transfers History */}
-            {transfers.length > 0 && (
-              <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                    Recent Inter-Account Transfers
-                  </h3>
-                  <span className="text-xs text-[#6B7268] dark:text-stone-400">
-                    {transfers.length} transfers
-                  </span>
-                </div>
+                  {/* Filter Tabs */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActivityFilter("ALL")}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                        activityFilter === "ALL"
+                          ? "bg-[#0F5C53] text-white"
+                          : "bg-[#FAF8F5] dark:bg-[#1A2229] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]"
+                      }`}
+                    >
+                      All ({activities.length})
+                    </button>
+                    <button
+                      onClick={() => setActivityFilter("IN")}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                        activityFilter === "IN"
+                          ? "bg-emerald-600 text-white"
+                          : "bg-[#FAF8F5] dark:bg-[#1A2229] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]"
+                      }`}
+                    >
+                      Money In (+)
+                    </button>
+                    <button
+                      onClick={() => setActivityFilter("OUT")}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                        activityFilter === "OUT"
+                          ? "bg-rose-600 text-white"
+                          : "bg-[#FAF8F5] dark:bg-[#1A2229] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]"
+                      }`}
+                    >
+                      Money Out (-)
+                    </button>
+                  </div>
 
-                <div className="divide-y divide-[#F0ECE6] dark:divide-[#28332E]">
-                  {transfers.slice(0, 8).map((t) => (
-                    <div key={t.id} className="py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] text-stone-600 dark:text-stone-400 flex items-center justify-center text-xs">
-                          ⇄
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-[#162B27] dark:text-white">
-                            <span>{t.fromAccount.name}</span>
-                            <span className="text-stone-400 mx-1.5">→</span>
-                            <span>{t.toAccount.name}</span>
-                          </p>
-                          <p className="text-[11px] text-[#6B7268] dark:text-stone-400 mt-0.5">
-                            {formatDateTime(t.date)} {t.note ? `• ${t.note}` : ""}
-                          </p>
-                        </div>
+                  {/* Activity Items List */}
+                  <div className="max-h-[460px] overflow-y-auto divide-y divide-[#F0ECE6] dark:divide-[#1E2824] pr-1">
+                    {loadingActivities ? (
+                      <div className="py-12 text-center text-xs text-[#5A6863] dark:text-[#8E9C95]">
+                        Loading folio ledger...
                       </div>
-                      <span className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
-                        {symbol}{Math.round(parseFloat(t.amount.toString()))}
-                      </span>
-                    </div>
-                  ))}
+                    ) : filteredActivities.length === 0 ? (
+                      <div className="py-12 text-center text-xs text-[#5A6863] dark:text-[#8E9C95]">
+                        No recorded transactions for this account yet.
+                      </div>
+                    ) : (
+                      filteredActivities.map((act) => (
+                        <div key={act.id} className="py-3 flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
+                                act.direction === "IN"
+                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                  : "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                              }`}
+                            >
+                              {act.direction === "IN" ? "↓" : "↑"}
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-[#162B27] dark:text-white">
+                                {act.title}
+                              </p>
+                              <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                                {formatDateTime(act.date)} {act.note ? `• ${act.note}` : ""}
+                              </p>
+                              {act.category && (
+                                <span className="inline-block mt-1 px-2 py-0.2 rounded-md text-[10px] font-medium bg-[#FAF8F5] dark:bg-[#1A2229] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]">
+                                  {act.category}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-right flex-shrink-0">
+                            <span
+                              className={`font-serif font-bold text-sm ${
+                                act.direction === "IN" ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#162B27] dark:text-white"
+                              }`}
+                            >
+                              {act.direction === "IN" ? "+" : "-"}{symbol}{Math.round(act.amount)}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 
         {/* VIEW 2: UDHAR KHATA (DEDICATED CREDIT LEDGER) */}
         {activeTab === "udhar" && (
           <div className="space-y-6">
-            {/* Udhar Khata Balance Equilibrium Banner */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Udhar Khata Balance Equilibrium 4-Card Hero Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Total Lena Hai (Receivables) */}
-              <div className="bg-white dark:bg-[#19201D] border border-emerald-200 dark:border-emerald-900/50 rounded-3xl p-6 shadow-xs relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-500" />
-                <span className="text-[11px] uppercase font-bold text-emerald-800 dark:text-emerald-400 tracking-wider block">
-                  🟢 Logon Se Lena Hai (Receivables)
-                </span>
-                <div className="font-serif font-bold text-3xl sm:text-4xl text-[#1E7D46] dark:text-emerald-400 mt-2">
-                  {symbol}{Math.round(totalLena).toLocaleString()}
+              <div className="bg-white dark:bg-[#13191E] border border-emerald-200 dark:border-emerald-900/40 rounded-3xl p-5 sm:p-6 shadow-xs relative overflow-hidden flex flex-col justify-between">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-400 tracking-wider">
+                      🟢 Receivables (Lena Hai)
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  </div>
+                  <div className="font-serif font-bold text-3xl sm:text-4xl text-[#1E7D46] dark:text-emerald-400 mt-2">
+                    {symbol}{Math.round(totalLena).toLocaleString()}
+                  </div>
                 </div>
-                <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-1.5">
-                  {lenaPeople.length} {lenaPeople.length === 1 ? "person owes" : "people owe"} you personal loans
+                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-3">
+                  {lenaPeople.length} {lenaPeople.length === 1 ? "contact owes" : "contacts owe"} you loans
                 </p>
               </div>
 
               {/* Total Dene Hain (Payables) */}
-              <div className="bg-white dark:bg-[#19201D] border border-rose-200 dark:border-rose-900/50 rounded-3xl p-6 shadow-xs relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1.5 bg-rose-500" />
-                <span className="text-[11px] uppercase font-bold text-rose-800 dark:text-rose-400 tracking-wider block">
-                  🔴 Logon Ko Dena Hai (Payables)
-                </span>
-                <div className="font-serif font-bold text-3xl sm:text-4xl text-[#A8441F] dark:text-rose-400 mt-2">
-                  {symbol}{Math.round(totalDena).toLocaleString()}
+              <div className="bg-white dark:bg-[#13191E] border border-rose-200 dark:border-rose-900/40 rounded-3xl p-5 sm:p-6 shadow-xs relative overflow-hidden flex flex-col justify-between">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500" />
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-rose-800 dark:text-rose-400 tracking-wider">
+                      🔴 Payables (Dena Hai)
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  </div>
+                  <div className="font-serif font-bold text-3xl sm:text-4xl text-[#A8441F] dark:text-rose-400 mt-2">
+                    {symbol}{Math.round(totalDena).toLocaleString()}
+                  </div>
                 </div>
-                <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-1.5">
-                  You owe {denePeople.length} {denePeople.length === 1 ? "person" : "people"}
+                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-3">
+                  You owe {denePeople.length} {denePeople.length === 1 ? "contact" : "contacts"}
                 </p>
               </div>
 
               {/* Net Udhar Position */}
-              <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 shadow-xs flex flex-col justify-between">
+              <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
                 <div>
-                  <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block">
-                    ⚖️ Net Khata Equilibrium
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider">
+                      ⚖️ Net Equilibrium
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                      netUdhar > 0 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300" : netUdhar < 0 ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300" : "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                    }`}>
+                      {netUdhar > 0 ? "In Credit" : netUdhar < 0 ? "In Debt" : "Even"}
+                    </span>
+                  </div>
                   <div className={`font-serif font-bold text-3xl sm:text-4xl mt-2 ${netUdhar > 0 ? "text-[#1E7D46] dark:text-emerald-400" : netUdhar < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-[#162B27] dark:text-white"}`}>
                     {netUdhar > 0 ? "+" : ""}{symbol}{Math.round(netUdhar).toLocaleString()}
                   </div>
-                  <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-1">
-                    {netUdhar > 0 ? "You are net in credit" : netUdhar < 0 ? "You are net in debt" : "All even"}
+                </div>
+                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-3">
+                  {netUdhar > 0 ? "Net favorable credit balance" : netUdhar < 0 ? "Net outstanding debt balance" : "Fully balanced ledger"}
+                </p>
+              </div>
+
+              {/* Action Card */}
+              <div className="bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block">
+                    Quick Udhar Entry
+                  </span>
+                  <p className="text-xs text-[#162B27] dark:text-white font-medium mt-1">
+                    Record loan lent or borrowed outside shared spaces
                   </p>
                 </div>
-
                 <button
+                  type="button"
                   onClick={() => setIsUdharModalOpen(true)}
-                  className="mt-3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer text-center"
+                  className="mt-3 w-full bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer text-center shadow-xs flex items-center justify-center gap-1.5"
                 >
-                  + Record Udhar Entry
+                  <span>+ Record Udhar Entry</span>
                 </button>
               </div>
             </div>
 
             {/* Filter Tabs for Udhar */}
-            <div className="flex items-center justify-between">
-              <div className="flex bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] p-1 rounded-xl text-xs font-semibold">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] p-1 rounded-xl text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setUdharFilter("all")}
                   className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    udharFilter === "all" ? "bg-white dark:bg-[#202925] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs" : "text-[#6B7268] dark:text-stone-400"
+                    udharFilter === "all" ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
                   }`}
                 >
-                  All Active ({udharPeople.length})
+                  All ({udharPeople.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setUdharFilter("lena")}
                   className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    udharFilter === "lena" ? "bg-white dark:bg-[#202925] text-emerald-700 dark:text-emerald-400 font-bold shadow-xs" : "text-[#6B7268] dark:text-stone-400"
+                    udharFilter === "lena" ? "bg-white dark:bg-[#1A2229] text-emerald-700 dark:text-emerald-400 font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
                   }`}
                 >
                   Lena Hai ({lenaPeople.length})
@@ -838,7 +1104,7 @@ export default function AccountsPage() {
                   type="button"
                   onClick={() => setUdharFilter("dene")}
                   className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    udharFilter === "dene" ? "bg-white dark:bg-[#202925] text-rose-700 dark:text-rose-400 font-bold shadow-xs" : "text-[#6B7268] dark:text-stone-400"
+                    udharFilter === "dene" ? "bg-white dark:bg-[#1A2229] text-rose-700 dark:text-rose-400 font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
                   }`}
                 >
                   Dene Hain ({denePeople.length})
@@ -846,10 +1112,11 @@ export default function AccountsPage() {
               </div>
 
               <button
+                type="button"
                 onClick={() => setIsUdharModalOpen(true)}
-                className="text-xs font-semibold text-[#0F5C53] dark:text-[#34D399] hover:underline cursor-pointer"
+                className="text-xs font-semibold text-[#0F5C53] dark:text-[#10B981] hover:underline cursor-pointer flex items-center gap-1"
               >
-                + New Udhar Entry
+                <span>+ New Udhar Entry</span>
               </button>
             </div>
 
@@ -878,7 +1145,7 @@ export default function AccountsPage() {
                     return (
                       <div
                         key={person.personId}
-                        className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-5 shadow-xs space-y-3 hover:border-emerald-400 transition-all"
+                        className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs space-y-3 hover:border-emerald-500/60 dark:hover:border-emerald-500/60 transition-all"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -909,16 +1176,16 @@ export default function AccountsPage() {
                         </div>
 
                         {/* Unsettled entries list for this person */}
-                        <div className="divide-y divide-[#F0ECE6] dark:divide-[#28332E] pt-1">
+                        <div className="divide-y divide-[#F0ECE6] dark:divide-[#1E2824] pt-1">
                           {activeEntries.map((e) => (
                             <div key={e.id} className="py-2.5 flex items-center justify-between text-xs">
                               <div>
                                 <p className="font-medium text-[#162B27] dark:text-white">
                                   {e.note || "Udhar (Maine diye)"}
                                 </p>
-                                <p className="text-[11px] text-[#6B7268] dark:text-stone-400 mt-0.5">
+                                <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
                                   {formatDateTime(e.date)}
-                                  {e.account && <span className="ml-1.5 px-1.5 py-0.2 rounded bg-stone-100 dark:bg-stone-800 text-[10px]">💳 {e.account.name}</span>}
+                                  {e.account && <span className="ml-1.5 px-1.5 py-0.2 rounded bg-stone-100 dark:bg-[#1A2229] text-[10px]">💳 {e.account.name}</span>}
                                 </p>
                               </div>
 
@@ -941,7 +1208,7 @@ export default function AccountsPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteUdharEntry(e.id)}
-                                  className="text-stone-400 hover:text-rose-600 text-xs p-1"
+                                  className="text-stone-400 hover:text-rose-600 text-xs p-1 cursor-pointer"
                                   title="Delete entry"
                                 >
                                   ✕
@@ -955,7 +1222,7 @@ export default function AccountsPage() {
                   })}
 
                   {lenaPeople.length === 0 && (
-                    <div className="bg-white dark:bg-[#19201D] border border-dashed border-[#E5E0D8] dark:border-[#28332E] rounded-2xl p-8 text-center text-[#6B7268] dark:text-stone-400 text-xs">
+                    <div className="bg-white dark:bg-[#13191E] border border-dashed border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-8 text-center text-[#5A6863] dark:text-[#8E9C95] text-xs">
                       No active receivables. You have not lent money to anyone.
                     </div>
                   )}
@@ -981,7 +1248,7 @@ export default function AccountsPage() {
                     return (
                       <div
                         key={person.personId}
-                        className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-5 shadow-xs space-y-3 hover:border-rose-400 transition-all"
+                        className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs space-y-3 hover:border-rose-500/60 dark:hover:border-rose-500/60 transition-all"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -1000,16 +1267,16 @@ export default function AccountsPage() {
                         </div>
 
                         {/* Unsettled entries list for this person */}
-                        <div className="divide-y divide-[#F0ECE6] dark:divide-[#28332E] pt-1">
+                        <div className="divide-y divide-[#F0ECE6] dark:divide-[#1E2824] pt-1">
                           {activeEntries.map((e) => (
                             <div key={e.id} className="py-2.5 flex items-center justify-between text-xs">
                               <div>
                                 <p className="font-medium text-[#162B27] dark:text-white">
                                   {e.note || "Udhar (Maine liye)"}
                                 </p>
-                                <p className="text-[11px] text-[#6B7268] dark:text-stone-400 mt-0.5">
+                                <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
                                   {formatDateTime(e.date)}
-                                  {e.account && <span className="ml-1.5 px-1.5 py-0.2 rounded bg-stone-100 dark:bg-stone-800 text-[10px]">💳 {e.account.name}</span>}
+                                  {e.account && <span className="ml-1.5 px-1.5 py-0.2 rounded bg-stone-100 dark:bg-[#1A2229] text-[10px]">💳 {e.account.name}</span>}
                                 </p>
                               </div>
 
@@ -1032,7 +1299,7 @@ export default function AccountsPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteUdharEntry(e.id)}
-                                  className="text-stone-400 hover:text-rose-600 text-xs p-1"
+                                  className="text-stone-400 hover:text-rose-600 text-xs p-1 cursor-pointer"
                                   title="Delete entry"
                                 >
                                   ✕
@@ -1046,7 +1313,7 @@ export default function AccountsPage() {
                   })}
 
                   {denePeople.length === 0 && (
-                    <div className="bg-white dark:bg-[#19201D] border border-dashed border-[#E5E0D8] dark:border-[#28332E] rounded-2xl p-8 text-center text-[#6B7268] dark:text-stone-400 text-xs">
+                    <div className="bg-white dark:bg-[#13191E] border border-dashed border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-8 text-center text-[#5A6863] dark:text-[#8E9C95] text-xs">
                       No active debts! You don't owe anyone personal loan money.
                     </div>
                   )}
@@ -1057,24 +1324,24 @@ export default function AccountsPage() {
         )}
       </div>
 
-      {/* MODAL 1: ACCOUNT ACTIVITY & TIME LEDGER */}
-      {selectedAccountForActivity && (
-        <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 sm:p-7 max-w-xl w-full shadow-2xl my-8 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F0ECE6] dark:border-[#28332E]">
+      {/* MODAL 1: MOBILE ACCOUNT ACTIVITY & TIME LEDGER (Opens on mobile screens or when tapped) */}
+      {isMobileActivityOpen && selectedAccountForActivity && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto">
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-[#F0ECE6] dark:border-[#1E2824]">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B7268] dark:text-stone-400">
-                  Account Activity & Audit
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#5A6863] dark:text-[#8E9C95]">
+                  Account Activity Ledger
                 </span>
                 <h3 className="font-serif font-bold text-2xl text-[#162B27] dark:text-white">
                   {selectedAccountForActivity.name}
                 </h3>
-                <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-0.5">
-                  Balance: <strong className="text-[#162B27] dark:text-white">{symbol}{Math.round(parseFloat(selectedAccountForActivity.balance.toString()))}</strong> • {selectedAccountForActivity.type}
+                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                  Balance: <strong className="text-[#162B27] dark:text-white">{symbol}{Math.round(parseFloat(selectedAccountForActivity.balance.toString()))}</strong> • {selectedAccountForActivity.type.replace("_", " ")}
                 </p>
               </div>
               <button
-                onClick={() => setSelectedAccountForActivity(null)}
+                onClick={() => setIsMobileActivityOpen(false)}
                 className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-lg font-bold cursor-pointer"
               >
                 ✕
@@ -1085,32 +1352,32 @@ export default function AccountsPage() {
             <div className="flex items-center gap-2 py-3">
               <button
                 onClick={() => setActivityFilter("ALL")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "ALL" ? "bg-[#0F5C53] text-white" : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300"}`}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "ALL" ? "bg-[#0F5C53] text-white" : "bg-stone-100 dark:bg-[#1A2229] text-stone-600 dark:text-stone-300"}`}
               >
                 All
               </button>
               <button
                 onClick={() => setActivityFilter("IN")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "IN" ? "bg-emerald-600 text-white" : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300"}`}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "IN" ? "bg-emerald-600 text-white" : "bg-stone-100 dark:bg-[#1A2229] text-stone-600 dark:text-stone-300"}`}
               >
                 Money In (+)
               </button>
               <button
                 onClick={() => setActivityFilter("OUT")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "OUT" ? "bg-rose-600 text-white" : "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300"}`}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "OUT" ? "bg-rose-600 text-white" : "bg-stone-100 dark:bg-[#1A2229] text-stone-600 dark:text-stone-300"}`}
               >
                 Money Out (-)
               </button>
             </div>
 
             {/* Activity List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-[#F0ECE6] dark:divide-[#28332E] pr-1 space-y-1">
+            <div className="flex-1 overflow-y-auto divide-y divide-[#F0ECE6] dark:divide-[#1E2824] pr-1 space-y-1">
               {loadingActivities ? (
-                <div className="py-12 text-center text-xs text-[#6B7268] dark:text-stone-400">
+                <div className="py-12 text-center text-xs text-[#5A6863] dark:text-[#8E9C95]">
                   Loading transactions...
                 </div>
               ) : filteredActivities.length === 0 ? (
-                <div className="py-12 text-center text-xs text-[#6B7268] dark:text-stone-400">
+                <div className="py-12 text-center text-xs text-[#5A6863] dark:text-[#8E9C95]">
                   No transactions recorded for this account yet.
                 </div>
               ) : (
@@ -1130,11 +1397,11 @@ export default function AccountsPage() {
                         <p className="text-xs font-semibold text-[#162B27] dark:text-white">
                           {act.title}
                         </p>
-                        <p className="text-[11px] text-[#6B7268] dark:text-stone-400 mt-0.5">
+                        <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
                           {formatDateTime(act.date)} {act.note ? `• ${act.note}` : ""}
                         </p>
                         {act.category && (
-                          <span className="inline-block mt-1 px-2 py-0.2 rounded-md text-[10px] font-medium bg-[#FAF8F5] dark:bg-[#151A18] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#28332E]">
+                          <span className="inline-block mt-1 px-2 py-0.2 rounded-md text-[10px] font-medium bg-[#FAF8F5] dark:bg-[#151A18] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]">
                             {act.category}
                           </span>
                         )}
@@ -1155,11 +1422,11 @@ export default function AccountsPage() {
               )}
             </div>
 
-            <div className="pt-4 border-t border-[#F0ECE6] dark:border-[#28332E] flex justify-end">
+            <div className="pt-4 border-t border-[#F0ECE6] dark:border-[#1E2824] flex justify-end">
               <button
                 type="button"
-                onClick={() => setSelectedAccountForActivity(null)}
-                className="px-5 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-xs font-semibold text-stone-800 dark:text-white cursor-pointer"
+                onClick={() => setIsMobileActivityOpen(false)}
+                className="px-5 py-2 rounded-xl bg-stone-100 dark:bg-[#1A2229] hover:bg-stone-200 dark:hover:bg-stone-700 text-xs font-semibold text-stone-800 dark:text-white cursor-pointer"
               >
                 Close
               </button>

@@ -15,6 +15,7 @@ export function TopHeader({
   addEntryLabel = "Add Entry",
   title = "HISAB KITAB",
   subtitle = "Private Ledger #001",
+  onSearch,
 }: TopHeaderProps) {
   const displayLabel = addEntryLabel.startsWith("+")
     ? addEntryLabel.slice(1).trim()
@@ -35,6 +36,22 @@ export function TopHeader({
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
           <span>{subtitle}</span>
+        </div>
+      </div>
+
+      {/* Center: Search Bar */}
+      <div className="flex-1 max-w-md mx-6">
+        <div className="relative flex items-center">
+          <svg className="w-4 h-4 text-[#5A6863] dark:text-[#8E9C95] absolute left-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Quick search transactions, udhar parties..."
+            onChange={(e) => onSearch && onSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-1.5 text-xs rounded-xl bg-white/70 dark:bg-[#151D24] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-white placeholder-[#8E9C95] focus:outline-none focus:ring-1 focus:ring-[#0F5C53] dark:focus:ring-[#10B981] transition-all"
+          />
         </div>
       </div>
 

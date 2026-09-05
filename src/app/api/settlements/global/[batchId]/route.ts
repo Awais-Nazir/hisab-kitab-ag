@@ -19,6 +19,27 @@ export async function DELETE(
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.settlement.deleteMany({ where: { batchId } });
+    await prisma.$transaction(async (tx) => {
+        // Revert any account adjustments made by settlements in this batch
+        for (const r of rows) {
+            if (r.accountId) {
+                if (r.fromPersonId === user.selfPersonId) {
+                    // User was payer (account decremented) -> increment back
+                    await tx.account.update({
+                        where: { id: r.accountId },
+                        data: { balance: { increment: r.amount } },
+                    });
+                } else if (r.toPersonId === user.selfPersonId) {
+                    // User was receiver (account incremented) -> decrement back
+                    await tx.account.update({
+                        where: { id: r.accountId },
+                        data: { balance: { decrement: r.amount } },
+                    });
+                }
+            }
+        }
+        await tx.settlement.deleteMany({ where: { batchId } });
+    });
+
     return NextResponse.json({ success: true });
 }

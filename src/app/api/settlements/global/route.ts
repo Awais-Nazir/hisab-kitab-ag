@@ -163,7 +163,7 @@ export async function GET() {
 
     const settlements = await prisma.settlement.findMany({
         where: { batchId: { not: null }, workspace: { ownerId: user.id } },
-        include: { fromPerson: true, toPerson: true, workspace: true },
+        include: { fromPerson: true, toPerson: true, workspace: true, account: true },
         orderBy: { date: "desc" },
     });
 
@@ -174,14 +174,18 @@ export async function GET() {
         batches.get(key)!.push(s);
     }
 
-    const result = Array.from(batches.entries()).map(([batchId, rows]) => ({
-        batchId,
-        date: rows[0].date,
-        fromPerson: { id: rows[0].fromPerson.id, name: rows[0].fromPerson.name, isSelf: rows[0].fromPerson.isSelf },
-        toPerson: { id: rows[0].toPerson.id, name: rows[0].toPerson.name, isSelf: rows[0].toPerson.isSelf },
-        total: rows.reduce((s, r) => s + Number(r.amount), 0),
-        breakdown: rows.map((r) => ({ workspaceName: r.workspace.name, amount: Number(r.amount) })),
-    }));
+    const result = Array.from(batches.entries()).map(([batchId, rows]) => {
+        const accountUsed = rows.find((r) => r.account)?.account;
+        return {
+            batchId,
+            date: rows[0].date,
+            fromPerson: { id: rows[0].fromPerson.id, name: rows[0].fromPerson.name, isSelf: rows[0].fromPerson.isSelf },
+            toPerson: { id: rows[0].toPerson.id, name: rows[0].toPerson.name, isSelf: rows[0].toPerson.isSelf },
+            total: rows.reduce((s, r) => s + Number(r.amount), 0),
+            accountName: accountUsed?.name ?? null,
+            breakdown: rows.map((r) => ({ workspaceName: r.workspace.name, amount: Number(r.amount) })),
+        };
+    });
 
     return NextResponse.json({ batches: result });
 }

@@ -137,12 +137,20 @@ export default function PeoplePage() {
 
   function handleCopyReminder(person: Person, balance: number) {
     const text = balance > 0
-      ? `Hi ${person.name}, just sending a quick reminder about our balance of ${symbol}${balance.toFixed(2)} on Hisab Kitab.`
-      : `Hi ${person.name}, I checked our ledger on Hisab Kitab and I owe you ${symbol}${Math.abs(balance).toFixed(2)}. Let's settle up soon!`;
+      ? `Hi ${person.name}, just sending a quick reminder about our balance of ${symbol}${Math.round(balance).toLocaleString()} on Hisab Kitab.`
+      : `Hi ${person.name}, I checked our ledger on Hisab Kitab and I owe you ${symbol}${Math.round(Math.abs(balance)).toLocaleString()}. Let's settle up soon!`;
 
     navigator.clipboard.writeText(text);
     setCopiedReminder(true);
     setTimeout(() => setCopiedReminder(false), 3000);
+  }
+
+  function handleWhatsAppReminder(person: Person, balance: number) {
+    const text = balance > 0
+      ? `Hi ${person.name}, just sending a quick reminder about our balance of ${symbol}${Math.round(balance).toLocaleString()} on Hisab Kitab.`
+      : `Hi ${person.name}, I checked our ledger on Hisab Kitab and I owe you ${symbol}${Math.round(Math.abs(balance)).toLocaleString()}. Let's settle up soon!`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
 
   // Calculate totals
@@ -175,26 +183,26 @@ export default function PeoplePage() {
       title="People"
       subtitle="Contacts & Directory"
       onAddEntry={() => setIsAddModalOpen(true)}
-      addEntryLabel="Add Contact"
+      addEntryLabel="+ Add Contact"
     >
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header Section matching Figma */}
+        {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="text-[11px] uppercase tracking-wider font-bold text-[#0F5C53]">
-              Contacts & Directory
+            <div className="text-[11px] uppercase tracking-wider font-bold text-[#0F5C53] dark:text-[#34D399]">
+              Network Directory
             </div>
-            <h1 className="font-serif font-bold text-3xl md:text-4xl text-[#162B27] tracking-tight mt-0.5">
+            <h1 className="font-serif font-bold text-3xl md:text-4xl text-[#162B27] dark:text-white tracking-tight mt-0.5">
               People
             </h1>
-            <p className="text-xs text-[#6B7268] mt-1">
-              Track multi-ledger balances and transaction history with your friends and contacts.
+            <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1">
+              Track multi-ledger balances and transaction history with your contacts.
             </p>
           </div>
 
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-[#0F5C53] hover:bg-[#0A3F38] text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+            className="bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white px-5 py-2.5 rounded-2xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" />
@@ -206,40 +214,40 @@ export default function PeoplePage() {
         {/* Top 3 Summary Cards matching Figma */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           {/* Card 1: Total Owed to You */}
-          <div className="bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-2xl p-5 shadow-xs">
-            <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block">
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs transition-all hover:border-[#0F5C53]/30">
+            <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
               Total Owed to You
             </span>
-            <div className="font-serif font-bold text-2xl text-[#1E7D46] dark:text-emerald-400 mt-2">
-              +{symbol}{totalOwedToYou.toFixed(2)}
+            <div className="font-serif font-bold text-3xl text-[#1E7D46] dark:text-emerald-400 mt-2">
+              +{symbol}{Math.round(totalOwedToYou).toLocaleString()}
             </div>
-            <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-1">
+            <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1">
               receivable across contacts
             </p>
           </div>
 
           {/* Card 2: Total You Owe */}
-          <div className="bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-2xl p-5 shadow-xs">
-            <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block">
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs transition-all hover:border-rose-500/30">
+            <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
               Total You Owe
             </span>
-            <div className="font-serif font-bold text-2xl text-[#A8441F] dark:text-rose-400 mt-2">
-              -{symbol}{totalYouOwe.toFixed(2)}
+            <div className="font-serif font-bold text-3xl text-[#A8441F] dark:text-rose-400 mt-2">
+              -{symbol}{Math.round(totalYouOwe).toLocaleString()}
             </div>
-            <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-1">
+            <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1">
               payable across contacts
             </p>
           </div>
 
           {/* Card 3: Net Position */}
-          <div className="bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-2xl p-5 shadow-xs">
-            <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block">
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs transition-all hover:border-[#0F5C53]/30">
+            <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
               Net Position
             </span>
-            <div className={`font-serif font-bold text-2xl mt-2 ${netTotal >= 0 ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#A8441F] dark:text-rose-400"}`}>
-              {netTotal >= 0 ? "+" : "-"}{symbol}{Math.abs(netTotal).toFixed(2)}
+            <div className={`font-serif font-bold text-3xl mt-2 ${netTotal >= 0 ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#A8441F] dark:text-rose-400"}`}>
+              {netTotal >= 0 ? "+" : "-"}{symbol}{Math.round(Math.abs(netTotal)).toLocaleString()}
             </div>
-            <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-1">
+            <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1">
               {netTotal >= 0 ? "Overall net positive" : "Overall net payable"}
             </p>
           </div>
@@ -248,7 +256,7 @@ export default function PeoplePage() {
         {/* Master-Detail Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column (5 Cols): Contacts List with Search & Filter */}
-          <div className="lg:col-span-5 bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="lg:col-span-5 bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
             {/* Search Input */}
             <div className="relative">
               <svg className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -260,12 +268,12 @@ export default function PeoplePage() {
                 placeholder="Search contacts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E0D8] dark:border-stone-700 rounded-xl text-xs text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
+                className="w-full pl-10 pr-3 py-2.5 bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl text-xs text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
               />
             </div>
 
             {/* Filter Pills */}
-            <div className="flex bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E0D8] dark:border-stone-700 p-1 rounded-xl text-[11px] font-medium overflow-x-auto">
+            <div className="flex bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] p-1 rounded-2xl text-[11px] font-medium overflow-x-auto">
               {(
                 [
                   { id: "all", label: "All" },
@@ -278,10 +286,10 @@ export default function PeoplePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setFilterTab(tab.id)}
-                  className={`flex-1 py-1.5 px-2 rounded-lg whitespace-nowrap transition-all cursor-pointer text-center ${
+                  className={`flex-1 py-1.5 px-2 rounded-xl whitespace-nowrap transition-all cursor-pointer text-center ${
                     filterTab === tab.id
-                      ? "bg-white dark:bg-stone-900 text-[#0F5C53] dark:text-emerald-400 font-bold shadow-xs"
-                      : "text-[#6B7268] dark:text-stone-400"
+                      ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs border border-transparent dark:border-[#1E2824]"
+                      : "text-[#6B7268] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
                   }`}
                 >
                   {tab.label}
@@ -291,9 +299,9 @@ export default function PeoplePage() {
 
             {/* Contacts Scrollable List */}
             {loading ? (
-              <div className="py-8 text-center text-xs text-[#6B7268] dark:text-stone-400">Loading contacts...</div>
+              <div className="py-8 text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">Loading contacts...</div>
             ) : filteredPeople.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#6B7268] dark:text-stone-400">
+              <div className="py-12 text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">
                 No contacts match the filter.
               </div>
             ) : (
@@ -308,29 +316,29 @@ export default function PeoplePage() {
                       onClick={() => setSelectedPerson(person)}
                       className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                         isSelected
-                          ? "bg-emerald-50/70 dark:bg-[#0F5C53]/30 border-[#0F5C53] dark:border-[#10B981] shadow-xs"
-                          : "bg-white dark:bg-stone-900/50 hover:bg-[#FAF8F5] dark:hover:bg-stone-800/50 border-[#E5E0D8] dark:border-stone-800"
+                          ? "bg-emerald-50/70 dark:bg-emerald-950/30 border-[#0F5C53] dark:border-[#10B981] shadow-xs"
+                          : "bg-white dark:bg-[#161D22] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] border-[#E5E0D8] dark:border-[#1E2824]"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#0F5C53]/15 dark:bg-[#0F5C53]/35 text-[#0F5C53] dark:text-emerald-400 font-serif font-bold text-sm flex items-center justify-center flex-shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-[#0F5C53] dark:text-[#34D399] font-serif font-bold text-sm flex items-center justify-center flex-shrink-0">
                           {person.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <p className="font-semibold text-xs text-[#162B27] dark:text-white">
                             {person.name}
                           </p>
-                          <p className="text-[11px] text-[#6B7268] dark:text-stone-400 truncate max-w-[140px]">
+                          <p className="text-[11px] text-[#6B7268] dark:text-[#8E9C95] truncate max-w-[140px]">
                             {person.email || "No email"}
                           </p>
                         </div>
                       </div>
 
                       <div className="text-right">
-                        <span className={`font-serif font-bold text-xs ${bal > 0 ? "text-[#1E7D46] dark:text-emerald-400" : bal < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-[#6B7268] dark:text-stone-400"}`}>
-                          {bal > 0 ? `+${symbol}${bal.toFixed(2)}` : bal < 0 ? `-${symbol}${Math.abs(bal).toFixed(2)}` : "Settled"}
+                        <span className={`font-serif font-bold text-xs ${bal > 0 ? "text-[#1E7D46] dark:text-emerald-400" : bal < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-[#6B7268] dark:text-[#8E9C95]"}`}>
+                          {bal > 0 ? `+${symbol}${Math.round(bal).toLocaleString()}` : bal < 0 ? `-${symbol}${Math.round(Math.abs(bal)).toLocaleString()}` : "Settled"}
                         </span>
-                        <span className="block text-[10px] text-[#6B7268] dark:text-stone-400">
+                        <span className="block text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
                           {bal > 0 ? "Owes you" : bal < 0 ? "You owe" : "Clear"}
                         </span>
                       </div>
@@ -342,57 +350,63 @@ export default function PeoplePage() {
           </div>
 
           {/* Right Column (7 Cols): Contact Detail & Running Ledger Inspection */}
-          <div className="lg:col-span-7 bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-3xl p-6 shadow-xs space-y-6">
+          <div className="lg:col-span-7 bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 shadow-xs space-y-6">
             {selectedPerson ? (
               <>
                 {/* Contact Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#F0ECE6] dark:border-stone-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#F0ECE6] dark:border-[#1E2824]">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-14 h-14 rounded-full bg-[#0F5C53]/15 dark:bg-[#0F5C53]/35 text-[#0F5C53] dark:text-emerald-400 font-serif font-bold text-xl flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-[#0F5C53] dark:text-[#34D399] font-serif font-bold text-xl flex items-center justify-center">
                       {selectedPerson.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
                       <h2 className="font-serif font-bold text-2xl text-[#162B27] dark:text-white">
                         {selectedPerson.name}
                       </h2>
-                      <p className="text-xs text-[#6B7268] dark:text-stone-400">
+                      <p className="text-xs text-[#6B7268] dark:text-[#8E9C95]">
                         {selectedPerson.email || "No contact email listed"}
                       </p>
                     </div>
                   </div>
 
                   <div className="text-left sm:text-right">
-                    <span className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block">
+                    <span className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
                       Net Balance
                     </span>
                     <div className={`font-serif font-bold text-2xl mt-0.5 ${(netMap[selectedPerson.id] || 0) > 0 ? "text-[#1E7D46] dark:text-emerald-400" : (netMap[selectedPerson.id] || 0) < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-[#162B27] dark:text-white"}`}>
-                      {(netMap[selectedPerson.id] || 0) > 0 ? "+" : (netMap[selectedPerson.id] || 0) < 0 ? "-" : ""}{symbol}{Math.abs(netMap[selectedPerson.id] || 0).toFixed(2)}
+                      {(netMap[selectedPerson.id] || 0) > 0 ? "+" : (netMap[selectedPerson.id] || 0) < 0 ? "-" : ""}{symbol}{Math.round(Math.abs(netMap[selectedPerson.id] || 0)).toLocaleString()}
                     </div>
                   </div>
                 </div>
 
-                {/* Quick Action Buttons: Nudge / Reminder & Remove */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                {/* Quick Action Buttons: WhatsApp Reminder & Copy */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => handleWhatsAppReminder(selectedPerson, netMap[selectedPerson.id] || 0)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>💬 WhatsApp Reminder</span>
+                    </button>
                     <button
                       onClick={() => handleCopyReminder(selectedPerson, netMap[selectedPerson.id] || 0)}
-                      className="bg-[#FAF8F5] dark:bg-stone-800 hover:bg-[#F2EEE9] dark:hover:bg-stone-750 border border-[#E5E0D8] dark:border-stone-700 text-[#162B27] dark:text-stone-200 px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                      className="bg-[#FAF8F5] dark:bg-[#1A2229] hover:bg-[#F2EEE9] dark:hover:bg-[#161D22] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-stone-200 px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                     >
-                      <span>💬 Send Reminder / Nudge</span>
+                      <span>📋 Copy Nudge</span>
                     </button>
                     {copiedReminder && (
                       <span className="text-xs font-medium text-[#1E7D46] dark:text-emerald-400">
-                        ✓ Copied message to clipboard!
+                        ✓ Copied message!
                       </span>
                     )}
                   </div>
 
                   <button
                     onClick={() => handleDelete(selectedPerson.id)}
-                    className="text-stone-400 hover:text-rose-600 text-xs cursor-pointer p-1"
+                    className="text-stone-400 hover:text-rose-500 text-xs cursor-pointer p-1 transition-colors"
                     title="Remove Contact"
                   >
-                    Delete
+                    Remove Contact
                   </button>
                 </div>
 
@@ -401,16 +415,16 @@ export default function PeoplePage() {
                   <h3 className="font-serif font-bold text-lg text-[#162B27] dark:text-white mb-1">
                     Running Ledger Delta
                   </h3>
-                  <p className="text-xs text-[#6B7268] dark:text-stone-400 mb-4">
+                  <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mb-4">
                     Day-by-day balance timeline across all shared workspaces.
                   </p>
 
                   {loadingLedger ? (
-                    <div className="py-12 text-center text-xs text-[#6B7268] dark:text-stone-400">
+                    <div className="py-12 text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">
                       Loading ledger timeline...
                     </div>
                   ) : !ledger || ledger.days.length === 0 ? (
-                    <div className="p-8 rounded-2xl bg-[#FAF8F5] dark:bg-stone-800/40 border border-[#E5E0D8] dark:border-stone-800 text-center text-xs text-[#6B7268] dark:text-stone-400">
+                    <div className="p-8 rounded-2xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">
                       No recorded activity with {selectedPerson.name} yet.
                     </div>
                   ) : (
@@ -418,26 +432,26 @@ export default function PeoplePage() {
                       {ledger.days.map((day) => (
                         <div
                           key={day.date}
-                          className="bg-[#FAF8F5] dark:bg-stone-800/60 border border-[#E5E0D8] dark:border-stone-700 rounded-xl p-3 flex items-center justify-between text-xs"
+                          className="bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-3.5 flex items-center justify-between text-xs"
                         >
                           <div>
-                            <span className="font-medium text-[#162B27] dark:text-stone-200">
+                            <span className="font-semibold text-[#162B27] dark:text-white">
                               {new Date(day.date).toLocaleDateString(undefined, {
                                 weekday: "short",
                                 month: "short",
                                 day: "numeric",
                               })}
                             </span>
-                            <span className="text-stone-400 text-[11px] block mt-0.5">
-                              Cumulative balance: {symbol}{day.runningTotal.toFixed(2)}
+                            <span className="text-[#6B7268] dark:text-[#8E9C95] text-[11px] block mt-0.5 font-mono">
+                              Cumulative: {symbol}{Math.round(day.runningTotal).toLocaleString()}
                             </span>
                           </div>
 
                           <div className="text-right">
-                            <span className={`font-serif font-bold text-sm ${day.delta > 0 ? "text-[#1E7D46] dark:text-emerald-400" : day.delta < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-stone-500"}`}>
-                              {day.delta > 0 ? "+" : ""}{symbol}{Math.abs(day.delta).toFixed(2)}
+                            <span className={`font-serif font-bold text-sm ${day.delta > 0 ? "text-[#1E7D46] dark:text-emerald-400" : day.delta < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-stone-500 dark:text-stone-400"}`}>
+                              {day.delta > 0 ? "+" : ""}{symbol}{Math.round(Math.abs(day.delta)).toLocaleString()}
                             </span>
-                            <span className="block text-[10px] text-stone-400">
+                            <span className="block text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
                               {day.delta > 0 ? "Owed to you" : "You paid/owe"}
                             </span>
                           </div>
@@ -448,7 +462,7 @@ export default function PeoplePage() {
                 </div>
               </>
             ) : (
-              <div className="py-20 text-center text-xs text-[#6B7268] dark:text-stone-400">
+              <div className="py-20 text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">
                 Select a contact on the left to inspect their ledger details.
               </div>
             )}
@@ -458,15 +472,15 @@ export default function PeoplePage() {
 
       {/* Add Contact Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 Add New Contact
               </h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer"
+                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
               >
                 ✕
               </button>
@@ -480,30 +494,30 @@ export default function PeoplePage() {
 
             <form onSubmit={handleAdd} className="space-y-3.5">
               <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                   Full Name
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Rahul Sharma"
+                  placeholder="e.g. Razaq, Hamza"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
                   autoFocus
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E0D8] dark:border-stone-700 rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
+                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                   Email Address (Optional)
                 </label>
                 <input
                   type="email"
-                  placeholder="rahul@example.com"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E0D8] dark:border-stone-700 rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
+                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                 />
               </div>
 
@@ -511,14 +525,14 @@ export default function PeoplePage() {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting || !name.trim()}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
                 >
                   {submitting ? "Saving..." : "+ Save Contact"}
                 </button>

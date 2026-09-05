@@ -191,26 +191,26 @@ export default function CategoriesPage() {
       title="Library"
       subtitle="Spending Categories"
       onAddEntry={() => setIsCreateModalOpen(true)}
-      addEntryLabel="Create Category"
+      addEntryLabel="+ Create Category"
     >
       <div className="max-w-5xl mx-auto">
         {/* Header section matching Figma */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <div className="text-[11px] uppercase tracking-wider font-bold text-[#0F5C53] dark:text-emerald-400 mb-1">
-              Library
+            <div className="text-[11px] uppercase tracking-wider font-bold text-[#0F5C53] dark:text-[#34D399] mb-1">
+              Category Matrix
             </div>
-            <h1 className="font-serif font-bold text-3xl text-[#162B27] dark:text-white tracking-tight">
+            <h1 className="font-serif font-bold text-3xl md:text-4xl text-[#162B27] dark:text-white tracking-tight">
               Categories
             </h1>
-            <p className="text-sm text-[#5A6863] dark:text-stone-400 mt-1 max-w-xl">
+            <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1 max-w-xl">
               Manage and monitor your spending across distinct areas of your financial life. Review historical trends and current budget pacing.
             </p>
           </div>
 
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-[#0F5C53] hover:bg-[#0A3F38] text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+            className="bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white px-5 py-2.5 rounded-2xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" />
@@ -220,20 +220,20 @@ export default function CategoriesPage() {
         </div>
 
         {loading ? (
-          <div className="py-16 text-center text-[#5A6863] dark:text-stone-400">Loading categories & allocation...</div>
+          <div className="py-16 text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">Loading categories & allocation...</div>
         ) : (
           <>
             {/* Top Allocation Card matching Figma Library design */}
-            <div className="bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-3xl p-6 sm:p-8 mb-8 shadow-xs">
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 sm:p-8 mb-8 shadow-xs">
               <div className="flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="flex-1 w-full">
-                  <span className="text-[11px] uppercase font-bold text-[#0F5C53] dark:text-emerald-400 tracking-wider">
+                  <span className="text-[11px] uppercase font-bold text-[#0F5C53] dark:text-[#34D399] tracking-wider">
                     Spending Breakdown
                   </span>
                   <h2 className="font-serif font-bold text-2xl text-[#162B27] dark:text-white mt-1">
                     {data?.monthName} Allocation
                   </h2>
-                  <p className="text-xs text-[#5A6863] dark:text-stone-400 mt-1 max-w-md">
+                  <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1 max-w-md">
                     Your spending distributed across major top-level categories. Hover for precise amounts and percentages.
                   </p>
 
@@ -241,21 +241,21 @@ export default function CategoriesPage() {
                   <div className="mt-6 space-y-2.5">
                     {data?.allocation && data.allocation.length > 0 ? (
                       data.allocation.map((item) => (
-                        <div key={item.name} className="flex items-center justify-between text-xs py-1 border-b border-[#F4F1EA] dark:border-stone-800">
+                        <div key={item.name} className="flex items-center justify-between text-xs py-1.5 border-b border-[#F4F1EA] dark:border-[#1E2824]">
                           <div className="flex items-center gap-2.5">
-                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                            <span className="font-medium text-[#162B27] dark:text-white">{item.name}</span>
+                            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                            <span className="font-semibold text-[#162B27] dark:text-white">{item.name}</span>
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="font-semibold text-[#162B27] dark:text-white">
-                              {symbol}{item.value.toFixed(2)}
+                              {symbol}{Math.round(item.value).toLocaleString()}
                             </span>
-                            <span className="text-[#6B7268] dark:text-stone-400 w-10 text-right">{item.percentage}%</span>
+                            <span className="text-[#6B7268] dark:text-[#8E9C95] w-10 text-right font-mono">{item.percentage}%</span>
                           </div>
                         </div>
                       ))
                     ) : (
-                      <p className="text-xs text-[#6B7268] dark:text-stone-400">No categorized spending logged for {data?.monthName} yet.</p>
+                      <p className="text-xs text-[#6B7268] dark:text-[#8E9C95]">No categorized spending logged for {data?.monthName} yet.</p>
                     )}
                   </div>
                 </div>
@@ -282,11 +282,12 @@ export default function CategoriesPage() {
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value) => [`${symbol}${Number(value ?? 0).toFixed(2)}`, "Spent"]}
+                            formatter={(value) => [`${symbol}${Math.round(Number(value ?? 0)).toLocaleString()}`, "Spent"]}
                             contentStyle={{
-                              background: "#FFFFFF",
-                              border: "1px solid #E5E0D8",
+                              background: "#13191E",
+                              border: "1px solid #1E2824",
                               borderRadius: "12px",
+                              color: "#FFFFFF",
                               fontSize: "12px",
                             }}
                           />
@@ -294,19 +295,19 @@ export default function CategoriesPage() {
                       </ResponsiveContainer>
                       {/* Center total text */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-widest">
+                        <span className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-widest">
                           TOTAL
                         </span>
-                        <span className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                          {symbol}{data.totalSpent.toFixed(2)}
+                        <span className="font-serif font-bold text-2xl text-[#162B27] dark:text-white">
+                          {symbol}{Math.round(data.totalSpent).toLocaleString()}
                         </span>
                       </div>
                     </>
                   ) : (
-                    <div className="w-48 h-48 rounded-full border-4 border-dashed border-[#E5E0D8] dark:border-stone-800 flex flex-col items-center justify-center text-center p-4">
-                      <span className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400">TOTAL</span>
-                      <span className="font-serif font-bold text-xl text-[#162B27] dark:text-white">{symbol}0.00</span>
-                      <span className="text-[10px] text-[#6B7268] dark:text-stone-400 mt-1">No data</span>
+                    <div className="w-48 h-48 rounded-full border-4 border-dashed border-[#E5E0D8] dark:border-[#1E2824] flex flex-col items-center justify-center text-center p-4">
+                      <span className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95]">TOTAL</span>
+                      <span className="font-serif font-bold text-xl text-[#162B27] dark:text-white">{symbol}0</span>
+                      <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] mt-1">No data</span>
                     </div>
                   )}
                 </div>
@@ -318,7 +319,7 @@ export default function CategoriesPage() {
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 Budget Pacing
               </h3>
-              <span className="text-xs text-[#5A6863] dark:text-stone-400">
+              <span className="text-xs text-[#6B7268] dark:text-[#8E9C95]">
                 {data?.categories.length} categories active
               </span>
             </div>
@@ -328,20 +329,20 @@ export default function CategoriesPage() {
               {data?.categories.map((cat) => (
                 <div
                   key={cat.id || cat.name}
-                  className="bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between hover:border-[#0F5C53]/50 transition-colors"
+                  className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs flex flex-col justify-between hover:border-[#0F5C53]/40 transition-colors"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: `${cat.color}15`, color: cat.color }}
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs"
+                        style={{ backgroundColor: `${cat.color}18`, color: cat.color }}
                       >
                         <CategoryIcon icon={cat.icon} />
                       </div>
 
                       <div className="flex items-center gap-1.5">
                         {cat.isOverBudget && (
-                          <span className="text-[10px] uppercase font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-900">
+                          <span className="text-[10px] uppercase font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-lg border border-rose-200 dark:border-rose-900">
                             Over Budget
                           </span>
                         )}
@@ -351,7 +352,7 @@ export default function CategoriesPage() {
                             setEditName(cat.name);
                             setEditBudget(cat.budget.toString());
                           }}
-                          className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+                          className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer rounded-xl hover:bg-stone-100 dark:hover:bg-[#1A2229] transition-colors"
                           title="Edit Category & Budget"
                         >
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -361,7 +362,7 @@ export default function CategoriesPage() {
                         {cat.count === 0 && (
                           <button
                             onClick={() => handleDeleteCategory(cat)}
-                            className="p-1.5 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+                            className="p-1.5 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                             title="Delete Category"
                           >
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -376,36 +377,36 @@ export default function CategoriesPage() {
                     <h4 className="font-serif font-bold text-lg text-[#162B27] dark:text-white">
                       {cat.name}
                     </h4>
-                    <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-0.5">
+                    <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-0.5">
                       {cat.count} {cat.count === 1 ? "expense" : "expenses"} logged
                     </p>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-[#F0ECE6] dark:border-stone-800">
+                  <div className="mt-6 pt-4 border-t border-[#F0ECE6] dark:border-[#1E2824]">
                     <div className="flex items-baseline justify-between mb-2">
                       <div>
-                        <span className="text-xs text-[#6B7268] dark:text-stone-400">Spent: </span>
+                        <span className="text-xs text-[#6B7268] dark:text-[#8E9C95]">Spent: </span>
                         <span className="font-semibold text-[#162B27] dark:text-white">
-                          {symbol}{cat.spent.toFixed(2)}
+                          {symbol}{Math.round(cat.spent).toLocaleString()}
                         </span>
                       </div>
-                      <div className="text-xs text-[#6B7268] dark:text-stone-400">
-                        Budget: {symbol}{cat.budget}
+                      <div className="text-xs text-[#6B7268] dark:text-[#8E9C95]">
+                        Budget: {symbol}{Math.round(cat.budget).toLocaleString()}
                       </div>
                     </div>
 
                     {/* Progress bar */}
-                    <div className="w-full h-2 bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E0D8] dark:border-stone-700 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${
-                          cat.isOverBudget ? "bg-rose-500" : "bg-[#0F5C53] dark:bg-emerald-500"
+                          cat.isOverBudget ? "bg-rose-500" : "bg-[#0F5C53] dark:bg-[#10B981]"
                         }`}
-                        style={{ width: `${cat.utilizedPercent}%` }}
+                        style={{ width: `${Math.min(100, cat.utilizedPercent)}%` }}
                       />
                     </div>
-                    <div className="flex items-center justify-between mt-1.5 text-[11px] font-medium text-[#6B7268] dark:text-stone-400">
+                    <div className="flex items-center justify-between mt-1.5 text-[11px] font-medium text-[#6B7268] dark:text-[#8E9C95]">
                       <span>{cat.isOverBudget ? "Exceeded" : "Pacing"}</span>
-                      <span>{cat.utilizedPercent}% utilized</span>
+                      <span className="font-mono">{cat.utilizedPercent}% utilized</span>
                     </div>
                   </div>
                 </div>
@@ -414,15 +415,15 @@ export default function CategoriesPage() {
 
             {/* Create New Category Modal */}
             {isCreateModalOpen && (
-              <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-                <div className="bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+                <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                       Create Category
                     </h3>
                     <button
                       onClick={() => setIsCreateModalOpen(false)}
-                      className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer"
+                      className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
                     >
                       ✕
                     </button>
@@ -430,7 +431,7 @@ export default function CategoriesPage() {
 
                   <form onSubmit={handleAdd} className="space-y-4">
                     <div>
-                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                         Category Name
                       </label>
                       <input
@@ -440,12 +441,12 @@ export default function CategoriesPage() {
                         onChange={(e) => setNewCatName(e.target.value)}
                         required
                         autoFocus
-                        className="w-full text-xs bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E0D8] dark:border-stone-700 rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
+                        className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                       />
                     </div>
 
                     <div>
-                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                         Monthly Budget ({symbol})
                       </label>
                       <input
@@ -455,7 +456,7 @@ export default function CategoriesPage() {
                         value={newCatBudget}
                         onChange={(e) => setNewCatBudget(e.target.value)}
                         required
-                        className="w-full text-xs bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E0D8] dark:border-stone-700 rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
+                        className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                       />
                     </div>
 
@@ -463,14 +464,14 @@ export default function CategoriesPage() {
                       <button
                         type="button"
                         onClick={() => setIsCreateModalOpen(false)}
-                        className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                        className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={adding || !newCatName.trim()}
-                        className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                        className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
                       >
                         {adding ? "Creating..." : "+ Create Category"}
                       </button>
@@ -482,15 +483,15 @@ export default function CategoriesPage() {
 
             {/* Modal to Edit Category Name & Budget */}
             {editingCat && (
-              <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-                <div className="bg-white dark:bg-stone-900 border border-[#E5E0D8] dark:border-stone-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+                <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                       Edit Category
                     </h3>
                     <button
                       onClick={() => setEditingCat(null)}
-                      className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer"
+                      className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
                     >
                       ✕
                     </button>
@@ -498,7 +499,7 @@ export default function CategoriesPage() {
 
                   <form onSubmit={handleSaveEdit} className="space-y-4">
                     <div>
-                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                         Category Name
                       </label>
                       <input
@@ -506,12 +507,12 @@ export default function CategoriesPage() {
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         required
-                        className="w-full text-xs bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E0D8] dark:border-stone-700 rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
+                        className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                       />
                     </div>
 
                     <div>
-                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                         Monthly Budget ({symbol})
                       </label>
                       <input
@@ -521,7 +522,7 @@ export default function CategoriesPage() {
                         onChange={(e) => setEditBudget(e.target.value)}
                         required
                         autoFocus
-                        className="w-full text-xs bg-[#FAF8F5] dark:bg-stone-800 border border-[#E5E0D8] dark:border-stone-700 rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
+                        className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                       />
                     </div>
 
@@ -529,14 +530,14 @@ export default function CategoriesPage() {
                       <button
                         type="button"
                         onClick={() => setEditingCat(null)}
-                        className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                        className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={savingEdit}
-                        className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                        className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
                       >
                         {savingEdit ? "Saving..." : "Save Changes"}
                       </button>

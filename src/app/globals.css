@@ -262,11 +262,11 @@ h1, h2, h3 {
    ========================================================================== */
 
 html.dark {
-  --color-bg: #111413;
-  --color-surface: #19201D;
+  --color-bg: #090D12;
+  --color-surface: #13191E;
   --color-ink: #F2F5F3;
-  --color-ink-muted: #95A19B;
-  --color-border: #28332E;
+  --color-ink-muted: #8E9C95;
+  --color-border: #1E2824;
   --color-primary: #10B981;
   --color-primary-hover: #059669;
   --color-positive: #22C55E;
@@ -275,19 +275,19 @@ html.dark {
 }
 
 html.dark body {
-  background-color: #111413 !important;
+  background-color: #090D12 !important;
   color: #F2F5F3 !important;
 }
 
 html.dark .bg-white {
-  background-color: #19201D !important;
+  background-color: #13191E !important;
 }
 
 html.dark .bg-\[\#FAF8F5\],
 html.dark .bg-\[\#F6F5F1\],
 html.dark .bg-\[\#F4F1EA\],
 html.dark .bg-\[\#F2EEE9\] {
-  background-color: #141816 !important;
+  background-color: #0D131A !important;
 }
 
 html.dark .border-\[\#E5E0D8\],

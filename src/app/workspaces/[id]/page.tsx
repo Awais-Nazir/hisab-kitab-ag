@@ -643,19 +643,25 @@ export default function WorkspaceDetailPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <Link href="/workspaces" className="text-xs font-semibold text-[#6B7268] hover:text-[#0F5C53]">
+              <Link href="/workspaces" className="text-xs font-semibold text-[#5A6863] dark:text-[#8E9C95] hover:text-[#0F5C53] dark:hover:text-[#10B981]">
                 ← All Workspaces
               </Link>
-              <span className="text-stone-300">•</span>
-              <span className="text-[11px] uppercase tracking-wider font-bold text-[#0F5C53]">
+              <span className="text-stone-300 dark:text-stone-700">•</span>
+              <span className="text-[10px] uppercase tracking-widest font-bold text-[#0F5C53] dark:text-[#10B981]">
                 Shared Ledger
               </span>
             </div>
             <div className="flex items-center gap-3 mt-1">
-              <h1 className="font-serif font-bold text-3xl md:text-4xl text-[#162B27] tracking-tight">
+              <h1 className="font-serif font-bold text-3xl md:text-4xl text-[#162B27] dark:text-white tracking-tight">
                 {workspaceName}
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-50 text-[#0F5C53] border border-emerald-200">
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase border ${
+                Math.abs(myNet) < 0.5
+                  ? "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700"
+                  : myNet > 0
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-[#0F5C53] dark:text-[#34D399] border-emerald-200 dark:border-emerald-900/50"
+                  : "bg-rose-50 dark:bg-rose-950/40 text-[#A8441F] dark:text-rose-400 border-rose-200 dark:border-rose-900/50"
+              }`}>
                 {Math.abs(myNet) < 0.5 ? "Equilibrium" : myNet > 0 ? "Owed" : "In Debt"}
               </span>
             </div>
@@ -669,7 +675,7 @@ export default function WorkspaceDetailPage() {
                 setSettleAmount(Math.abs(myNet) > 0 ? Math.abs(myNet).toFixed(0) : "");
                 setIsSettleModalOpen(true);
               }}
-              className="bg-[#FAF8F5] hover:bg-[#F2EEE9] border border-[#E5E0D8] text-[#162B27] px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              className="bg-[#FAF8F5] dark:bg-[#1A2229] hover:bg-[#F2EEE9] dark:hover:bg-[#202925] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
               Settle Up
             </button>
@@ -689,17 +695,17 @@ export default function WorkspaceDetailPage() {
         </div>
 
         {/* Hero Tug-of-War Balance Equilibrium Card */}
-        <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 sm:p-8 shadow-xs">
+        <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 sm:p-8 shadow-xs">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
             {/* Left: Your Net Position */}
             <div className="min-w-[200px]">
-              <span className="text-xs uppercase font-bold text-[#6B7268] tracking-wider block">
+              <span className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block">
                 Your Net Position
               </span>
-              <div className={`font-serif font-bold text-3xl sm:text-4xl mt-1 ${myNet > 0 ? "text-[#1E7D46]" : myNet < 0 ? "text-[#A8441F]" : "text-[#162B27]"}`}>
-                {myNet > 0 ? "+" : myNet < 0 ? "-" : ""}{symbol}{Math.round(Math.abs(myNet))}
+              <div className={`font-serif font-bold text-3xl sm:text-4xl mt-1 ${myNet > 0 ? "text-[#1E7D46] dark:text-emerald-400" : myNet < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-[#162B27] dark:text-white"}`}>
+                {myNet > 0 ? "+" : myNet < 0 ? "-" : ""}{symbol}{Math.round(Math.abs(myNet)).toLocaleString()}
               </div>
-              <p className="text-xs text-[#6B7268] mt-1">
+              <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-1">
                 {myNet > 0
                   ? "You are owed by roommates"
                   : myNet < 0
@@ -709,30 +715,30 @@ export default function WorkspaceDetailPage() {
             </div>
 
             {/* Center: Balance Tug-of-War Slider */}
-            <div className="flex-1 w-full max-w-xl bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl p-4 sm:p-5">
+            <div className="flex-1 w-full max-w-xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 sm:p-5">
               <div className="flex items-center justify-between text-xs font-semibold mb-2">
-                <span className="text-[#A8441F] flex items-center gap-1">
+                <span className="text-[#A8441F] dark:text-rose-400 flex items-center gap-1 text-[11px]">
                   ◀ You Owe
                 </span>
-                <span className="text-[#6B7268] text-[11px] font-bold tracking-widest uppercase">
+                <span className="text-[#5A6863] dark:text-[#8E9C95] text-[10px] font-bold tracking-widest uppercase">
                   Equilibrium
                 </span>
-                <span className="text-[#1E7D46] flex items-center gap-1">
+                <span className="text-[#1E7D46] dark:text-emerald-400 flex items-center gap-1 text-[11px]">
                   Owed to You ▶
                 </span>
               </div>
 
               {/* Equilibrium Track */}
-              <div className="relative w-full h-3.5 bg-[#EAE5DC] rounded-full overflow-hidden my-2">
-                <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-stone-400 z-10" />
+              <div className="relative w-full h-3.5 bg-[#EAE5DC] dark:bg-[#25302A] rounded-full overflow-hidden my-2">
+                <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-stone-400 dark:bg-stone-500 z-10" />
                 {myNet >= 0 ? (
                   <div
-                    className="absolute top-0 bottom-0 bg-[#0F5C53] rounded-r-full transition-all duration-500"
+                    className="absolute top-0 bottom-0 bg-[#0F5C53] dark:bg-[#10B981] rounded-r-full transition-all duration-500"
                     style={{ left: "50%", width: `${Math.min(50, (myNet / maxBalanceRange) * 50)}%` }}
                   />
                 ) : (
                   <div
-                    className="absolute top-0 bottom-0 bg-[#C94A29] rounded-l-full transition-all duration-500"
+                    className="absolute top-0 bottom-0 bg-[#C94A29] dark:bg-rose-500 rounded-l-full transition-all duration-500"
                     style={{
                       right: "50%",
                       width: `${Math.min(50, (Math.abs(myNet) / maxBalanceRange) * 50)}%`,
@@ -747,33 +753,33 @@ export default function WorkspaceDetailPage() {
                   className="absolute top-0 -translate-x-1/2 transition-all duration-500 flex flex-col items-center"
                   style={{ left: `${tiltPercent}%` }}
                 >
-                  <div className="w-2.5 h-2.5 bg-[#162B27] rounded-full ring-2 ring-white shadow-xs" />
+                  <div className="w-2.5 h-2.5 bg-[#162B27] dark:bg-white rounded-full ring-2 ring-white dark:ring-[#13191E] shadow-xs" />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-[10px] text-[#6B7268] mt-1 font-medium">
-                <span>-{symbol}{Math.round(maxBalanceRange)}</span>
+              <div className="flex items-center justify-between text-[10px] text-[#5A6863] dark:text-[#8E9C95] mt-1 font-medium">
+                <span>-{symbol}{Math.round(maxBalanceRange).toLocaleString()}</span>
                 <span className="text-stone-400">0</span>
-                <span>+{symbol}{Math.round(maxBalanceRange)}</span>
+                <span>+{symbol}{Math.round(maxBalanceRange).toLocaleString()}</span>
               </div>
             </div>
 
             {/* Right: Summary Quick Stats */}
-            <div className="flex lg:flex-col gap-4 sm:gap-6 border-t lg:border-t-0 lg:border-l border-[#F0ECE6] pt-4 lg:pt-0 lg:pl-8 min-w-[170px]">
+            <div className="flex lg:flex-col gap-4 sm:gap-6 border-t lg:border-t-0 lg:border-l border-[#F0ECE6] dark:border-[#1E2824] pt-4 lg:pt-0 lg:pl-8 min-w-[170px]">
               <div>
-                <span className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block">
+                <span className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block">
                   Total Shared Spend
                 </span>
-                <span className="font-serif font-bold text-lg text-[#162B27]">
-                  {symbol}{Math.round(totalSpend)}
+                <span className="font-serif font-bold text-lg text-[#162B27] dark:text-white">
+                  {symbol}{Math.round(totalSpend).toLocaleString()}
                 </span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block">
+                <span className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block">
                   You Paid / Fair Share
                 </span>
-                <span className="text-xs font-semibold text-[#162B27]">
-                  {symbol}{Math.round(myPaid)} <span className="text-stone-400">/</span> {symbol}{Math.round(myShare)}
+                <span className="text-xs font-semibold text-[#162B27] dark:text-white">
+                  {symbol}{Math.round(myPaid).toLocaleString()} <span className="text-stone-400">/</span> {symbol}{Math.round(myShare).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -786,14 +792,14 @@ export default function WorkspaceDetailPage() {
           <div className="lg:col-span-2 space-y-5">
             {/* Filter Tabs */}
             <div className="flex items-center justify-between">
-              <div className="flex bg-[#FAF8F5] border border-[#E5E0D8] p-1 rounded-xl text-xs font-medium">
+              <div className="flex bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-1 rounded-xl text-xs font-medium">
                 <button
                   type="button"
                   onClick={() => setFilterTab("all")}
                   className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
                     filterTab === "all"
-                      ? "bg-white text-[#0F5C53] font-bold shadow-xs"
-                      : "text-[#6B7268]"
+                      ? "bg-white dark:bg-[#13191E] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs"
+                      : "text-[#5A6863] dark:text-[#8E9C95]"
                   }`}
                 >
                   All Activity
@@ -803,8 +809,8 @@ export default function WorkspaceDetailPage() {
                   onClick={() => setFilterTab("expenses")}
                   className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
                     filterTab === "expenses"
-                      ? "bg-white text-[#0F5C53] font-bold shadow-xs"
-                      : "text-[#6B7268]"
+                      ? "bg-white dark:bg-[#13191E] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs"
+                      : "text-[#5A6863] dark:text-[#8E9C95]"
                   }`}
                 >
                   Expenses ({expenses.length})
@@ -814,15 +820,15 @@ export default function WorkspaceDetailPage() {
                   onClick={() => setFilterTab("settlements")}
                   className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
                     filterTab === "settlements"
-                      ? "bg-white text-[#0F5C53] font-bold shadow-xs"
-                      : "text-[#6B7268]"
+                      ? "bg-white dark:bg-[#13191E] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs"
+                      : "text-[#5A6863] dark:text-[#8E9C95]"
                   }`}
                 >
                   Settlements ({settlements.length})
                 </button>
               </div>
 
-              <span className="text-xs text-[#6B7268]">
+              <span className="text-xs text-[#5A6863] dark:text-[#8E9C95]">
                 {filterTab === "settlements" ? settlements.length : expenses.length} items
               </span>
             </div>
@@ -834,11 +840,11 @@ export default function WorkspaceDetailPage() {
                   <div key={group.dateKey} className="space-y-2.5">
                     {/* Date Header matching Dashboard */}
                     <div className="flex items-center gap-3 pt-1">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7268] bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[#E5E0D8]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#5A6863] dark:text-[#8E9C95] bg-[#FAF8F5] dark:bg-[#1A2229] px-2.5 py-1 rounded-lg border border-[#E5E0D8] dark:border-[#1E2824]">
                         {group.label}
                       </span>
-                      <div className="flex-1 h-[1px] bg-[#EBE8E1]" />
-                      <span className="text-[11px] text-[#6B7268] font-medium">
+                      <div className="flex-1 h-[1px] bg-[#E5E0D8] dark:bg-[#1E2824]" />
+                      <span className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] font-medium">
                         {group.expenses.length} {group.expenses.length === 1 ? "expense" : "expenses"}
                       </span>
                     </div>
@@ -856,7 +862,7 @@ export default function WorkspaceDetailPage() {
                           .map((p) => {
                             const name = p.person.isSelf ? "You" : p.person.name;
                             return exp.payments.length > 1
-                              ? `${name} (${symbol}${Math.round(parseFloat(p.amountPaid))})`
+                              ? `${name} (${symbol}${Math.round(parseFloat(p.amountPaid)).toLocaleString()})`
                               : name;
                           })
                           .join(", ");
@@ -864,47 +870,47 @@ export default function WorkspaceDetailPage() {
                         return (
                           <div
                             key={exp.id}
-                            className="bg-white border border-[#E5E0D8] rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between hover:border-[#0F5C53]/40 transition-colors"
+                            className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 sm:p-5 shadow-xs flex items-center justify-between hover:border-[#0F5C53]/40 dark:hover:border-[#10B981]/40 transition-colors"
                           >
                             <div className="flex items-center gap-3.5">
-                              <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] border border-[#E5E0D8] text-[#0F5C53] flex items-center justify-center flex-shrink-0">
+                              <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#0F5C53] dark:text-[#10B981] flex items-center justify-center flex-shrink-0">
                                 {getCategoryIcon(exp.category)}
                               </div>
                               <div>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="font-semibold text-sm text-[#162B27]">
+                                  <p className="font-semibold text-sm text-[#162B27] dark:text-white">
                                     {exp.description}
                                   </p>
                                   {exp.account && (
-                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 text-[#0F5C53] border border-emerald-200">
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-[#0F5C53] dark:text-[#34D399] border border-emerald-200 dark:border-emerald-900/50">
                                       💳 {exp.account.name}
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-xs text-[#6B7268] mt-0.5">
-                                  Paid by <span className="font-medium text-[#162B27]">{payerText}</span> • Split between {exp.splits.length} {exp.splits.length === 1 ? "person" : "people"}
+                                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                                  Paid by <span className="font-medium text-[#162B27] dark:text-white">{payerText}</span> • Split between {exp.splits.length} {exp.splits.length === 1 ? "person" : "people"}
                                 </p>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-4">
                               <div className="text-right">
-                                <span className="font-serif font-bold text-sm text-[#162B27] block">
-                                  {symbol}{Math.round(parseFloat(exp.amount))}
+                                <span className="font-serif font-bold text-sm text-[#162B27] dark:text-white block">
+                                  {symbol}{Math.round(parseFloat(exp.amount)).toLocaleString()}
                                 </span>
                                 <span
-                                  className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md mt-0.5 ${
+                                  className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md mt-0.5 border ${
                                     impact > 0
-                                      ? "bg-emerald-50 text-[#1E7D46] border border-emerald-200"
+                                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-[#1E7D46] dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50"
                                       : impact < 0
-                                      ? "bg-rose-50 text-[#A8441F] border border-rose-200"
-                                      : "bg-stone-50 text-stone-600 border border-stone-200"
+                                      ? "bg-rose-50 dark:bg-rose-950/40 text-[#A8441F] dark:text-rose-400 border-rose-200 dark:border-rose-900/50"
+                                      : "bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700"
                                   }`}
                                 >
                                   {impact > 0
-                                    ? `+${symbol}${impact} to balance`
+                                    ? `+${symbol}${impact.toLocaleString()} to balance`
                                     : impact < 0
-                                    ? `-${symbol}${Math.abs(impact)} to balance`
+                                    ? `-${symbol}${Math.abs(impact).toLocaleString()} to balance`
                                     : "0 net"}
                                 </span>
                               </div>
@@ -912,7 +918,7 @@ export default function WorkspaceDetailPage() {
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => handleOpenEdit(exp)}
-                                  className="p-1 text-stone-400 hover:text-stone-700 text-xs cursor-pointer"
+                                  className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
                                   title="Edit"
                                 >
                                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -921,7 +927,7 @@ export default function WorkspaceDetailPage() {
                                 </button>
                                 <button
                                   onClick={() => handleDeleteExpense(exp.id)}
-                                  className="p-1 text-stone-400 hover:text-rose-600 text-xs cursor-pointer"
+                                  className="p-1.5 text-stone-400 hover:text-rose-600 text-xs cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
                                   title="Delete"
                                 >
                                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -939,8 +945,8 @@ export default function WorkspaceDetailPage() {
                 ))}
 
                 {expenses.length === 0 && (
-                  <div className="bg-white border border-dashed border-[#E5E0D8] rounded-2xl p-12 text-center text-[#6B7268]">
-                    <p className="font-serif font-semibold text-base text-[#162B27]">No shared expenses yet</p>
+                  <div className="bg-white dark:bg-[#13191E] border border-dashed border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-12 text-center text-[#5A6863] dark:text-[#8E9C95]">
+                    <p className="font-serif font-semibold text-base text-[#162B27] dark:text-white">No shared expenses yet</p>
                     <p className="text-xs mt-1">Add your first shared expense to start keeping balance.</p>
                   </div>
                 )}
@@ -950,36 +956,36 @@ export default function WorkspaceDetailPage() {
             {/* Settlements List Grouped by Date */}
             {filterTab !== "expenses" && settlements.length > 0 && (
               <div className="space-y-4 pt-2">
-                <div className="text-[11px] uppercase tracking-wider font-bold text-[#6B7268] flex items-center gap-2">
+                <div className="text-[10px] uppercase tracking-wider font-bold text-[#5A6863] dark:text-[#8E9C95] flex items-center gap-2">
                   <span>Settlement History</span>
-                  <span className="flex-1 h-[1px] bg-[#EBE8E1]" />
+                  <span className="flex-1 h-[1px] bg-[#E5E0D8] dark:bg-[#1E2824]" />
                 </div>
                 {groupedSettlements.map((group) => (
                   <div key={group.dateKey} className="space-y-2">
-                    <div className="text-[11px] font-bold text-[#6B7268] uppercase tracking-wider px-1">
+                    <div className="text-[10px] font-bold text-[#5A6863] dark:text-[#8E9C95] uppercase tracking-wider px-1">
                       {group.label}
                     </div>
                     <div className="space-y-2.5">
                       {group.settlements.map((s) => (
                         <div
                           key={s.id}
-                          className="bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl p-4 flex items-center justify-between"
+                          className="bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 flex items-center justify-between"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-[#0F5C53] flex items-center justify-center font-bold text-xs">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-[#0F5C53] dark:text-[#34D399] flex items-center justify-center font-bold text-xs">
                               ✓
                             </div>
                             <div>
-                              <p className="font-medium text-xs text-[#162B27]">
+                              <p className="font-medium text-xs text-[#162B27] dark:text-white">
                                 <span className="font-bold">{s.fromPerson.isSelf ? "You" : s.fromPerson.name}</span> paid{" "}
                                 <span className="font-bold">{s.toPerson.isSelf ? "You" : s.toPerson.name}</span>
                               </p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                <p className="text-[11px] text-[#6B7268]">
+                                <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95]">
                                   {new Date(s.date).toLocaleDateString()}
                                 </p>
                                 {s.account && (
-                                  <span className="text-[10px] px-2 py-0.2 rounded-full bg-emerald-50 text-[#0F5C53] border border-emerald-200 font-medium">
+                                  <span className="text-[10px] px-2 py-0.2 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-[#0F5C53] dark:text-[#34D399] border border-emerald-200 dark:border-emerald-900/50 font-medium">
                                     💳 {s.account.name}
                                   </span>
                                 )}
@@ -988,13 +994,13 @@ export default function WorkspaceDetailPage() {
                           </div>
 
                           <div className="flex items-center gap-3">
-                            <span className="font-serif font-bold text-sm text-[#0F5C53]">
-                              {symbol}{Math.round(parseFloat(s.amount))}
+                            <span className="font-serif font-bold text-sm text-[#0F5C53] dark:text-[#10B981]">
+                              {symbol}{Math.round(parseFloat(s.amount)).toLocaleString()}
                             </span>
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => handleOpenEditSettle(s)}
-                                className="p-1 text-stone-400 hover:text-stone-700 text-xs cursor-pointer"
+                                className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#13191E]"
                                 title="Edit settlement"
                               >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1003,7 +1009,7 @@ export default function WorkspaceDetailPage() {
                               </button>
                               <button
                                 onClick={() => handleDeleteSettle(s.id)}
-                                className="p-1 text-stone-400 hover:text-rose-600 text-xs cursor-pointer"
+                                className="p-1.5 text-stone-400 hover:text-rose-600 text-xs cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
                                 title="Delete settlement"
                               >
                                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1024,12 +1030,12 @@ export default function WorkspaceDetailPage() {
 
           {/* Side Rail (1 Col): Members List & Quick Actions */}
           <div className="space-y-6">
-            <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 shadow-xs">
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 shadow-xs">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-serif font-bold text-xl text-[#162B27]">
+                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                   Members
                 </h3>
-                <span className="text-xs text-[#6B7268]">
+                <span className="text-xs text-[#6B7268] dark:text-[#8E9C95]">
                   {members.length} people
                 </span>
               </div>
@@ -1039,22 +1045,30 @@ export default function WorkspaceDetailPage() {
                 {balances.map((b) => (
                   <div
                     key={b.personId}
-                    className="flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] border border-[#E5E0D8]"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824]"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-[#0F5C53]/15 text-[#0F5C53] font-serif font-bold text-xs flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-[#0F5C53] dark:text-[#34D399] font-serif font-bold text-xs flex items-center justify-center">
                         {b.name.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-[#162B27]">
+                        <p className="text-xs font-semibold text-[#162B27] dark:text-white">
                           {b.isSelf ? `${b.name} (You)` : b.name}
                         </p>
-                        <p className={`text-[11px] font-medium ${b.netBalance > 0 ? "text-[#1E7D46]" : b.netBalance < 0 ? "text-[#A8441F]" : "text-stone-400"}`}>
-                          {b.netBalance > 0
-                            ? `Owed ${symbol}${Math.round(b.netBalance)}`
-                            : b.netBalance < 0
-                            ? `Owes ${symbol}${Math.round(Math.abs(b.netBalance))}`
-                            : "Settled"}
+                        <p className={`text-[11px] font-medium ${b.netBalance > 0 ? "text-[#1E7D46] dark:text-emerald-400" : b.netBalance < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-stone-400 dark:text-stone-500"}`}>
+                          {b.isSelf ? (
+                            b.netBalance > 0
+                              ? `You are owed ${symbol}${Math.round(b.netBalance)}`
+                              : b.netBalance < 0
+                              ? `You owe ${symbol}${Math.round(Math.abs(b.netBalance))}`
+                              : "Settled"
+                          ) : b.netBalance > 0 ? (
+                            `Owes you ${symbol}${Math.round(b.netBalance)}`
+                          ) : b.netBalance < 0 ? (
+                            `You owe ${symbol}${Math.round(Math.abs(b.netBalance))}`
+                          ) : (
+                            "Settled"
+                          )}
                         </p>
                       </div>
                     </div>
@@ -1062,19 +1076,19 @@ export default function WorkspaceDetailPage() {
                     {!b.isSelf && Math.abs(b.netBalance) > 0.5 && (
                       <button
                         onClick={() => {
-                          if (b.netBalance < 0) {
-                            // They owe money
+                          if (b.netBalance > 0) {
+                            // They owe you money -> They pay (From), You receive (To)
                             setSettleFrom(b.personId);
                             setSettleTo(selfBalanceObj?.personId ?? "");
                           } else {
-                            // You owe them
+                            // You owe them money -> You pay (From), They receive (To)
                             setSettleFrom(selfBalanceObj?.personId ?? "");
                             setSettleTo(b.personId);
                           }
                           setSettleAmount(Math.round(Math.abs(b.netBalance)).toString());
                           setIsSettleModalOpen(true);
                         }}
-                        className="text-[11px] font-semibold text-[#0F5C53] hover:underline cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-[#E5E0D8]"
+                        className="text-[11px] font-semibold text-[#0F5C53] dark:text-[#34D399] hover:bg-emerald-50 dark:hover:bg-emerald-950/40 cursor-pointer bg-white dark:bg-[#13191E] px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 transition-all shadow-xs"
                       >
                         Settle
                       </button>
@@ -1084,15 +1098,15 @@ export default function WorkspaceDetailPage() {
               </div>
 
               {/* Add Member to Workspace Form */}
-              <div className="mt-5 pt-4 border-t border-[#F0ECE6]">
-                <h4 className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider mb-2">
+              <div className="mt-5 pt-4 border-t border-[#F0ECE6] dark:border-[#1E2824]">
+                <h4 className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider mb-2">
                   Add Member
                 </h4>
                 <form onSubmit={handleAddMember} className="flex gap-2">
                   <select
                     value={selectedContactId}
                     onChange={(e) => setSelectedContactId(e.target.value)}
-                    className="flex-1 text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 text-[#162B27] focus:outline-none focus:border-[#0F5C53]"
+                    className="flex-1 text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                   >
                     <option value="">Select contact...</option>
                     {availableContacts.map((c) => (
@@ -1104,15 +1118,15 @@ export default function WorkspaceDetailPage() {
                   <button
                     type="submit"
                     disabled={addingMember || !selectedContactId}
-                    className="bg-[#0F5C53] hover:bg-[#0A3F38] text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50"
+                    className="bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
                   >
                     {addingMember ? "..." : "+ Add"}
                   </button>
                 </form>
 
                 {availableContacts.length === 0 && (
-                  <p className="text-[11px] text-[#6B7268] mt-2">
-                    Need new contacts? <Link href="/people" className="text-[#0F5C53] underline font-medium">Add in Contacts</Link>.
+                  <p className="text-[11px] text-[#6B7268] dark:text-[#8E9C95] mt-2">
+                    Need new contacts? <Link href="/people" className="text-[#0F5C53] dark:text-[#34D399] underline font-medium">Add in Contacts</Link>.
                   </p>
                 )}
               </div>
@@ -1123,20 +1137,20 @@ export default function WorkspaceDetailPage() {
 
       {/* Add / Edit Shared Expense Modal with Custom Paid, Custom Split & Account Select */}
       {isExpenseModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white border border-[#E5E0D8] rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-serif font-bold text-xl text-[#162B27]">
+                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                   {editingExpenseId ? "Edit Shared Expense" : "Add Shared Expense"}
                 </h3>
-                <p className="text-xs text-[#6B7268] mt-0.5">
+                <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-0.5">
                   Whole integer splits • Remainder to you • Track payment source
                 </p>
               </div>
               <button
                 onClick={() => setIsExpenseModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 cursor-pointer text-lg font-bold"
+                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
               >
                 ✕
               </button>
@@ -1145,7 +1159,7 @@ export default function WorkspaceDetailPage() {
             <form onSubmit={handleAddExpense} className="space-y-4">
               {/* Amount & Description */}
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                   Amount ({symbol})
                 </label>
                 <input
@@ -1156,12 +1170,12 @@ export default function WorkspaceDetailPage() {
                   onChange={(e) => setAmount(e.target.value)}
                   required
                   autoFocus
-                  className="w-full text-2xl font-serif font-bold text-[#162B27] bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3.5 py-2 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                  className="w-full text-2xl font-serif font-bold text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                   Description
                 </label>
                 <input
@@ -1170,32 +1184,32 @@ export default function WorkspaceDetailPage() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   required
-                  className="w-full text-xs text-[#162B27] bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3.5 py-2.5 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                  className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                 />
               </div>
 
               {/* Category */}
               <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                   Category
                 </label>
                 <CategorySelect value={category} onChange={setCategory} />
               </div>
 
               {/* PAYER SECTION (Single vs Multiple / Custom Paid) */}
-              <div className="p-3.5 bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl space-y-3">
+              <div className="p-3.5 bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] uppercase font-bold text-[#162B27] tracking-wider">
+                  <label className="text-[11px] uppercase font-bold text-[#162B27] dark:text-white tracking-wider">
                     Who Paid?
                   </label>
-                  <div className="flex bg-stone-200/60 p-0.5 rounded-lg text-[11px] font-medium">
+                  <div className="flex bg-stone-200/60 dark:bg-[#13191E] p-0.5 rounded-lg text-[11px] font-medium border border-transparent dark:border-[#1E2824]">
                     <button
                       type="button"
                       onClick={() => setPayerMode("single")}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                         payerMode === "single"
-                          ? "bg-white text-[#0F5C53] font-bold shadow-xs"
-                          : "text-[#6B7268]"
+                          ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                          : "text-[#6B7268] dark:text-[#8E9C95]"
                       }`}
                     >
                       Single Payer
@@ -1210,8 +1224,8 @@ export default function WorkspaceDetailPage() {
                       }}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                         payerMode === "multiple"
-                          ? "bg-white text-[#0F5C53] font-bold shadow-xs"
-                          : "text-[#6B7268]"
+                          ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                          : "text-[#6B7268] dark:text-[#8E9C95]"
                       }`}
                     >
                       Multiple / Custom Paid
@@ -1224,7 +1238,7 @@ export default function WorkspaceDetailPage() {
                     <select
                       value={payerId}
                       onChange={(e) => setPayerId(e.target.value)}
-                      className="w-full text-xs bg-white border border-[#E5E0D8] rounded-xl px-3 py-2 text-[#162B27] font-medium"
+                      className="w-full text-xs bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2 text-[#162B27] dark:text-white font-medium focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                     >
                       {members.map((m) => (
                         <option key={m.personId} value={m.personId}>
@@ -1239,12 +1253,12 @@ export default function WorkspaceDetailPage() {
                       {members.map((m) => {
                         const val = customPayments[m.personId] || "";
                         return (
-                          <div key={m.personId} className="flex items-center gap-2 bg-white border border-[#E5E0D8] p-2 rounded-xl">
-                            <span className="text-xs font-medium text-[#162B27] flex-1 truncate">
+                          <div key={m.personId} className="flex items-center gap-2 bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-2 rounded-xl">
+                            <span className="text-xs font-medium text-[#162B27] dark:text-white flex-1 truncate">
                               {m.person.isSelf ? "You" : m.person.name}
                             </span>
                             <div className="flex items-center gap-1">
-                              <span className="text-xs text-[#6B7268]">{symbol}</span>
+                              <span className="text-xs text-[#6B7268] dark:text-[#8E9C95]">{symbol}</span>
                               <input
                                 type="number"
                                 step="1"
@@ -1256,7 +1270,7 @@ export default function WorkspaceDetailPage() {
                                     [m.personId]: e.target.value,
                                   });
                                 }}
-                                className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] border border-[#E5E0D8] rounded-lg px-2 py-1 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                                className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-lg px-2 py-1 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                               />
                             </div>
                           </div>
@@ -1266,15 +1280,15 @@ export default function WorkspaceDetailPage() {
 
                     {/* Paid Validation status */}
                     <div className="flex items-center justify-between text-[11px] pt-1 px-1">
-                      <span className="text-[#6B7268]">
+                      <span className="text-[#6B7268] dark:text-[#8E9C95]">
                         Total Paid:{" "}
-                        <strong className="text-[#162B27]">
+                        <strong className="text-[#162B27] dark:text-white">
                           {symbol}{totalCustomPaid.toFixed(0)}
                         </strong>{" "}
                         / {symbol}{parsedAmount.toFixed(0)}
                       </span>
                       {Math.abs(totalCustomPaid - parsedAmount) < 0.01 && parsedAmount > 0 ? (
-                        <span className="text-emerald-700 font-bold">✓ Matches total</span>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-bold">✓ Matches total</span>
                       ) : (
                         <button
                           type="button"
@@ -1290,7 +1304,7 @@ export default function WorkspaceDetailPage() {
                               [selfPersonId]: rem.toFixed(0),
                             });
                           }}
-                          className="text-[#0F5C53] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
+                          className="text-[#0F5C53] dark:text-[#34D399] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
                         >
                           Fill remainder to You
                         </button>
@@ -1302,12 +1316,12 @@ export default function WorkspaceDetailPage() {
 
               {/* ACCOUNT SELECTION: Shown whenever "Me" is paying (Kaha se hoyi ha) */}
               {selfPaidAmountInModal > 0 && (
-                <div className="p-3.5 bg-emerald-50/50 border border-emerald-200 rounded-2xl space-y-1.5">
+                <div className="p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] uppercase font-bold text-[#0F5C53] tracking-wider">
+                    <label className="text-[11px] uppercase font-bold text-[#0F5C53] dark:text-[#34D399] tracking-wider">
                       Paid From Account (Kaha se hoyi ha)
                     </label>
-                    <span className="text-[10px] text-emerald-800 font-medium">
+                    <span className="text-[10px] text-emerald-800 dark:text-emerald-400 font-medium">
                       Your payment: {symbol}{Math.round(selfPaidAmountInModal)}
                     </span>
                   </div>
@@ -1317,28 +1331,28 @@ export default function WorkspaceDetailPage() {
                     label=""
                     placeholder="Select payment source (Cash, NayaPay, SadaPay...)"
                   />
-                  <p className="text-[10px] text-[#6B7268] mt-1">
+                  <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] mt-1">
                     Deducts {symbol}{Math.round(selfPaidAmountInModal)} directly from this account balance.
                   </p>
                 </div>
               )}
 
               {/* SPLIT SECTION (Equal vs Custom Split) */}
-              <div className="p-3.5 bg-[#FAF8F5] border border-[#E5E0D8] rounded-2xl space-y-3">
+              <div className="p-3.5 bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <label className="text-[11px] uppercase font-bold text-[#162B27] tracking-wider block">
+                    <label className="text-[11px] uppercase font-bold text-[#162B27] dark:text-white tracking-wider block">
                       Split Between
                     </label>
                   </div>
-                  <div className="flex bg-stone-200/60 p-0.5 rounded-lg text-[11px] font-medium">
+                  <div className="flex bg-stone-200/60 dark:bg-[#13191E] p-0.5 rounded-lg text-[11px] font-medium border border-transparent dark:border-[#1E2824]">
                     <button
                       type="button"
                       onClick={() => setSplitMode("equal")}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                         splitMode === "equal"
-                          ? "bg-white text-[#0F5C53] font-bold shadow-xs"
-                          : "text-[#6B7268]"
+                          ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                          : "text-[#6B7268] dark:text-[#8E9C95]"
                       }`}
                     >
                       Equal (Integer)
@@ -1359,8 +1373,8 @@ export default function WorkspaceDetailPage() {
                       }}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                         splitMode === "custom"
-                          ? "bg-white text-[#0F5C53] font-bold shadow-xs"
-                          : "text-[#6B7268]"
+                          ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                          : "text-[#6B7268] dark:text-[#8E9C95]"
                       }`}
                     >
                       Custom Amounts
@@ -1383,8 +1397,8 @@ export default function WorkspaceDetailPage() {
                             key={m.personId}
                             className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
                               isChecked
-                                ? "bg-white border-[#0F5C53] shadow-xs"
-                                : "bg-[#FAF8F5] border-[#E5E0D8] text-stone-400 opacity-60"
+                                ? "bg-white dark:bg-[#1A2229] border-[#0F5C53] dark:border-[#10B981] shadow-xs"
+                                : "bg-[#FAF8F5] dark:bg-[#13191E] border-[#E5E0D8] dark:border-[#1E2824] text-stone-400 dark:text-stone-600 opacity-60"
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -1397,20 +1411,20 @@ export default function WorkspaceDetailPage() {
                                   else next.add(m.personId);
                                   setSplitSelected(next);
                                 }}
-                                className="w-3.5 h-3.5 accent-[#0F5C53]"
+                                className="w-3.5 h-3.5 accent-[#0F5C53] dark:accent-[#10B981]"
                               />
-                              <span className="font-semibold text-[#162B27]">
+                              <span className="font-semibold text-[#162B27] dark:text-white">
                                 {isSelf ? "You" : m.person.name}
                               </span>
                             </div>
 
                             {isChecked && parsedAmount > 0 && (
                               <div className="text-right">
-                                <span className="font-mono font-bold text-[#0F5C53]">
+                                <span className="font-mono font-bold text-[#0F5C53] dark:text-[#34D399]">
                                   {symbol}{assignedShare}
                                 </span>
                                 {hasExtraRupee && (
-                                  <span className="block text-[9px] font-bold text-amber-700">
+                                  <span className="block text-[9px] font-bold text-amber-700 dark:text-amber-400">
                                     (+{assignedShare - baseShare} remainder to you)
                                   </span>
                                 )}
@@ -1420,7 +1434,7 @@ export default function WorkspaceDetailPage() {
                         );
                       })}
                     </div>
-                    <p className="text-[10px] text-[#6B7268] pt-1">
+                    <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] pt-1">
                       No fractions or decimals. Any remainder is assigned to You to keep sums exact.
                     </p>
                   </div>
@@ -1430,12 +1444,12 @@ export default function WorkspaceDetailPage() {
                       {members.map((m) => {
                         const val = customSplits[m.personId] || "";
                         return (
-                          <div key={m.personId} className="flex items-center gap-2 bg-white border border-[#E5E0D8] p-2 rounded-xl">
-                            <span className="text-xs font-medium text-[#162B27] flex-1 truncate">
+                          <div key={m.personId} className="flex items-center gap-2 bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-2 rounded-xl">
+                            <span className="text-xs font-medium text-[#162B27] dark:text-white flex-1 truncate">
                               {m.person.isSelf ? "You" : m.person.name}
                             </span>
                             <div className="flex items-center gap-1">
-                              <span className="text-xs text-[#6B7268]">{symbol}</span>
+                              <span className="text-xs text-[#6B7268] dark:text-[#8E9C95]">{symbol}</span>
                               <input
                                 type="number"
                                 step="1"
@@ -1447,7 +1461,7 @@ export default function WorkspaceDetailPage() {
                                     [m.personId]: e.target.value,
                                   });
                                 }}
-                                className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] border border-[#E5E0D8] rounded-lg px-2 py-1 focus:bg-white focus:outline-none focus:border-[#0F5C53]"
+                                className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-lg px-2 py-1 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                               />
                             </div>
                           </div>
@@ -1457,15 +1471,15 @@ export default function WorkspaceDetailPage() {
 
                     {/* Split Validation status */}
                     <div className="flex items-center justify-between text-[11px] pt-1 px-1">
-                      <span className="text-[#6B7268]">
+                      <span className="text-[#6B7268] dark:text-[#8E9C95]">
                         Total Split:{" "}
-                        <strong className="text-[#162B27]">
+                        <strong className="text-[#162B27] dark:text-white">
                           {symbol}{totalCustomSplit.toFixed(0)}
                         </strong>{" "}
                         / {symbol}{parsedAmount.toFixed(0)}
                       </span>
                       {Math.abs(totalCustomSplit - parsedAmount) < 0.01 && parsedAmount > 0 ? (
-                        <span className="text-emerald-700 font-bold">✓ Matches total</span>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-bold">✓ Matches total</span>
                       ) : (
                         <div className="flex gap-2">
                           <button
@@ -1478,7 +1492,7 @@ export default function WorkspaceDetailPage() {
                               }
                               setCustomSplits(mapped);
                             }}
-                            className="text-[#0F5C53] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
+                            className="text-[#0F5C53] dark:text-[#34D399] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
                           >
                             Divide Evenly
                           </button>
@@ -1496,7 +1510,7 @@ export default function WorkspaceDetailPage() {
                                   [selfPersonId]: rem.toFixed(0),
                                 });
                               }}
-                              className="text-[#0F5C53] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
+                              className="text-[#0F5C53] dark:text-[#34D399] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
                             >
                               Remainder to You
                             </button>
@@ -1511,23 +1525,23 @@ export default function WorkspaceDetailPage() {
               {/* Date & Time */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Date</label>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Date</label>
                   <input
                     type="date"
                     value={expDate}
                     onChange={(e) => setExpDate(e.target.value)}
                     required
-                    className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2"
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-white rounded-xl px-2.5 py-2 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Time</label>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Time</label>
                   <input
                     type="time"
                     value={expTime}
                     onChange={(e) => setExpTime(e.target.value)}
                     required
-                    className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2"
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-white rounded-xl px-2.5 py-2 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                   />
                 </div>
               </div>
@@ -1537,14 +1551,14 @@ export default function WorkspaceDetailPage() {
                 <button
                   type="button"
                   onClick={() => setIsExpenseModalOpen(false)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] hover:bg-[#FAF8F5] rounded-xl cursor-pointer"
+                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingExp}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
                 >
                   {submittingExp ? "Saving..." : editingExpenseId ? "Update Expense" : "+ Save Expense"}
                 </button>
@@ -1556,10 +1570,10 @@ export default function WorkspaceDetailPage() {
 
       {/* Record / Edit Settlement Modal */}
       {isSettleModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27]">
+              <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 {editingSettlementId ? "Edit Settlement" : "Record Settlement"}
               </h3>
               <button
@@ -1567,7 +1581,7 @@ export default function WorkspaceDetailPage() {
                   setEditingSettlementId(null);
                   setIsSettleModalOpen(false);
                 }}
-                className="p-1 text-stone-400 hover:text-stone-700 cursor-pointer"
+                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
               >
                 ✕
               </button>
@@ -1575,12 +1589,12 @@ export default function WorkspaceDetailPage() {
 
             <form onSubmit={handleSubmitSettle} className="space-y-3.5">
               <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Payer (Who paid)</label>
+                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Payer (Who paid)</label>
                 <select
                   value={settleFrom}
                   onChange={(e) => setSettleFrom(e.target.value)}
                   required
-                  className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 text-[#162B27]"
+                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                 >
                   <option value="">Select payer...</option>
                   {members.map((m) => (
@@ -1592,12 +1606,12 @@ export default function WorkspaceDetailPage() {
               </div>
 
               <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">Recipient (Who received)</label>
+                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Recipient (Who received)</label>
                 <select
                   value={settleTo}
                   onChange={(e) => setSettleTo(e.target.value)}
                   required
-                  className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 text-[#162B27]"
+                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                 >
                   <option value="">Select recipient...</option>
                   {members.map((m) => (
@@ -1610,7 +1624,7 @@ export default function WorkspaceDetailPage() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                     Amount ({symbol})
                   </label>
                   <input
@@ -1620,11 +1634,11 @@ export default function WorkspaceDetailPage() {
                     value={settleAmount}
                     onChange={(e) => setSettleAmount(e.target.value)}
                     required
-                    className="w-full text-lg font-serif font-bold bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-3 py-2 text-[#162B27]"
+                    className="w-full text-lg font-serif font-bold bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] tracking-wider block mb-1">
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
                     Date
                   </label>
                   <input
@@ -1632,15 +1646,15 @@ export default function WorkspaceDetailPage() {
                     value={settleDate}
                     onChange={(e) => setSettleDate(e.target.value)}
                     required
-                    className="w-full text-xs bg-[#FAF8F5] border border-[#E5E0D8] rounded-xl px-2.5 py-2 text-[#162B27]"
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
                   />
                 </div>
               </div>
 
               {/* Account Selection if user is involved */}
               {(settleTo === selfPersonId || settleFrom === selfPersonId) && (
-                <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-[#0F5C53] tracking-wider block">
+                <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-[#0F5C53] dark:text-[#34D399] tracking-wider block">
                     {settleTo === selfPersonId
                       ? "Deposit into Account (Kaha aayenge)"
                       : "Pay from Account (Kaha se de rahe ho)"}
@@ -1651,7 +1665,7 @@ export default function WorkspaceDetailPage() {
                     label=""
                     placeholder={settleTo === selfPersonId ? "Select deposit account..." : "Select payment account..."}
                   />
-                  <p className="text-[10px] text-[#6B7268]">
+                  <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
                     {settleTo === selfPersonId
                       ? "Amount will be added directly to this account balance."
                       : "Amount will be deducted directly from this account balance."}
@@ -1666,14 +1680,14 @@ export default function WorkspaceDetailPage() {
                     setEditingSettlementId(null);
                     setIsSettleModalOpen(false);
                   }}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] hover:bg-[#FAF8F5] rounded-xl cursor-pointer"
+                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={settling}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
                 >
                   {settling
                     ? (editingSettlementId ? "Saving..." : "Recording...")
