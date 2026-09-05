@@ -6,6 +6,7 @@ import { z } from "zod";
 const updateProfileSchema = z.object({
     name: z.string().min(1).optional(),
     currency: z.string().min(1).max(10).optional(),
+    image: z.string().nullable().optional(),
 });
 
 export async function GET() {
@@ -18,6 +19,7 @@ export async function GET() {
             id: user.id,
             email: user.email,
             name: user.name,
+            image: user.image || null,
             currency: user.currency || "PKR",
             selfPersonId: user.selfPersonId,
         },
@@ -36,18 +38,24 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
+    const { name: newName, currency: newCurrency, image: newImage } = parsed.data;
+
     const updated = await prisma.user.update({
         where: { id: user.id },
         data: {
-            name: parsed.data.name ?? user.name,
-            currency: parsed.data.currency ?? user.currency,
+            name: newName ?? user.name,
+            currency: newCurrency ?? user.currency,
+            ...(newImage !== undefined ? { image: newImage } : {}),
         },
     });
 
-    if (parsed.data.name && user.selfPersonId) {
+    if (user.selfPersonId && (newName !== undefined || newImage !== undefined)) {
         await prisma.person.update({
             where: { id: user.selfPersonId },
-            data: { name: parsed.data.name },
+            data: {
+                ...(newName ? { name: newName } : {}),
+                ...(newImage !== undefined ? { image: newImage } : {}),
+            },
         });
     }
 
@@ -56,6 +64,7 @@ export async function PATCH(req: NextRequest) {
             id: updated.id,
             email: updated.email,
             name: updated.name,
+            image: updated.image || null,
             currency: updated.currency,
             selfPersonId: updated.selfPersonId,
         },

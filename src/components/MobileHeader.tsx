@@ -11,6 +11,7 @@ import { SearchResultItem } from "./TopHeader";
 interface MobileHeaderProps {
   title?: string;
   userName?: string;
+  userImage?: string | null;
   action?: React.ReactNode;
   onAddEntry?: () => void;
   addEntryLabel?: string;
@@ -19,6 +20,7 @@ interface MobileHeaderProps {
 export function MobileHeader({
   title = "Dashboard",
   userName = "User",
+  userImage,
   action,
   onAddEntry,
   addEntryLabel = "Add Entry",
@@ -125,8 +127,12 @@ export function MobileHeader({
             </button>
           )}
           {action}
-          <Link href="/profile" className="w-7 h-7 rounded-full bg-[#0F5C53]/15 border border-[#0F5C53]/30 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] font-serif font-semibold text-xs">
-            {userName.slice(0, 2).toUpperCase()}
+          <Link href="/profile" className="w-7 h-7 rounded-full bg-[#0F5C53]/15 border border-[#0F5C53]/30 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] font-serif font-semibold text-xs overflow-hidden flex-shrink-0">
+            {userImage ? (
+              <img src={userImage} alt={userName} className="w-full h-full object-cover" />
+            ) : (
+              userName.slice(0, 2).toUpperCase()
+            )}
           </Link>
         </div>
       </header>

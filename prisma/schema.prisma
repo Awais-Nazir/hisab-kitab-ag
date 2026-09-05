@@ -14,6 +14,7 @@ model User {
   email            String      @unique
   passwordHash     String
   name             String
+  image            String?     @db.Text
   createdAt        DateTime    @default(now())
   currency         String      @default("PKR")
   selfPersonId     String?     @unique
@@ -33,6 +34,7 @@ model Person {
   ownerId         String
   name            String
   email           String?
+  image           String?           @db.Text
   isSelf          Boolean           @default(false)
   createdAt       DateTime          @default(now())
   payments        ExpensePayment[]

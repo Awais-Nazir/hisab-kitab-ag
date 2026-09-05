@@ -14,6 +14,7 @@ const geistMono = Geist_Mono({
 
 import { ThemeProvider } from "@/context/ThemeContext";
 import { CurrencyProvider } from "@/context/CurrencyContext";
+import { UserProvider } from "@/context/UserContext";
 
 export const metadata = {
   title: "Hisab Kitab",
@@ -68,7 +69,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <RegisterServiceWorker />
         <ThemeProvider>
           <CurrencyProvider>
-            {children}
+            <UserProvider>
+              {children}
+            </UserProvider>
           </CurrencyProvider>
         </ThemeProvider>
       </body>

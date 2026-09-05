@@ -1,20 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { useUser } from "@/context/UserContext";
 import { Sidebar } from "./Sidebar";
 import { TopHeader } from "./TopHeader";
 import { MobileHeader } from "./MobileHeader";
 import { BottomNav } from "./BottomNav";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  currency?: string;
-  selfPersonId?: string;
-}
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -43,7 +35,7 @@ export function AppLayout({
 }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
+  const { user, logout } = useUser();
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   // Swipe left / right gesture navigation ONLY on mobile screen
@@ -115,27 +107,15 @@ export function AppLayout({
     };
   }, [pathname, router]);
 
-  useEffect(() => {
-    apiFetch<{ user: User }>("/api/auth/me")
-      .then((res) => setUser(res.user))
-      .catch(() => {
-        // Handled by individual pages or redirect if 401
-      });
-  }, [router]);
-
-  async function handleLogout() {
-    try {
-      await apiFetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
-    } catch {
-      router.push("/login");
-    }
-  }
-
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#111413] text-[#1B211F] dark:text-[#F2F5F3] flex flex-col antialiased transition-colors duration-200">
       {/* Desktop Sidebar */}
-      <Sidebar userName={user?.name ?? "Account Admin"} userEmail={user?.email} onLogout={handleLogout} />
+      <Sidebar
+        userName={user?.name ?? "Account Admin"}
+        userEmail={user?.email}
+        userImage={user?.image}
+        onLogout={logout}
+      />
 
       {/* Main Content Area (Offset by Desktop Sidebar) */}
       <div className="md:pl-64 flex-1 flex flex-col min-w-0">
@@ -151,6 +131,7 @@ export function AppLayout({
         <MobileHeader
           title={title}
           userName={user?.name ?? "User"}
+          userImage={user?.image}
           action={mobileAction}
           onAddEntry={onAddEntry}
           addEntryLabel={addEntryLabel}

@@ -7,10 +7,11 @@ import { BrandLogo } from "./BrandLogo";
 interface SidebarProps {
   userName?: string;
   userEmail?: string;
+  userImage?: string | null;
   onLogout?: () => void;
 }
 
-export function Sidebar({ userName = "Account Admin", onLogout }: SidebarProps) {
+export function Sidebar({ userName = "Account Admin", userImage, onLogout }: SidebarProps) {
   const pathname = usePathname();
 
   const navItems = [
@@ -139,8 +140,12 @@ export function Sidebar({ userName = "Account Admin", onLogout }: SidebarProps) 
       <div className="p-4 border-t border-[#E5E0D8] dark:border-[#28332E]">
         <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#EAE4DC] dark:hover:bg-[#202925] transition-colors">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-full bg-[#0F5C53]/15 border border-[#0F5C53]/20 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] font-semibold font-serif text-sm flex-shrink-0">
-              {userName.slice(0, 2).toUpperCase()}
+            <div className="w-9 h-9 rounded-full bg-[#0F5C53]/15 border border-[#0F5C53]/20 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] font-semibold font-serif text-sm flex-shrink-0 overflow-hidden">
+              {userImage ? (
+                <img src={userImage} alt={userName} className="w-full h-full object-cover" />
+              ) : (
+                userName.slice(0, 2).toUpperCase()
+              )}
             </div>
             <div className="truncate">
               <p className="text-xs font-semibold text-[#162B27] dark:text-white truncate leading-tight">
