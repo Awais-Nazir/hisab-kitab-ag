@@ -10,6 +10,7 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianG
 import { GlobalSettlementSection } from "@/components/GlobalSettlementSection";
 import { LenaDenaRow } from "@/components/LenaDenaRow";
 import { AppLayout } from "@/components/AppLayout";
+import { ModalPortal } from "@/components/ModalPortal";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useUser } from "@/context/UserContext";
 import { calculateEqualSplits } from "@/lib/splits";
@@ -1334,101 +1335,108 @@ export default function DashboardPage() {
 
       {/* Dual-Choice Modal: Personal vs Shared Workspace Expense */}
       {entryChoiceOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-150"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setEntryChoiceOpen(false);
-          }}
-        >
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 my-auto">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-serif font-bold text-lg text-[#162B27] dark:text-white">
-                  Add New Entry
-                </h3>
-                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
-                  How would you like to record this?
-                </p>
+        <ModalPortal>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-150"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setEntryChoiceOpen(false);
+            }}
+          >
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 my-auto">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-serif font-bold text-lg text-[#162B27] dark:text-white">
+                    Add New Entry
+                  </h3>
+                  <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                    How would you like to record this?
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEntryChoiceOpen(false)}
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-              <button
-                onClick={() => setEntryChoiceOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
 
-            <div className="grid grid-cols-1 gap-3 pt-1">
-              {/* Option 1: Personal Expense */}
-              <button
-                type="button"
-                onClick={() => {
-                  setEntryType("expense");
-                  setEntryChoiceOpen(false);
-                  setQuickEntryOpen(true);
-                }}
-                className="flex items-center gap-3.5 p-4 rounded-2xl border border-[#E5E0D8] dark:border-[#1E2824] bg-[#FAF8F5] dark:bg-[#182026] hover:border-[#0F5C53] dark:hover:border-[#10B981] hover:bg-white dark:hover:bg-[#1E2824] transition-all text-left group cursor-pointer"
-              >
-                <div className="w-11 h-11 rounded-xl bg-[#0F5C53]/10 dark:bg-[#10B981]/20 border border-[#0F5C53]/20 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] flex-shrink-0 group-hover:scale-105 transition-transform">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect width="20" height="14" x="2" y="5" rx="2" />
-                    <line x1="2" x2="22" y1="10" y2="10" />
+              <div className="space-y-3 pt-2">
+                {/* Option 1: Personal Expense */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEntryType("expense");
+                    setEntryChoiceOpen(false);
+                    setQuickEntryOpen(true);
+                  }}
+                  className="w-full p-4 rounded-2xl border border-[#E5E0D8] dark:border-[#1E2824] bg-[#FAF8F5] dark:bg-[#182026] hover:border-[#0F5C53] dark:hover:border-[#10B981] flex items-center justify-between text-left group transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-[#0F5C53]/10 dark:bg-[#10B981]/20 border border-[#0F5C53]/20 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] flex-shrink-0 group-hover:scale-105 transition-transform">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
+                        Personal Expense
+                      </h4>
+                      <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                        Your private transactions, food, fuel, bills
+                      </p>
+                    </div>
+                  </div>
+                  <svg className="w-4 h-4 text-stone-400 group-hover:text-[#0F5C53] dark:group-hover:text-[#34D399] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="9 18 15 12 9 6" />
                   </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
-                    Personal Expense
-                  </h4>
-                  <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5 leading-tight">
-                    Private spending recorded only in your personal ledger
-                  </p>
-                </div>
-                <svg className="w-4 h-4 text-stone-400 group-hover:text-[#0F5C53] dark:group-hover:text-[#10B981] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
+                </button>
 
-              {/* Option 2: Shared Workspace Expense */}
-              <button
-                type="button"
-                onClick={() => {
-                  setEntryType("shared");
-                  setEntryChoiceOpen(false);
-                  setQuickEntryOpen(true);
-                }}
-                className="flex items-center gap-3.5 p-4 rounded-2xl border border-[#E5E0D8] dark:border-[#1E2824] bg-[#FAF8F5] dark:bg-[#182026] hover:border-[#E5A93C] dark:hover:border-[#E5A93C] hover:bg-white dark:hover:bg-[#1E2824] transition-all text-left group cursor-pointer"
-              >
-                <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0 group-hover:scale-105 transition-transform">
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                {/* Option 2: Shared Workspace Expense */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEntryType("shared");
+                    setEntryChoiceOpen(false);
+                    setQuickEntryOpen(true);
+                  }}
+                  className="w-full p-4 rounded-2xl border border-[#E5E0D8] dark:border-[#1E2824] bg-[#FAF8F5] dark:bg-[#182026] hover:border-amber-500 flex items-center justify-between text-left group transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0 group-hover:scale-105 transition-transform">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
+                        Shared Workspace Expense
+                      </h4>
+                      <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                        Split bill with friends, trips, flatmates
+                      </p>
+                    </div>
+                  </div>
+                  <svg className="w-4 h-4 text-stone-400 group-hover:text-amber-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="9 18 15 12 9 6" />
                   </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
-                    Shared Expense
-                  </h4>
-                  <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5 leading-tight">
-                    Split a bill with friends or family in any workspace
-                  </p>
-                </div>
-                <svg className="w-4 h-4 text-stone-400 group-hover:text-amber-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Quick Entry Modal when triggered from Top Header "+ Add Entry" or Mobile "+" */}
       {quickEntryOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-lg w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-lg w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 {editingId ? "Edit Expense" : "New Entry"}
@@ -1688,6 +1696,7 @@ export default function DashboardPage() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </AppLayout>
   );

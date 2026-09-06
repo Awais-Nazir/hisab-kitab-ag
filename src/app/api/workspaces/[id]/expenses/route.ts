@@ -78,10 +78,12 @@ export async function POST(
     }
 
     let verifiedAccountId: string | undefined;
+    let targetAccount: any = null;
     if (accountId) {
         const acc = await prisma.account.findUnique({ where: { id: accountId } });
         if (acc && acc.ownerId === user.id) {
             verifiedAccountId = acc.id;
+            targetAccount = acc;
         }
     }
 
@@ -89,7 +91,35 @@ export async function POST(
     const selfPayment = payments.find((p) => p.personId === user.selfPersonId);
     const selfPaidAmount = selfPayment ? selfPayment.amount : 0;
 
+    if (verifiedAccountId && selfPaidAmount > 0 && targetAccount) {
+        if (Number(targetAccount.balance) < selfPaidAmount) {
+            return NextResponse.json(
+                {
+                    error: `Insufficient balance in ${targetAccount.name}. Available: ${Number(
+                        targetAccount.balance
+                    )}, Required: ${selfPaidAmount}. Account balance cannot go negative.`,
+                },
+                { status: 400 }
+            );
+        }
+    }
+
     const expense = await prisma.$transaction(async (tx) => {
+        if (verifiedAccountId && selfPaidAmount > 0) {
+            const freshAcc = await tx.account.findUnique({ where: { id: verifiedAccountId } });
+            if (!freshAcc || Number(freshAcc.balance) < selfPaidAmount) {
+                throw new Error(
+                    `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
+                        freshAcc?.balance || 0
+                    )}, Required: ${selfPaidAmount}.`
+                );
+            }
+            await tx.account.update({
+                where: { id: verifiedAccountId },
+                data: { balance: { decrement: selfPaidAmount } },
+            });
+        }
+
         const exp = await tx.expense.create({
             data: {
                 amount,
@@ -111,13 +141,6 @@ export async function POST(
                 account: true,
             },
         });
-
-        if (verifiedAccountId && selfPaidAmount > 0) {
-            await tx.account.update({
-                where: { id: verifiedAccountId },
-                data: { balance: { decrement: selfPaidAmount } },
-            });
-        }
 
         return exp;
     });

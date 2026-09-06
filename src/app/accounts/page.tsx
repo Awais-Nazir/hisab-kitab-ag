@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
+import { ModalPortal } from "@/components/ModalPortal";
 import { AccountSelect } from "@/components/AccountSelect";
 import { useCurrency } from "@/context/CurrencyContext";
 
@@ -196,8 +197,8 @@ export default function AccountsPage() {
   const [activityFilter, setActivityFilter] = useState<"ALL" | "IN" | "OUT">("ALL");
   const [isMobileActivityOpen, setIsMobileActivityOpen] = useState(false);
 
-  // Udhar Khata Filter: "all" | "lena" | "dene"
-  const [udharFilter, setUdharFilter] = useState<"all" | "lena" | "dene">("all");
+  // Udhar Khata Filter: "all" | "lena" | "dene" | "settled"
+  const [udharFilter, setUdharFilter] = useState<"all" | "lena" | "dene" | "settled">("all");
 
   // Record Udhar Entry Modal State
   const [isUdharModalOpen, setIsUdharModalOpen] = useState(false);
@@ -213,6 +214,7 @@ export default function AccountsPage() {
   const [settlingEntry, setSettlingEntry] = useState<UdharEntryItem | null>(null);
   const [settleAccountId, setSettleAccountId] = useState("");
   const [settling, setSettling] = useState(false);
+  const [unsettlingId, setUnsettlingId] = useState<string | null>(null);
 
   async function fetchActivitiesForAccount(accId: string) {
     setLoadingActivities(true);
@@ -419,6 +421,20 @@ export default function AccountsPage() {
       return;
     }
 
+    if (udharType === "LENA" && udharAccountId) {
+      const selectedAcc = accounts.find((a) => a.id === udharAccountId);
+      if (selectedAcc && Number(selectedAcc.balance) < num) {
+        alert(
+          `Insufficient balance in ${selectedAcc.name}!\nAvailable balance: ${symbol}${Number(
+            selectedAcc.balance
+          ).toFixed(2)}\nRequired amount: ${symbol}${num.toFixed(
+            2
+          )}\n\nAccount balance cannot go negative. Please deposit funds or choose a different account.`
+        );
+        return;
+      }
+    }
+
     setSubmittingUdhar(true);
     try {
       await apiFetch("/api/udhar", {
@@ -447,6 +463,20 @@ export default function AccountsPage() {
     e.preventDefault();
     if (settling || !settlingEntry) return;
 
+    if (settlingEntry.type === "DENA" && settleAccountId) {
+      const selectedAcc = accounts.find((a) => a.id === settleAccountId);
+      if (selectedAcc && Number(selectedAcc.balance) < Number(settlingEntry.amount)) {
+        alert(
+          `Insufficient balance in ${selectedAcc.name}!\nAvailable balance: ${symbol}${Number(
+            selectedAcc.balance
+          ).toFixed(2)}\nRequired amount: ${symbol}${Number(settlingEntry.amount).toFixed(
+            2
+          )}\n\nAccount balance cannot go negative. Please deposit funds or choose a different account.`
+        );
+        return;
+      }
+    }
+
     setSettling(true);
     try {
       await apiFetch(`/api/udhar/${settlingEntry.id}/settle`, {
@@ -466,6 +496,25 @@ export default function AccountsPage() {
     }
   }
 
+  async function handleUnsettleUdharEntry(entryId: string) {
+    if (
+      !confirm(
+        "Undo this settlement? Any amount deducted from or deposited into your account will be reversed back."
+      )
+    ) {
+      return;
+    }
+    setUnsettlingId(entryId);
+    try {
+      await apiFetch(`/api/udhar/${entryId}/unsettle`, { method: "POST" });
+      await loadData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to undo settlement");
+    } finally {
+      setUnsettlingId(null);
+    }
+  }
+
   async function handleDeleteUdharEntry(entryId: string) {
     if (!confirm("Delete this Udhar entry?")) return;
     try {
@@ -481,6 +530,10 @@ export default function AccountsPage() {
 
   const unsettledUdharCount = useMemo(() => {
     return udharEntries.filter((e) => !e.isSettled).length;
+  }, [udharEntries]);
+
+  const settledUdharEntries = useMemo(() => {
+    return udharEntries.filter((e) => e.isSettled);
   }, [udharEntries]);
 
   const topAccount = useMemo(() => {
@@ -1132,6 +1185,15 @@ export default function AccountsPage() {
                 >
                   Dene Hain ({denePeople.length})
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setUdharFilter("settled")}
+                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
+                    udharFilter === "settled" ? "bg-white dark:bg-[#1A2229] text-blue-700 dark:text-blue-400 font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
+                  }`}
+                >
+                  Settled / History ({settledUdharEntries.length})
+                </button>
               </div>
 
               <button
@@ -1342,6 +1404,99 @@ export default function AccountsPage() {
                   )}
                 </div>
               )}
+
+              {/* SETTLED / HISTORY SECTION */}
+              {udharFilter === "settled" && (
+                <div className="col-span-1 md:col-span-2 space-y-4">
+                  <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 sm:p-6 shadow-xs">
+                    <div className="flex items-center justify-between pb-4 border-b border-[#F0ECE6] dark:border-[#1E2824]">
+                      <div>
+                        <h4 className="font-serif font-bold text-lg text-[#162B27] dark:text-white">
+                          Settled Udhar History
+                        </h4>
+                        <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                          List of settled loans and debts. You can undo any settlement to reverse its account transaction.
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-stone-100 dark:bg-[#1A2229] text-stone-700 dark:text-stone-300">
+                        {settledUdharEntries.length} settled
+                      </span>
+                    </div>
+
+                    <div className="divide-y divide-[#F0ECE6] dark:divide-[#1E2824] pt-2">
+                      {settledUdharEntries.map((e) => (
+                        <div
+                          key={e.id}
+                          className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm text-[#162B27] dark:text-white">
+                                {e.person.name}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                  e.type === "LENA"
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                    : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                                }`}
+                              >
+                                {e.type === "LENA" ? "Vasool Shuda (Received)" : "Ada Shuda (Paid)"}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-1">
+                              {e.note || "Udhar transaction"} • Settled on{" "}
+                              {e.settledAt ? formatDateTime(e.settledAt) : formatDateTime(e.date)}
+                              {e.settleAccount && (
+                                <span className="ml-2 px-2 py-0.5 rounded bg-stone-100 dark:bg-[#1A2229] text-[10px] font-medium text-[#162B27] dark:text-white">
+                                  💳 {e.settleAccount.name}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-3 self-end sm:self-center">
+                            <span
+                              className={`font-serif font-bold text-base ${
+                                e.type === "LENA"
+                                  ? "text-emerald-700 dark:text-emerald-400"
+                                  : "text-rose-700 dark:text-rose-400"
+                              }`}
+                            >
+                              {e.type === "LENA" ? "+" : "-"}{symbol}
+                              {Math.round(Number(e.amount)).toLocaleString()}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={unsettlingId === e.id}
+                              onClick={() => handleUnsettleUdharEntry(e.id)}
+                              className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-900 dark:text-amber-200 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center gap-1.5 disabled:opacity-50"
+                              title="Undo settlement and refund/revert account balance"
+                            >
+                              <span>↩️</span>
+                              <span>{unsettlingId === e.id ? "Undoing..." : "Undo Settlement"}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUdharEntry(e.id)}
+                              className="text-stone-400 hover:text-rose-600 text-xs p-1.5 cursor-pointer"
+                              title="Delete entry permanently"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {settledUdharEntries.length === 0 && (
+                        <div className="py-12 text-center text-xs text-[#5A6863] dark:text-[#8E9C95]">
+                          No settled udhar records yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1349,124 +1504,128 @@ export default function AccountsPage() {
 
       {/* MODAL 1: MOBILE ACCOUNT ACTIVITY & TIME LEDGER (Opens on mobile screens or when tapped) */}
       {isMobileActivityOpen && selectedAccountForActivity && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsMobileActivityOpen(false);
-          }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto"
-        >
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F0ECE6] dark:border-[#1E2824]">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#5A6863] dark:text-[#8E9C95]">
-                  Account Activity Ledger
-                </span>
-                <h3 className="font-serif font-bold text-2xl text-[#162B27] dark:text-white">
-                  {selectedAccountForActivity.name}
-                </h3>
-                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
-                  Balance: <strong className="text-[#162B27] dark:text-white">{symbol}{Math.round(parseFloat(selectedAccountForActivity.balance.toString()))}</strong> • {selectedAccountForActivity.type.replace("_", " ")}
-                </p>
+        <ModalPortal>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsMobileActivityOpen(false);
+            }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto"
+          >
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-xl w-full shadow-2xl max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between pb-4 border-b border-[#F0ECE6] dark:border-[#1E2824]">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#5A6863] dark:text-[#8E9C95]">
+                    Account Activity Ledger
+                  </span>
+                  <h3 className="font-serif font-bold text-2xl text-[#162B27] dark:text-white">
+                    {selectedAccountForActivity.name}
+                  </h3>
+                  <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                    Balance: <strong className="text-[#162B27] dark:text-white">{symbol}{Math.round(parseFloat(selectedAccountForActivity.balance.toString()))}</strong> • {selectedAccountForActivity.type.replace("_", " ")}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsMobileActivityOpen(false)}
+                  className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-lg font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                onClick={() => setIsMobileActivityOpen(false)}
-                className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-lg font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
 
-            {/* Filter */}
-            <div className="flex items-center gap-2 py-3">
-              <button
-                onClick={() => setActivityFilter("ALL")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "ALL" ? "bg-[#0F5C53] text-white" : "bg-stone-100 dark:bg-[#1A2229] text-stone-600 dark:text-stone-300"}`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setActivityFilter("IN")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "IN" ? "bg-emerald-600 text-white" : "bg-stone-100 dark:bg-[#1A2229] text-stone-600 dark:text-stone-300"}`}
-              >
-                Money In (+)
-              </button>
-              <button
-                onClick={() => setActivityFilter("OUT")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "OUT" ? "bg-rose-600 text-white" : "bg-stone-100 dark:bg-[#1A2229] text-stone-600 dark:text-stone-300"}`}
-              >
-                Money Out (-)
-              </button>
-            </div>
+              {/* Filter */}
+              <div className="flex items-center gap-2 py-3">
+                <button
+                  onClick={() => setActivityFilter("ALL")}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "ALL" ? "bg-[#0F5C53] text-white" : "bg-stone-100 dark:bg-[#1A2229] text-stone-600 dark:text-stone-300"}`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setActivityFilter("IN")}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "IN" ? "bg-emerald-600 text-white" : "bg-stone-100 dark:bg-[#1A2229] text-stone-600 dark:text-stone-300"}`}
+                >
+                  Money In (+)
+                </button>
+                <button
+                  onClick={() => setActivityFilter("OUT")}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${activityFilter === "OUT" ? "bg-rose-600 text-white" : "bg-stone-100 dark:bg-[#1A2229] text-stone-600 dark:text-stone-300"}`}
+                >
+                  Money Out (-)
+                </button>
+              </div>
 
-            {/* Activity List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-[#F0ECE6] dark:divide-[#1E2824] pr-1 space-y-1">
-              {loadingActivities ? (
-                <div className="py-12 text-center text-xs text-[#5A6863] dark:text-[#8E9C95]">
-                  Loading transactions...
-                </div>
-              ) : filteredActivities.length === 0 ? (
-                <div className="py-12 text-center text-xs text-[#5A6863] dark:text-[#8E9C95]">
-                  No transactions recorded for this account yet.
-                </div>
-              ) : (
-                filteredActivities.map((act) => (
-                  <div key={act.id} className="py-3 flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
-                          act.direction === "IN"
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                            : "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
-                        }`}
-                      >
-                        {act.direction === "IN" ? "↓" : "↑"}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-[#162B27] dark:text-white">
-                          {act.title}
-                        </p>
-                        <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
-                          {formatDateTime(act.date)} {act.note ? `• ${act.note}` : ""}
-                        </p>
-                        {act.category && (
-                          <span className="inline-block mt-1 px-2 py-0.2 rounded-md text-[10px] font-medium bg-[#FAF8F5] dark:bg-[#151A18] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]">
-                            {act.category}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="text-right flex-shrink-0">
-                      <span
-                        className={`font-serif font-bold text-sm ${
-                          act.direction === "IN" ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#162B27] dark:text-white"
-                        }`}
-                      >
-                        {act.direction === "IN" ? "+" : "-"}{symbol}{Math.round(act.amount)}
-                      </span>
-                    </div>
+              {/* Activity List */}
+              <div className="flex-1 overflow-y-auto divide-y divide-[#F0ECE6] dark:divide-[#1E2824] pr-1 space-y-1">
+                {loadingActivities ? (
+                  <div className="py-12 text-center text-xs text-[#5A6863] dark:text-[#8E9C95]">
+                    Loading transactions...
                   </div>
-                ))
-              )}
-            </div>
+                ) : filteredActivities.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-[#5A6863] dark:text-[#8E9C95]">
+                    No transactions recorded for this account yet.
+                  </div>
+                ) : (
+                  filteredActivities.map((act) => (
+                    <div key={act.id} className="py-3 flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
+                            act.direction === "IN"
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                              : "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                          }`}
+                        >
+                          {act.direction === "IN" ? "↓" : "↑"}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-[#162B27] dark:text-white">
+                            {act.title}
+                          </p>
+                          <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                            {formatDateTime(act.date)} {act.note ? `• ${act.note}` : ""}
+                          </p>
+                          {act.category && (
+                            <span className="inline-block mt-1 px-2 py-0.2 rounded-md text-[10px] font-medium bg-[#FAF8F5] dark:bg-[#151A18] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]">
+                              {act.category}
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-            <div className="pt-4 border-t border-[#F0ECE6] dark:border-[#1E2824] flex justify-end">
-              <button
-                type="button"
-                onClick={() => setIsMobileActivityOpen(false)}
-                className="px-5 py-2 rounded-xl bg-stone-100 dark:bg-[#1A2229] hover:bg-stone-200 dark:hover:bg-stone-700 text-xs font-semibold text-stone-800 dark:text-white cursor-pointer"
-              >
-                Close
-              </button>
+                      <div className="text-right flex-shrink-0">
+                        <span
+                          className={`font-serif font-bold text-sm ${
+                            act.direction === "IN" ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#162B27] dark:text-white"
+                          }`}
+                        >
+                          {act.direction === "IN" ? "+" : "-"}{symbol}{Math.round(act.amount)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Close Footer */}
+              <div className="pt-3 border-t border-[#F0ECE6] dark:border-[#1E2824] flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsMobileActivityOpen(false)}
+                  className="px-5 py-2 rounded-xl bg-stone-100 dark:bg-[#1A2229] hover:bg-stone-200 dark:hover:bg-stone-700 text-xs font-semibold text-stone-800 dark:text-white cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* MODAL 2: DIRECT DEPOSIT (SALARY / INCOME) */}
       {isDepositModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 Add Income / Deposit
@@ -1585,12 +1744,14 @@ export default function AccountsPage() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL 3: TRANSFER FUNDS */}
       {isTransferModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 Transfer Money
@@ -1681,12 +1842,14 @@ export default function AccountsPage() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL 4: EDIT ACCOUNT NAME */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 Edit Account
@@ -1748,12 +1911,14 @@ export default function AccountsPage() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL 5: ADD NEW ACCOUNT */}
       {isAddAccountModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 New Account
@@ -1829,12 +1994,14 @@ export default function AccountsPage() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL 6: RECORD DEDICATED UDHAR ENTRY (MAINE DIYE / MAINE LIYE) */}
       {isUdharModalOpen && (
-        <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
@@ -1931,6 +2098,41 @@ export default function AccountsPage() {
                     </option>
                   ))}
                 </select>
+
+                {(() => {
+                  if (udharType !== "LENA" || !udharAccountId) return null;
+                  const selectedAcc = accounts.find((a) => a.id === udharAccountId);
+                  if (!selectedAcc) return null;
+                  const num = parseFloat(udharAmount || "0");
+                  const isInsufficient = num > 0 && Number(selectedAcc.balance) < num;
+                  if (isInsufficient) {
+                    return (
+                      <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-800 dark:text-rose-300 text-xs flex items-start gap-2 mt-2">
+                        <span className="text-sm">⚠️</span>
+                        <div>
+                          <p className="font-bold">Insufficient Balance!</p>
+                          <p className="text-[11px] mt-0.5">
+                            {selectedAcc.name} only has{" "}
+                            <strong>
+                              {symbol}
+                              {Number(selectedAcc.balance).toFixed(2)}
+                            </strong>
+                            , but you entered <strong>{symbol}{num.toFixed(2)}</strong>. Balance cannot go negative.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center justify-between mt-2">
+                      <span>Available balance:</span>
+                      <span className="font-bold">
+                        {symbol}
+                        {Number(selectedAcc.balance).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>
@@ -1965,23 +2167,37 @@ export default function AccountsPage() {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submittingUdhar}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {submittingUdhar ? "Saving..." : "Save Udhar Entry"}
-                </button>
+                {(() => {
+                  const selectedAcc = accounts.find((a) => a.id === udharAccountId);
+                  const num = parseFloat(udharAmount || "0");
+                  const isInsufficient =
+                    udharType === "LENA" && selectedAcc && num > 0 && Number(selectedAcc.balance) < num;
+                  return (
+                    <button
+                      type="submit"
+                      disabled={submittingUdhar || Boolean(isInsufficient)}
+                      className={`w-2/3 py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition-all ${
+                        isInsufficient
+                          ? "bg-stone-300 dark:bg-stone-800 text-stone-500 cursor-not-allowed"
+                          : "bg-[#0F5C53] hover:bg-[#0A3F38] text-white disabled:opacity-50"
+                      }`}
+                    >
+                      {submittingUdhar ? "Saving..." : isInsufficient ? "Insufficient Balance" : "Save Udhar Entry"}
+                    </button>
+                  );
+                })()}
               </div>
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* MODAL 7: SETTLE SPECIFIC UDHAR ENTRY */}
       {settlingEntry && (
-        <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 {settlingEntry.type === "LENA" ? "Vasooli (Record Return)" : "Ada Karen (Pay Debt)"}
@@ -2023,6 +2239,45 @@ export default function AccountsPage() {
                     ? "Amount will be added to this account's balance."
                     : "Amount will be deducted from this account's balance."}
                 </p>
+
+                {(() => {
+                  if (settlingEntry.type !== "DENA" || !settleAccountId) return null;
+                  const selectedAcc = accounts.find((a) => a.id === settleAccountId);
+                  if (!selectedAcc) return null;
+                  const isInsufficient = Number(selectedAcc.balance) < Number(settlingEntry.amount);
+                  if (isInsufficient) {
+                    return (
+                      <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-800 dark:text-rose-300 text-xs flex items-start gap-2 mt-2">
+                        <span className="text-sm">⚠️</span>
+                        <div>
+                          <p className="font-bold">Insufficient Balance!</p>
+                          <p className="text-[11px] mt-0.5">
+                            {selectedAcc.name} has{" "}
+                            <strong>
+                              {symbol}
+                              {Number(selectedAcc.balance).toFixed(2)}
+                            </strong>
+                            , but you need{" "}
+                            <strong>
+                              {symbol}
+                              {Number(settlingEntry.amount).toFixed(2)}
+                            </strong>
+                            . Balance cannot go negative.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center justify-between mt-2">
+                      <span>Available balance:</span>
+                      <span className="font-bold">
+                        {symbol}
+                        {Number(selectedAcc.balance).toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="pt-2 flex gap-2">
@@ -2033,17 +2288,35 @@ export default function AccountsPage() {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={settling}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {settling ? "Recording..." : "Confirm Settlement"}
-                </button>
+                {(() => {
+                  const selectedAcc = accounts.find((a) => a.id === settleAccountId);
+                  const isInsufficient =
+                    settlingEntry.type === "DENA" &&
+                    selectedAcc &&
+                    Number(selectedAcc.balance) < Number(settlingEntry.amount);
+                  return (
+                    <button
+                      type="submit"
+                      disabled={settling || Boolean(isInsufficient)}
+                      className={`w-2/3 py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition-all ${
+                        isInsufficient
+                          ? "bg-stone-300 dark:bg-stone-800 text-stone-500 cursor-not-allowed"
+                          : "bg-[#0F5C53] hover:bg-[#0A3F38] text-white disabled:opacity-50"
+                      }`}
+                    >
+                      {settling
+                        ? "Recording..."
+                        : isInsufficient
+                        ? "Insufficient Balance"
+                        : "Confirm Settlement"}
+                    </button>
+                  );
+                })()}
               </div>
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </AppLayout>
   );

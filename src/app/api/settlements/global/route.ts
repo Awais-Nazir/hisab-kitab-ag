@@ -109,15 +109,30 @@ export async function POST(req: NextRequest) {
     const created = [];
 
     let verifiedAccountId: string | undefined = undefined;
+    let targetAccount: any = null;
     if (accountId) {
         const acc = await prisma.account.findUnique({ where: { id: accountId } });
         if (acc && acc.ownerId === user.id) {
             verifiedAccountId = acc.id;
+            targetAccount = acc;
         }
     }
 
     const isSelfPayer = fromPersonId === user.selfPersonId;
     const isSelfReceiver = toPersonId === user.selfPersonId;
+
+    if (verifiedAccountId && isSelfPayer && targetAccount) {
+        if (Number(targetAccount.balance) < amount) {
+            return NextResponse.json(
+                {
+                    error: `Insufficient balance in ${targetAccount.name}. Available: ${Number(
+                        targetAccount.balance
+                    )}, Required: ${amount}. Account balance cannot go negative.`,
+                },
+                { status: 400 }
+            );
+        }
+    }
 
     for (const c of candidates) {
         if (remaining <= 0) break;
@@ -142,6 +157,17 @@ export async function POST(req: NextRequest) {
     if (verifiedAccountId && created.length > 0) {
         const totalSettled = created.reduce((s, r) => s + Number(r.amount), 0);
         if (isSelfPayer) {
+            const freshAcc = await prisma.account.findUnique({ where: { id: verifiedAccountId } });
+            if (!freshAcc || Number(freshAcc.balance) < totalSettled) {
+                return NextResponse.json(
+                    {
+                        error: `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
+                            freshAcc?.balance || 0
+                        )}, Required: ${totalSettled}.`,
+                    },
+                    { status: 400 }
+                );
+            }
             await prisma.account.update({
                 where: { id: verifiedAccountId },
                 data: { balance: { decrement: totalSettled } },

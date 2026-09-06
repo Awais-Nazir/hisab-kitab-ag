@@ -54,33 +54,43 @@ export async function POST(
     const { fromPersonId, toPersonId, amount, note, accountId, date } = parsed.data;
 
     let verifiedAccountId: string | undefined = undefined;
+    let targetAccount: any = null;
     if (accountId) {
         const acc = await prisma.account.findUnique({ where: { id: accountId } });
         if (acc && acc.ownerId === user.id) {
             verifiedAccountId = acc.id;
+            targetAccount = acc;
         }
     }
 
     const isSelfPayer = fromPersonId === user.selfPersonId;
     const isSelfReceiver = toPersonId === user.selfPersonId;
 
-    const settlement = await prisma.$transaction(async (tx) => {
-        const s = await tx.settlement.create({
-            data: {
-                workspaceId,
-                fromPersonId,
-                toPersonId,
-                amount,
-                note,
-                accountId: verifiedAccountId,
-                date: date ? new Date(date) : new Date(),
-            },
-            include: { fromPerson: true, toPerson: true, account: true },
-        });
+    if (verifiedAccountId && isSelfPayer && targetAccount) {
+        if (Number(targetAccount.balance) < Number(amount)) {
+            return NextResponse.json(
+                {
+                    error: `Insufficient balance in ${targetAccount.name}. Available: ${Number(
+                        targetAccount.balance
+                    )}, Required: ${amount}. Account balance cannot go negative.`,
+                },
+                { status: 400 }
+            );
+        }
+    }
 
+    const settlement = await prisma.$transaction(async (tx) => {
         if (verifiedAccountId) {
             if (isSelfPayer) {
-                // User paid out of this account -> decrement
+                // User paid out of this account -> verify balance and decrement
+                const freshAcc = await tx.account.findUnique({ where: { id: verifiedAccountId } });
+                if (!freshAcc || Number(freshAcc.balance) < Number(amount)) {
+                    throw new Error(
+                        `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
+                            freshAcc?.balance || 0
+                        )}, Required: ${amount}.`
+                    );
+                }
                 await tx.account.update({
                     where: { id: verifiedAccountId },
                     data: { balance: { decrement: amount } },
@@ -93,6 +103,19 @@ export async function POST(
                 });
             }
         }
+
+        const s = await tx.settlement.create({
+            data: {
+                workspaceId,
+                fromPersonId,
+                toPersonId,
+                amount,
+                note,
+                accountId: verifiedAccountId,
+                date: date ? new Date(date) : new Date(),
+            },
+            include: { fromPerson: true, toPerson: true, account: true },
+        });
 
         return s;
     });

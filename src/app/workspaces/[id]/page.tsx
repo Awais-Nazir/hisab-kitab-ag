@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { CategorySelect } from "@/components/CategorySelect";
 import { AccountSelect } from "@/components/AccountSelect";
 import { AppLayout } from "@/components/AppLayout";
+import { ModalPortal } from "@/components/ModalPortal";
 import { useCurrency } from "@/context/CurrencyContext";
 import { calculateEqualSplits } from "@/lib/splits";
 
@@ -1137,8 +1138,9 @@ export default function WorkspaceDetailPage() {
 
       {/* Add / Edit Shared Expense Modal with Custom Paid, Custom Split & Account Select */}
       {isExpenseModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
@@ -1566,12 +1568,14 @@ export default function WorkspaceDetailPage() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Record / Edit Settlement Modal */}
       {isSettleModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 {editingSettlementId ? "Edit Settlement" : "Record Settlement"}
@@ -1697,6 +1701,7 @@ export default function WorkspaceDetailPage() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </AppLayout>
   );

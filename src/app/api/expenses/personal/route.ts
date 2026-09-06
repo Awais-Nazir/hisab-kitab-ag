@@ -27,16 +27,46 @@ export async function POST(req: NextRequest) {
     const { amount, description, category, accountId, date } = parsed.data;
 
     let verifiedAccountId: string | undefined;
+    let targetAccount: any = null;
     if (accountId) {
         const acc = await prisma.account.findUnique({
             where: { id: accountId },
         });
         if (acc && acc.ownerId === user.id) {
             verifiedAccountId = acc.id;
+            targetAccount = acc;
+        }
+    }
+
+    if (verifiedAccountId && targetAccount) {
+        if (Number(targetAccount.balance) < amount) {
+            return NextResponse.json(
+                {
+                    error: `Insufficient balance in ${targetAccount.name}. Available: ${Number(
+                        targetAccount.balance
+                    )}, Required: ${amount}. Account balance cannot go negative.`,
+                },
+                { status: 400 }
+            );
         }
     }
 
     const expense = await prisma.$transaction(async (tx) => {
+        if (verifiedAccountId) {
+            const freshAcc = await tx.account.findUnique({ where: { id: verifiedAccountId } });
+            if (!freshAcc || Number(freshAcc.balance) < amount) {
+                throw new Error(
+                    `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
+                        freshAcc?.balance || 0
+                    )}, Required: ${amount}.`
+                );
+            }
+            await tx.account.update({
+                where: { id: verifiedAccountId },
+                data: { balance: { decrement: amount } },
+            });
+        }
+
         const exp = await tx.expense.create({
             data: {
                 amount,
@@ -50,13 +80,6 @@ export async function POST(req: NextRequest) {
                 account: true,
             },
         });
-
-        if (verifiedAccountId) {
-            await tx.account.update({
-                where: { id: verifiedAccountId },
-                data: { balance: { decrement: amount } },
-            });
-        }
 
         return exp;
     });

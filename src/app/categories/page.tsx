@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
+import { ModalPortal } from "@/components/ModalPortal";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useCurrency } from "@/context/CurrencyContext";
 
@@ -502,76 +503,79 @@ export default function CategoriesPage() {
 
             {/* Create New Category Modal */}
             {isCreateModalOpen && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-                <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                      Create Category
-                    </h3>
-                    <button
-                      onClick={() => setIsCreateModalOpen(false)}
-                      className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleAdd} className="space-y-4">
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                        Category Name
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Groceries, Gym"
-                        value={newCatName}
-                        onChange={(e) => setNewCatName(e.target.value)}
-                        required
-                        autoFocus
-                        className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                        Monthly Budget ({symbol})
-                      </label>
-                      <input
-                        type="number"
-                        step="1"
-                        placeholder="1000"
-                        value={newCatBudget}
-                        onChange={(e) => setNewCatBudget(e.target.value)}
-                        required
-                        className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                      />
-                    </div>
-
-                    <div className="pt-2 flex gap-2">
+              <ModalPortal>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+                  <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                        Create Category
+                      </h3>
                       <button
-                        type="button"
                         onClick={() => setIsCreateModalOpen(false)}
-                        className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
+                        className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
                       >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={adding || !newCatName.trim()}
-                        className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
-                      >
-                        {adding ? "Creating..." : "+ Create Category"}
+                        ✕
                       </button>
                     </div>
-                  </form>
+
+                    <form onSubmit={handleAdd} className="space-y-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                          Category Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Groceries, Gym"
+                          value={newCatName}
+                          onChange={(e) => setNewCatName(e.target.value)}
+                          required
+                          autoFocus
+                          className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                          Monthly Budget ({symbol})
+                        </label>
+                        <input
+                          type="number"
+                          step="1"
+                          placeholder="1000"
+                          value={newCatBudget}
+                          onChange={(e) => setNewCatBudget(e.target.value)}
+                          required
+                          className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                        />
+                      </div>
+
+                      <div className="pt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsCreateModalOpen(false)}
+                          className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={adding || !newCatName.trim()}
+                          className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+                        >
+                          {adding ? "Creating..." : "+ Create Category"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
-              </div>
+              </ModalPortal>
             )}
 
             {/* Modal to Edit Category Name & Budget */}
             {editingCat && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-                <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+              <ModalPortal>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+                  <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                       Edit Category
@@ -585,64 +589,66 @@ export default function CategoriesPage() {
                   </div>
 
                   <form onSubmit={handleSaveEdit} className="space-y-4">
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                        Category Name
-                      </label>
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        required
-                        className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                      />
-                    </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                          Category Name
+                        </label>
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          required
+                          className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                        Monthly Budget ({symbol})
-                      </label>
-                      <input
-                        type="number"
-                        step="1"
-                        value={editBudget}
-                        onChange={(e) => setEditBudget(e.target.value)}
-                        required
-                        autoFocus
-                        className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                      />
-                    </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                          Monthly Budget ({symbol})
+                        </label>
+                        <input
+                          type="number"
+                          step="1"
+                          value={editBudget}
+                          onChange={(e) => setEditBudget(e.target.value)}
+                          required
+                          autoFocus
+                          className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                        />
+                      </div>
 
-                    <div className="pt-2 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingCat(null)}
-                        className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={savingEdit}
-                        className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
-                      >
-                        {savingEdit ? "Saving..." : "Save Changes"}
-                      </button>
-                    </div>
-                  </form>
+                      <div className="pt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingCat(null)}
+                          className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={savingEdit}
+                          className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+                        >
+                          {savingEdit ? "Saving..." : "Save Changes"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
-              </div>
+              </ModalPortal>
             )}
 
             {/* Category Details Modal: Date-wise Expenses (Data-only: closes on click outside & Escape) */}
             {selectedCatForDetails && (
-              <div
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) setSelectedCatForDetails(null);
-                }}
-                className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto"
-              >
-                <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl my-auto max-h-[85vh] flex flex-col">
+              <ModalPortal>
+                <div
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) setSelectedCatForDetails(null);
+                  }}
+                  className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto"
+                >
+                  <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl my-auto max-h-[85vh] flex flex-col">
                   {/* Header */}
                   <div className="flex items-start justify-between pb-4 border-b border-[#F0ECE6] dark:border-[#1E2824]">
                     <div className="flex items-center gap-3">
@@ -758,7 +764,8 @@ export default function CategoriesPage() {
                   </div>
                 </div>
               </div>
-            )}
+            </ModalPortal>
+          )}
           </>
         )}
       </div>

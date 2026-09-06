@@ -34,16 +34,55 @@ export async function POST(
   const accountId = parsed.success ? parsed.data.accountId : undefined;
 
   let verifiedAccountId: string | undefined = undefined;
+  let targetAccount: any = null;
   if (accountId) {
     const acc = await prisma.account.findUnique({ where: { id: accountId } });
     if (acc && acc.ownerId === user.id) {
       verifiedAccountId = acc.id;
+      targetAccount = acc;
     }
   }
 
   const amt = Number(entry.amount);
 
+  if (entry.type === "DENA" && verifiedAccountId && targetAccount) {
+    if (Number(targetAccount.balance) < amt) {
+      return NextResponse.json(
+        {
+          error: `Insufficient balance in ${targetAccount.name}. Available balance is ${Number(
+            targetAccount.balance
+          )}, but ${amt} is required. Account balance cannot go negative.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   const updated = await prisma.$transaction(async (tx) => {
+    if (verifiedAccountId) {
+      if (entry.type === "LENA") {
+        // You received your loaned money back -> increment account balance
+        await tx.account.update({
+          where: { id: verifiedAccountId },
+          data: { balance: { increment: amt } },
+        });
+      } else {
+        // You paid back your borrowed debt -> verify balance and decrement
+        const freshAcc = await tx.account.findUnique({ where: { id: verifiedAccountId } });
+        if (!freshAcc || Number(freshAcc.balance) < amt) {
+          throw new Error(
+            `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
+              freshAcc?.balance || 0
+            )}, Required: ${amt}.`
+          );
+        }
+        await tx.account.update({
+          where: { id: verifiedAccountId },
+          data: { balance: { decrement: amt } },
+        });
+      }
+    }
+
     const settledEntry = await tx.udharEntry.update({
       where: { id: entryId },
       data: {
@@ -57,22 +96,6 @@ export async function POST(
         settleAccount: true,
       },
     });
-
-    if (verifiedAccountId) {
-      if (entry.type === "LENA") {
-        // You received your loaned money back -> increment account balance
-        await tx.account.update({
-          where: { id: verifiedAccountId },
-          data: { balance: { increment: amt } },
-        });
-      } else {
-        // You paid back your borrowed debt -> decrement account balance
-        await tx.account.update({
-          where: { id: verifiedAccountId },
-          data: { balance: { decrement: amt } },
-        });
-      }
-    }
 
     return settledEntry;
   });

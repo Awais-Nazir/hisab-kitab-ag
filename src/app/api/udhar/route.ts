@@ -98,16 +98,55 @@ export async function POST(req: NextRequest) {
   }
 
   let verifiedAccountId: string | undefined = undefined;
+  let targetAccount: any = null;
   if (accountId) {
     const acc = await prisma.account.findUnique({ where: { id: accountId } });
     if (acc && acc.ownerId === user.id) {
       verifiedAccountId = acc.id;
+      targetAccount = acc;
+    }
+  }
+
+  if (type === "LENA" && verifiedAccountId && targetAccount) {
+    if (Number(targetAccount.balance) < amount) {
+      return NextResponse.json(
+        {
+          error: `Insufficient balance in ${targetAccount.name}. Available balance is ${Number(
+            targetAccount.balance
+          )}, but ${amount} is required. Account balance cannot go negative.`,
+        },
+        { status: 400 }
+      );
     }
   }
 
   const entryDate = date ? new Date(date) : new Date();
 
   const result = await prisma.$transaction(async (tx) => {
+    if (verifiedAccountId) {
+      if (type === "LENA") {
+        // You gave cash/funds out of this account -> verify balance and decrement
+        const freshAcc = await tx.account.findUnique({ where: { id: verifiedAccountId } });
+        if (!freshAcc || Number(freshAcc.balance) < amount) {
+          throw new Error(
+            `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
+              freshAcc?.balance || 0
+            )}, Required: ${amount}.`
+          );
+        }
+        await tx.account.update({
+          where: { id: verifiedAccountId },
+          data: { balance: { decrement: amount } },
+        });
+      } else {
+        // You received borrowed cash/funds into this account -> increment
+        await tx.account.update({
+          where: { id: verifiedAccountId },
+          data: { balance: { increment: amount } },
+        });
+      }
+    }
+
     const entry = await tx.udharEntry.create({
       data: {
         ownerId: user.id,
@@ -123,22 +162,6 @@ export async function POST(req: NextRequest) {
         account: true,
       },
     });
-
-    if (verifiedAccountId) {
-      if (type === "LENA") {
-        // You gave cash/funds out of this account -> decrement
-        await tx.account.update({
-          where: { id: verifiedAccountId },
-          data: { balance: { decrement: amount } },
-        });
-      } else {
-        // You received borrowed cash/funds into this account -> increment
-        await tx.account.update({
-          where: { id: verifiedAccountId },
-          data: { balance: { increment: amount } },
-        });
-      }
-    }
 
     return entry;
   });

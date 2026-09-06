@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
+import { ModalPortal } from "@/components/ModalPortal";
 import { useCurrency } from "@/context/CurrencyContext";
 
 interface Person {
@@ -476,8 +477,9 @@ export default function PeoplePage() {
 
       {/* Add Contact Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+        <ModalPortal>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 Add New Contact
@@ -544,6 +546,7 @@ export default function PeoplePage() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </AppLayout>
   );

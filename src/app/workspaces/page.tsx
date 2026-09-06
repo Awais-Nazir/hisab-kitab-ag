@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
+import { ModalPortal } from "@/components/ModalPortal";
 
 interface Workspace {
   id: string;
@@ -212,65 +213,67 @@ export default function WorkspacesPage() {
 
         {/* Workspace Settings / Rename Modal */}
         {editingWorkspace && (
-          <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE6] dark:border-[#28332E]">
-                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                  Workspace Settings
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setEditingWorkspace(null)}
-                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveEdit} className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-[#6B7268] dark:text-stone-400 uppercase tracking-wider block mb-1">
-                    Workspace Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    required
-                    className="w-full px-4 py-2.5 bg-[#FAF8F5] dark:bg-[#141816] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl text-sm font-semibold text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-2">
+          <ModalPortal>
+            <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
+              <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE6] dark:border-[#28332E]">
+                  <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                    Workspace Settings
+                  </h3>
                   <button
                     type="button"
-                    onClick={() => handleDeleteWorkspace(editingWorkspace.id)}
-                    disabled={deletingId === editingWorkspace.id}
-                    className="text-rose-600 hover:text-rose-700 text-xs font-semibold hover:underline cursor-pointer disabled:opacity-50"
+                    onClick={() => setEditingWorkspace(null)}
+                    className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer"
                   >
-                    {deletingId === editingWorkspace.id ? "Deleting..." : "Delete Workspace"}
+                    ✕
                   </button>
+                </div>
 
-                  <div className="flex items-center gap-2">
+                <form onSubmit={handleSaveEdit} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-[#6B7268] dark:text-stone-400 uppercase tracking-wider block mb-1">
+                      Workspace Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      required
+                      className="w-full px-4 py-2.5 bg-[#FAF8F5] dark:bg-[#141816] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl text-sm font-semibold text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
                     <button
                       type="button"
-                      onClick={() => setEditingWorkspace(null)}
-                      className="px-4 py-2 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:text-[#162B27] dark:hover:text-white"
+                      onClick={() => handleDeleteWorkspace(editingWorkspace.id)}
+                      disabled={deletingId === editingWorkspace.id}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 disabled:opacity-50"
                     >
-                      Cancel
+                      {deletingId === editingWorkspace.id ? "Deleting..." : "Delete Workspace"}
                     </button>
-                    <button
-                      type="submit"
-                      disabled={savingEdit || !editName.trim()}
-                      className="bg-[#0F5C53] hover:bg-[#0A3F38] text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
-                    >
-                      {savingEdit ? "Saving..." : "Save Name"}
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingWorkspace(null)}
+                        className="px-4 py-2 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:text-[#162B27] dark:hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingEdit || !editName.trim()}
+                        className="bg-[#0F5C53] hover:bg-[#0A3F38] text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        {savingEdit ? "Saving..." : "Save Name"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </form>
+                </form>
+              </div>
             </div>
-          </div>
+          </ModalPortal>
         )}
       </div>
     </AppLayout>

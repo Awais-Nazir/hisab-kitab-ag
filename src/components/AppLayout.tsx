@@ -222,6 +222,14 @@ export function AppLayout({
           "transform 250ms cubic-bezier(0.25, 1, 0.5, 1), opacity 250ms ease-out";
         mainRef.current.style.transform = "translateX(0px)";
         mainRef.current.style.opacity = "1";
+
+        setTimeout(() => {
+          if (mainRef.current) {
+            mainRef.current.style.transition = "";
+            mainRef.current.style.transform = "";
+            mainRef.current.style.opacity = "";
+          }
+        }, 260);
       }
     }
 
@@ -232,6 +240,14 @@ export function AppLayout({
         mainRef.current.style.transition = "transform 200ms ease-out, opacity 200ms ease-out";
         mainRef.current.style.transform = "translateX(0px)";
         mainRef.current.style.opacity = "1";
+
+        setTimeout(() => {
+          if (mainRef.current) {
+            mainRef.current.style.transition = "";
+            mainRef.current.style.transform = "";
+            mainRef.current.style.opacity = "";
+          }
+        }, 210);
       }
     }
 
@@ -284,7 +300,7 @@ export function AppLayout({
         {/* Page Content */}
         <main
           ref={mainRef}
-          className="flex-1 px-4 py-6 md:px-8 md:py-8 max-w-7xl w-full mx-auto pb-24 md:pb-12 will-change-[transform,opacity]"
+          className="flex-1 px-4 py-6 md:px-8 md:py-8 max-w-7xl w-full mx-auto pb-24 md:pb-12"
         >
           {children}
         </main>

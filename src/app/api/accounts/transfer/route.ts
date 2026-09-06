@@ -39,8 +39,28 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Destination account not found" }, { status: 404 });
     }
 
-    const [transfer, updatedFrom, updatedTo] = await prisma.$transaction([
-        prisma.accountTransfer.create({
+    if (Number(fromAccount.balance) < amount) {
+        return NextResponse.json(
+            {
+                error: `Insufficient balance in ${fromAccount.name}. Available: ${Number(
+                    fromAccount.balance
+                )}, Required: ${amount}. Account balance cannot go negative.`,
+            },
+            { status: 400 }
+        );
+    }
+
+    const [transfer, updatedFrom, updatedTo] = await prisma.$transaction(async (tx) => {
+        const freshFrom = await tx.account.findUnique({ where: { id: fromAccountId } });
+        if (!freshFrom || Number(freshFrom.balance) < amount) {
+            throw new Error(
+                `Insufficient balance in ${freshFrom?.name || "account"}. Available: ${Number(
+                    freshFrom?.balance || 0
+                )}, Required: ${amount}.`
+            );
+        }
+
+        const t = await tx.accountTransfer.create({
             data: {
                 ownerId: user.id,
                 fromAccountId,
@@ -53,16 +73,20 @@ export async function POST(req: NextRequest) {
                 fromAccount: true,
                 toAccount: true,
             },
-        }),
-        prisma.account.update({
+        });
+
+        const uf = await tx.account.update({
             where: { id: fromAccountId },
             data: { balance: { decrement: amount } },
-        }),
-        prisma.account.update({
+        });
+
+        const ut = await tx.account.update({
             where: { id: toAccountId },
             data: { balance: { increment: amount } },
-        }),
-    ]);
+        });
+
+        return [t, uf, ut];
+    });
 
     return NextResponse.json({ transfer, updatedFrom, updatedTo });
 }
