@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { getPendingSyncCount, getSyncQueue, removeSyncQueueItem } from "@/lib/idb";
 
 interface SyncContextType {
@@ -27,26 +27,34 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     const [isSyncing, setIsSyncing] = useState<boolean>(false);
     const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
 
+    const isSyncingRef = useRef<boolean>(false);
+
     const refreshPendingCount = useCallback(async () => {
         try {
             const count = await getPendingSyncCount();
             setPendingCount(count);
+            return count;
         } catch {
             setPendingCount(0);
+            return 0;
         }
     }, []);
 
     const syncNow = useCallback(async () => {
-        if (typeof window === "undefined" || !navigator.onLine || isSyncing) return;
+        if (typeof window === "undefined" || !navigator.onLine || isSyncingRef.current) {
+            return;
+        }
 
-        setIsSyncing(true);
         try {
             const queue = await getSyncQueue();
             if (queue.length === 0) {
                 setPendingCount(0);
-                setIsSyncing(false);
-                return;
+                return; // Nothing to sync, do not toggle isSyncing
             }
+
+            isSyncingRef.current = true;
+            setIsSyncing(true);
+            setPendingCount(queue.length);
 
             let syncedAny = false;
 
@@ -66,7 +74,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
                         // Server error, pause and retry later
                         break;
                     }
-                } catch (netErr) {
+                } catch {
                     // Network dropped again
                     break;
                 }
@@ -74,29 +82,32 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
             const remaining = await getPendingSyncCount();
             setPendingCount(remaining);
-            setLastSyncTime(Date.now());
 
             if (syncedAny) {
+                setLastSyncTime(Date.now());
                 // Dispatch event so active pages know they can silently refresh fresh server data
                 window.dispatchEvent(new CustomEvent("offline-sync-completed"));
             }
         } catch (e) {
             console.error("Sync error:", e);
         } finally {
+            isSyncingRef.current = false;
             setIsSyncing(false);
         }
-    }, [isSyncing]);
+    }, []);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
 
         function handleOnline() {
             setIsOnline(true);
-            refreshPendingCount();
-            // Automatically trigger sync when back online
-            setTimeout(() => {
-                syncNow();
-            }, 1000);
+            refreshPendingCount().then((count) => {
+                if (count > 0) {
+                    setTimeout(() => {
+                        syncNow();
+                    }, 500);
+                }
+            });
         }
 
         function handleOffline() {
@@ -110,7 +121,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
         function handleVisibilityChange() {
             if (document.visibilityState === "visible" && navigator.onLine) {
-                syncNow();
+                refreshPendingCount().then((count) => {
+                    if (count > 0) {
+                        syncNow();
+                    }
+                });
             }
         }
 
@@ -119,9 +134,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         window.addEventListener("offline-mutation-queued", handleMutationQueued);
         document.addEventListener("visibilitychange", handleVisibilityChange);
 
-        // Initial check on mount
-        refreshPendingCount().then(() => {
-            if (navigator.onLine) {
+        // Initial check on mount: only sync if there are actually pending items!
+        refreshPendingCount().then((count) => {
+            if (navigator.onLine && count > 0) {
                 syncNow();
             }
         });
