@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
@@ -11,18 +11,9 @@ import { GlobalSettlementSection } from "@/components/GlobalSettlementSection";
 import { LenaDenaRow } from "@/components/LenaDenaRow";
 import { AppLayout } from "@/components/AppLayout";
 import { useCurrency } from "@/context/CurrencyContext";
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  selfPersonId: string;
-}
-
-interface Workspace {
-  id: string;
-  name: string;
-}
+import { useUser } from "@/context/UserContext";
+import { calculateEqualSplits } from "@/lib/splits";
+import { SharedExpenseQuickFields, Workspace, WorkspaceMember } from "@/components/SharedExpenseQuickFields";
 
 interface Expense {
   id: string;
@@ -99,7 +90,7 @@ function getCategoryIcon(cat: string | null) {
 export default function DashboardPage() {
   const router = useRouter();
   const { symbol } = useCurrency();
-  const [user, setUser] = useState<User | null>(null);
+  const { user } = useUser();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -109,7 +100,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   // Quick Entry State
-  const [entryType, setEntryType] = useState<"expense" | "income" | "transfer">("expense");
+  const [entryType, setEntryType] = useState<"expense" | "shared" | "income" | "transfer">("expense");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
@@ -122,16 +113,70 @@ export default function DashboardPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [trendRange, setTrendRange] = useState<"week" | "month">("week");
 
-  // Quick Workspace Modal State
+  // Shared Workspace Entry State
+  const [selectedWsId, setSelectedWsId] = useState<string>("");
+  const [payerMode, setPayerMode] = useState<"single" | "multiple">("single");
+  const [payerId, setPayerId] = useState<string>("");
+  const [customPayments, setCustomPayments] = useState<Record<string, string>>({});
+  const [splitMode, setSplitMode] = useState<"equal" | "custom">("equal");
+  const [splitSelected, setSplitSelected] = useState<Set<string>>(new Set());
+  const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+
+  // Modals
+  const [entryChoiceOpen, setEntryChoiceOpen] = useState(false);
   const [showGlobalSettle, setShowGlobalSettle] = useState(false);
   const [quickEntryOpen, setQuickEntryOpen] = useState(false);
+
+  // Active workspace and members
+  const currentWorkspace = useMemo(() => {
+    return workspaces.find((w) => w.id === selectedWsId) || workspaces[0] || null;
+  }, [workspaces, selectedWsId]);
+
+  const currentMembers = useMemo(() => {
+    return currentWorkspace?.members || [];
+  }, [currentWorkspace]);
+
+  useEffect(() => {
+    if (workspaces.length > 0 && !selectedWsId) {
+      setSelectedWsId(workspaces[0].id);
+    }
+  }, [workspaces, selectedWsId]);
+
+  useEffect(() => {
+    if (!currentWorkspace) return;
+    const members = currentWorkspace.members || [];
+    const selfMem = members.find((m) => m.personId === user?.selfPersonId);
+    setPayerId(selfMem?.personId || members[0]?.personId || "");
+    setPayerMode("single");
+    setCustomPayments({});
+    setSplitMode("equal");
+    setSplitSelected(new Set(members.map((m) => m.personId)));
+    setCustomSplits({});
+  }, [currentWorkspace, user?.selfPersonId]);
+
+  const parsedAmount = parseFloat(amount) || 0;
+  const equalSplitsMap = useMemo(() => {
+    return calculateEqualSplits(parsedAmount, Array.from(splitSelected), user?.selfPersonId);
+  }, [parsedAmount, splitSelected, user?.selfPersonId]);
+
+  const selfPaidAmount = useMemo(() => {
+    if (payerMode === "single") {
+      return payerId === user?.selfPersonId ? parsedAmount : 0;
+    }
+    return parseFloat(customPayments[user?.selfPersonId || ""] || "0") || 0;
+  }, [payerMode, payerId, user?.selfPersonId, parsedAmount, customPayments]);
+
+  const totalCustomPaid = useMemo(() => {
+    return Object.values(customPayments).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  }, [customPayments]);
+
+  const totalCustomSplit = useMemo(() => {
+    return Object.values(customSplits).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  }, [customSplits]);
 
   useEffect(() => {
     async function load() {
       try {
-        const meRes = await apiFetch<{ user: User }>("/api/auth/me");
-        setUser(meRes.user);
-
         const [wsRes, expRes, overviewRes, trendRes, accRes] = await Promise.all([
           apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
           apiFetch<{ expenses: Expense[] }>("/api/expenses/personal"),
@@ -226,8 +271,115 @@ export default function DashboardPage() {
           }),
         });
         alert("Transfer completed successfully!");
+      } else if (entryType === "shared") {
+        if (!selectedWsId) {
+          alert("Please select a workspace");
+          setSubmitting(false);
+          return;
+        }
+
+        const ws = workspaces.find((w) => w.id === selectedWsId);
+        const wsMembers = ws?.members || [];
+        if (wsMembers.length === 0) {
+          alert("The selected workspace has no members");
+          setSubmitting(false);
+          return;
+        }
+
+        // Prepare payments
+        let paymentsPayload: { personId: string; amount: number }[] = [];
+        if (payerMode === "single") {
+          if (!payerId) {
+            alert("Please select who paid");
+            setSubmitting(false);
+            return;
+          }
+          paymentsPayload = [{ personId: payerId, amount: num }];
+        } else {
+          paymentsPayload = wsMembers
+            .map((m) => ({
+              personId: m.personId,
+              amount: parseFloat(customPayments[m.personId] || "0") || 0,
+            }))
+            .filter((p) => p.amount > 0);
+
+          const sumPaid = paymentsPayload.reduce((s, p) => s + p.amount, 0);
+          if (Math.abs(sumPaid - num) > 0.01) {
+            alert(
+              `Total paid (${symbol}${sumPaid.toFixed(2)}) must equal total amount (${symbol}${num.toFixed(2)}). Difference: ${symbol}${Math.abs(sumPaid - num).toFixed(2)}`
+            );
+            setSubmitting(false);
+            return;
+          }
+        }
+
+        // Prepare splits
+        let splitsPayload: { personId: string; amount: number }[] = [];
+        if (splitMode === "equal") {
+          const splitArray = Array.from(splitSelected);
+          if (splitArray.length === 0) {
+            alert("Select at least one member to split with");
+            setSubmitting(false);
+            return;
+          }
+          const splitsMap = calculateEqualSplits(num, splitArray, user?.selfPersonId);
+          splitsPayload = splitArray.map((personId) => ({
+            personId,
+            amount: splitsMap[personId] ?? 0,
+          }));
+        } else {
+          splitsPayload = wsMembers
+            .map((m) => ({
+              personId: m.personId,
+              amount: parseFloat(customSplits[m.personId] || "0") || 0,
+            }))
+            .filter((s) => s.amount > 0);
+
+          const sumSplit = splitsPayload.reduce((s, x) => s + x.amount, 0);
+          if (Math.abs(sumSplit - num) > 0.01) {
+            alert(
+              `Total split (${symbol}${sumSplit.toFixed(2)}) must equal total amount (${symbol}${num.toFixed(2)}). Difference: ${symbol}${Math.abs(sumSplit - num).toFixed(2)}`
+            );
+            setSubmitting(false);
+            return;
+          }
+        }
+
+        const myPayment = paymentsPayload.find((p) => p.personId === user?.selfPersonId);
+        if (myPayment && myPayment.amount > 0 && !accountId) {
+          const confirmNoAccount = confirm(
+            "You haven't selected an account (Kaha se hoyi ha). Proceed without deducting from an account?"
+          );
+          if (!confirmNoAccount) {
+            setSubmitting(false);
+            return;
+          }
+        }
+
+        await apiFetch(`/api/workspaces/${selectedWsId}/expenses`, {
+          method: "POST",
+          body: JSON.stringify({
+            amount: num,
+            description: description.trim() || "Shared Expense",
+            category: category || undefined,
+            accountId: myPayment && myPayment.amount > 0 && accountId ? accountId : undefined,
+            date: new Date(`${expDate}T${expTime}`).toISOString(),
+            payments: paymentsPayload,
+            splits: splitsPayload,
+          }),
+        });
+
+        alert("Shared workspace expense logged successfully!");
+
+        // Refresh workspaces and personal expenses
+        const [wsRes, expRes] = await Promise.all([
+          apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
+          apiFetch<{ expenses: Expense[] }>("/api/expenses/personal"),
+        ]);
+        setWorkspaces(wsRes.workspaces);
+        setExpenses(expRes.expenses);
       } else {
-        // Expense
+        // Personal Expense
         const payload = {
           amount: num,
           description: description.trim() || "Expense",
@@ -258,6 +410,10 @@ export default function DashboardPage() {
       setCategory("");
       setAccountId("");
       setToAccountId("");
+      setPayerMode("single");
+      setCustomPayments({});
+      setSplitMode("equal");
+      setCustomSplits({});
       setExpDate(new Date().toISOString().slice(0, 10));
       setExpTime(new Date().toTimeString().slice(0, 5));
       setQuickEntryOpen(false);
@@ -332,7 +488,7 @@ export default function DashboardPage() {
     <AppLayout
       title="Dashboard"
       subtitle="Private Ledger #001"
-      onAddEntry={() => setQuickEntryOpen(true)}
+      onAddEntry={() => setEntryChoiceOpen(true)}
       addEntryLabel="Add Expense"
     >
       <div className="max-w-7xl mx-auto space-y-8">
@@ -782,18 +938,23 @@ export default function DashboardPage() {
 
               {/* Segmented type switcher */}
               <div className="flex bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-1 rounded-xl mb-4 text-xs font-medium">
-                {(["expense", "income", "transfer"] as const).map((t) => (
+                {[
+                  { key: "expense", label: "Personal" },
+                  { key: "shared", label: "Shared" },
+                  { key: "income", label: "Income" },
+                  { key: "transfer", label: "Transfer" },
+                ].map((t) => (
                   <button
-                    key={t}
+                    key={t.key}
                     type="button"
-                    onClick={() => setEntryType(t)}
-                    className={`flex-1 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                      entryType === t
+                    onClick={() => setEntryType(t.key as any)}
+                    className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      entryType === t.key
                         ? "bg-white dark:bg-[#13191E] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs"
                         : "text-[#5A6863] dark:text-[#8E9C95]"
                     }`}
                   >
-                    {t}
+                    {t.label}
                   </button>
                 ))}
               </div>
@@ -814,7 +975,7 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                {entryType === "expense" && (
+                {(entryType === "expense" || entryType === "shared") && (
                   <>
                     <div>
                       <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
@@ -822,7 +983,7 @@ export default function DashboardPage() {
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. Groceries, Chai, Petrol"
+                        placeholder="e.g. Groceries, Chai, Dinner"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         required
@@ -836,11 +997,44 @@ export default function DashboardPage() {
                       </label>
                       <CategorySelect value={category} onChange={setCategory} />
                     </div>
-
-                    <div>
-                      <AccountSelect value={accountId} onChange={setAccountId} label="Paid From (Kaha se hoyi ha)" />
-                    </div>
                   </>
+                )}
+
+                {entryType === "expense" && (
+                  <div>
+                    <AccountSelect value={accountId} onChange={setAccountId} label="Paid From (Kaha se hoyi ha)" />
+                  </div>
+                )}
+
+                {entryType === "shared" && (
+                  <SharedExpenseQuickFields
+                    workspaces={workspaces}
+                    selectedWsId={selectedWsId}
+                    onSelectWsId={setSelectedWsId}
+                    payerMode={payerMode}
+                    setPayerMode={setPayerMode}
+                    payerId={payerId}
+                    setPayerId={setPayerId}
+                    customPayments={customPayments}
+                    setCustomPayments={setCustomPayments}
+                    splitMode={splitMode}
+                    setSplitMode={setSplitMode}
+                    splitSelected={splitSelected}
+                    setSplitSelected={setSplitSelected}
+                    customSplits={customSplits}
+                    setCustomSplits={setCustomSplits}
+                    accountId={accountId}
+                    setAccountId={setAccountId}
+                    parsedAmount={parsedAmount}
+                    symbol={symbol}
+                    selfPersonId={user?.selfPersonId}
+                    currentWorkspace={currentWorkspace}
+                    currentMembers={currentMembers}
+                    equalSplitsMap={equalSplitsMap}
+                    selfPaidAmount={selfPaidAmount}
+                    totalCustomPaid={totalCustomPaid}
+                    totalCustomSplit={totalCustomSplit}
+                  />
                 )}
 
                 {entryType === "income" && (
@@ -959,6 +1153,8 @@ export default function DashboardPage() {
                       ? "+ Deposit Income"
                       : entryType === "transfer"
                       ? "Transfer Funds →"
+                      : entryType === "shared"
+                      ? "+ Log Shared Expense"
                       : editingId
                       ? "Update Entry"
                       : "+ Save Expense"}
@@ -1051,7 +1247,7 @@ export default function DashboardPage() {
               {showGlobalSettle && (
                 <div className="mt-4 pt-4 border-t border-[#F0ECE6] dark:border-[#1E2824]">
                   <GlobalSettlementSection
-                    selfPersonId={user.selfPersonId}
+                    selfPersonId={user.selfPersonId || ""}
                     onSettled={refreshStats}
                   />
                 </div>
@@ -1092,7 +1288,7 @@ export default function DashboardPage() {
 
       {/* Mobile Floating Action Button (+) matching Figma Dashboard.png */}
       <button
-        onClick={() => setQuickEntryOpen(true)}
+        onClick={() => setEntryChoiceOpen(true)}
         className="fixed md:hidden bottom-20 right-5 w-14 h-14 rounded-2xl bg-[#0F5C53] hover:bg-[#0A3F38] text-white shadow-lg flex items-center justify-center z-40 active:scale-95 cursor-pointer transition-all"
         aria-label="Add expense"
       >
@@ -1101,10 +1297,103 @@ export default function DashboardPage() {
         </svg>
       </button>
 
+      {/* Dual-Choice Modal: Personal vs Shared Workspace Expense */}
+      {entryChoiceOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEntryChoiceOpen(false);
+          }}
+        >
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 my-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-serif font-bold text-lg text-[#162B27] dark:text-white">
+                  Add New Entry
+                </h3>
+                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                  How would you like to record this?
+                </p>
+              </div>
+              <button
+                onClick={() => setEntryChoiceOpen(false)}
+                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 pt-1">
+              {/* Option 1: Personal Expense */}
+              <button
+                type="button"
+                onClick={() => {
+                  setEntryType("expense");
+                  setEntryChoiceOpen(false);
+                  setQuickEntryOpen(true);
+                }}
+                className="flex items-center gap-3.5 p-4 rounded-2xl border border-[#E5E0D8] dark:border-[#1E2824] bg-[#FAF8F5] dark:bg-[#182026] hover:border-[#0F5C53] dark:hover:border-[#10B981] hover:bg-white dark:hover:bg-[#1E2824] transition-all text-left group cursor-pointer"
+              >
+                <div className="w-11 h-11 rounded-xl bg-[#0F5C53]/10 dark:bg-[#10B981]/20 border border-[#0F5C53]/20 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect width="20" height="14" x="2" y="5" rx="2" />
+                    <line x1="2" x2="22" y1="10" y2="10" />
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
+                    Personal Expense
+                  </h4>
+                  <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5 leading-tight">
+                    Private spending recorded only in your personal ledger
+                  </p>
+                </div>
+                <svg className="w-4 h-4 text-stone-400 group-hover:text-[#0F5C53] dark:group-hover:text-[#10B981] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              {/* Option 2: Shared Workspace Expense */}
+              <button
+                type="button"
+                onClick={() => {
+                  setEntryType("shared");
+                  setEntryChoiceOpen(false);
+                  setQuickEntryOpen(true);
+                }}
+                className="flex items-center gap-3.5 p-4 rounded-2xl border border-[#E5E0D8] dark:border-[#1E2824] bg-[#FAF8F5] dark:bg-[#182026] hover:border-[#E5A93C] dark:hover:border-[#E5A93C] hover:bg-white dark:hover:bg-[#1E2824] transition-all text-left group cursor-pointer"
+              >
+                <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
+                    Shared Expense
+                  </h4>
+                  <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5 leading-tight">
+                    Split a bill with friends or family in any workspace
+                  </p>
+                </div>
+                <svg className="w-4 h-4 text-stone-400 group-hover:text-amber-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick Entry Modal when triggered from Top Header "+ Add Entry" or Mobile "+" */}
       {quickEntryOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto">
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-md w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-t-3xl sm:rounded-3xl p-6 max-w-lg w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
                 {editingId ? "Edit Expense" : "New Entry"}
@@ -1121,6 +1410,31 @@ export default function DashboardPage() {
                 </svg>
               </button>
             </div>
+
+            {/* Segmented control inside modal to switch type anytime */}
+            {!editingId && (
+              <div className="flex bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-1 rounded-xl mb-4 text-xs font-medium">
+                {[
+                  { key: "expense", label: "Personal" },
+                  { key: "shared", label: "Shared" },
+                  { key: "income", label: "Income" },
+                  { key: "transfer", label: "Transfer" },
+                ].map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setEntryType(t.key as any)}
+                    className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
+                      entryType === t.key
+                        ? "bg-white dark:bg-[#13191E] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs"
+                        : "text-[#5A6863] dark:text-[#8E9C95]"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <form onSubmit={handleSubmitQuickEntry} className="space-y-3.5">
               <div>
@@ -1139,53 +1453,171 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
-                  What was this for?
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Groceries, Blue Tokai Coffee"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  required
-                  className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+              {(entryType === "expense" || entryType === "shared") && (
+                <>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
+                      What was this for?
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Groceries, Blue Tokai Coffee, Dinner"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      required
+                      className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
+                      Category
+                    </label>
+                    <CategorySelect value={category} onChange={setCategory} />
+                  </div>
+                </>
+              )}
+
+              {entryType === "expense" && (
+                <div>
+                  <AccountSelect value={accountId} onChange={setAccountId} label="Paid From (Kaha se hoyi ha)" />
+                </div>
+              )}
+
+              {entryType === "shared" && (
+                <SharedExpenseQuickFields
+                  workspaces={workspaces}
+                  selectedWsId={selectedWsId}
+                  onSelectWsId={setSelectedWsId}
+                  payerMode={payerMode}
+                  setPayerMode={setPayerMode}
+                  payerId={payerId}
+                  setPayerId={setPayerId}
+                  customPayments={customPayments}
+                  setCustomPayments={setCustomPayments}
+                  splitMode={splitMode}
+                  setSplitMode={setSplitMode}
+                  splitSelected={splitSelected}
+                  setSplitSelected={setSplitSelected}
+                  customSplits={customSplits}
+                  setCustomSplits={setCustomSplits}
+                  accountId={accountId}
+                  setAccountId={setAccountId}
+                  parsedAmount={parsedAmount}
+                  symbol={symbol}
+                  selfPersonId={user?.selfPersonId}
+                  currentWorkspace={currentWorkspace}
+                  currentMembers={currentMembers}
+                  equalSplitsMap={equalSplitsMap}
+                  selfPaidAmount={selfPaidAmount}
+                  totalCustomPaid={totalCustomPaid}
+                  totalCustomSplit={totalCustomSplit}
                 />
-              </div>
+              )}
 
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
-                  Category
-                </label>
-                <CategorySelect value={category} onChange={setCategory} />
-              </div>
+              {entryType === "income" && (
+                <>
+                  <div>
+                    <AccountSelect
+                      value={accountId}
+                      onChange={setAccountId}
+                      label="Deposit Into Account (Kaha aayenge)"
+                      required
+                    />
+                  </div>
 
-              <div>
-                <AccountSelect value={accountId} onChange={setAccountId} label="Paid From (Kaha se hoyi ha)" />
-              </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
+                      Income Source
+                    </label>
+                    <select
+                      value={incomeSource}
+                      onChange={(e) => setIncomeSource(e.target.value)}
+                      className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    >
+                      <option value="Salary">Salary (تنخواہ)</option>
+                      <option value="Freelance">Freelance / Contract</option>
+                      <option value="Profit">Business Profit / Dividend</option>
+                      <option value="Cash Deposit">Cash Deposit (کیش جمع)</option>
+                      <option value="Gift">Gift / Transfer</option>
+                      <option value="Other">Other Income</option>
+                    </select>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={expDate}
-                    onChange={(e) => setExpDate(e.target.value)}
-                    required
-                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] text-[#162B27] dark:text-white border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                  />
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
+                      Note / Description (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Monthly salary from TechCorp"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    />
+                  </div>
+                </>
+              )}
+
+              {entryType === "transfer" && (
+                <>
+                  <div>
+                    <AccountSelect
+                      value={accountId}
+                      onChange={setAccountId}
+                      label="From Account (Kaha se)"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <AccountSelect
+                      value={toAccountId}
+                      onChange={setToAccountId}
+                      label="To Account (Kaha par)"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
+                      Transfer Note (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. ATM withdrawal to cash wallet"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    />
+                  </div>
+                </>
+              )}
+
+              {entryType !== "transfer" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={expDate}
+                      onChange={(e) => setExpDate(e.target.value)}
+                      required
+                      className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] text-[#162B27] dark:text-white border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">Time</label>
+                    <input
+                      type="time"
+                      value={expTime}
+                      onChange={(e) => setExpTime(e.target.value)}
+                      required
+                      className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] text-[#162B27] dark:text-white border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={expTime}
-                    onChange={(e) => setExpTime(e.target.value)}
-                    required
-                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] text-[#162B27] dark:text-white border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                  />
-                </div>
-              </div>
+              )}
 
               <div className="pt-3 flex gap-2">
                 <button
@@ -1203,7 +1635,17 @@ export default function DashboardPage() {
                   disabled={submitting}
                   className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : editingId ? "Update Entry" : "+ Save Entry"}
+                  {submitting
+                    ? "Saving..."
+                    : entryType === "income"
+                    ? "+ Deposit Income"
+                    : entryType === "transfer"
+                    ? "Transfer Funds →"
+                    : entryType === "shared"
+                    ? "+ Log Shared Expense"
+                    : editingId
+                    ? "Update Entry"
+                    : "+ Save Entry"}
                 </button>
               </div>
             </form>
