@@ -26,10 +26,21 @@ export default function WorkspacesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch<{ workspaces: Workspace[] }>("/api/workspaces")
-      .then((res) => setWorkspaces(res.workspaces))
-      .catch(() => router.push("/login"))
-      .finally(() => setLoading(false));
+    function load() {
+      apiFetch<{ workspaces: Workspace[] }>("/api/workspaces")
+        .then((res) => {
+          if (res?.workspaces) setWorkspaces(res.workspaces);
+        })
+        .catch(() => {
+          if (typeof navigator !== "undefined" && navigator.onLine) {
+            router.push("/login");
+          }
+        })
+        .finally(() => setLoading(false));
+    }
+    load();
+    window.addEventListener("offline-sync-completed", load);
+    return () => window.removeEventListener("offline-sync-completed", load);
   }, [router]);
 
   async function handleCreate(e: React.FormEvent) {

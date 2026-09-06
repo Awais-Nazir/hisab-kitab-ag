@@ -78,7 +78,9 @@ export default function PeoplePage() {
         setSelectedPerson(peopleRes.people[0]);
       }
     } catch {
-      router.push("/login");
+      if (typeof navigator !== "undefined" && navigator.onLine) {
+        router.push("/login");
+      }
     } finally {
       setLoading(false);
     }
@@ -86,6 +88,8 @@ export default function PeoplePage() {
 
   useEffect(() => {
     loadData();
+    window.addEventListener("offline-sync-completed", loadData);
+    return () => window.removeEventListener("offline-sync-completed", loadData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 

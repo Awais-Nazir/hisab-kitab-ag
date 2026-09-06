@@ -58,12 +58,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
       return res.user;
-    } catch {
-      // If 401 Unauthorized, clear cached user
-      setUser(null);
-      try {
-        localStorage.removeItem(USER_CACHE_KEY);
-      } catch {}
+    } catch (err: any) {
+      // Only clear user if online and truly unauthorized (not a network or offline failure)
+      const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+      if (!isOffline && (err?.message?.includes("Unauthorized") || err?.status === 401)) {
+        setUser(null);
+        try {
+          localStorage.removeItem(USER_CACHE_KEY);
+        } catch {}
+      }
       return null;
     } finally {
       setLoading(false);

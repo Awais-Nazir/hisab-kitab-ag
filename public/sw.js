@@ -1,9 +1,24 @@
-const CACHE_NAME = "hisab-kitab-v1";
-const OFFLINE_URLS = ["/dashboard", "/manifest.json"];
+const CACHE_NAME = "hisab-kitab-v2";
+const APP_SHELL_URLS = [
+  "/dashboard",
+  "/workspaces",
+  "/accounts",
+  "/people",
+  "/categories",
+  "/manifest.json",
+  "/favicon.ico",
+  "/favicon.svg",
+  "/icon-192.png",
+  "/icon-512.png"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(OFFLINE_URLS))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(APP_SHELL_URLS).catch((err) => {
+        console.warn("Pre-caching some assets failed:", err);
+      });
+    })
   );
   self.skipWaiting();
 });
@@ -22,10 +37,78 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Network-first: try the network, fall back to cache if offline.
-  // This matters here because expense data changes constantly —
-  // a cache-first strategy would show stale numbers.
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // 1. Skip non-GET requests and browser-extension schemes
+  if (request.method !== "GET" || !url.protocol.startsWith("http")) {
+    return;
+  }
+
+  // 2. API requests are handled directly by apiFetch via IndexedDB (bypass SW cache)
+  if (url.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  // 3. Static assets & Next.js chunks (_next/static, fonts, images) -> Cache-First / Stale-While-Revalidate
+  if (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.match(/\.(png|jpg|jpeg|svg|webp|ico|woff|woff2|ttf|css|js)$/)
+  ) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          // Revalidate in background
+          fetch(request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.status === 200) {
+                caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse));
+              }
+            })
+            .catch(() => {});
+          return cachedResponse;
+        }
+
+        return fetch(request).then((networkResponse) => {
+          if (!networkResponse || networkResponse.status !== 200) {
+            return networkResponse;
+          }
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+
+  // 4. Page Navigations -> Network-First, fallback to cached page or /dashboard
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          const dashboardFallback = await caches.match("/dashboard");
+          if (dashboardFallback) return dashboardFallback;
+          return new Response("Offline - Page not cached yet", {
+            status: 503,
+            headers: { "Content-Type": "text/plain" },
+          });
+        })
+    );
+    return;
+  }
+
+  // Default fallback
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(request).catch(() => caches.match(request))
   );
 });

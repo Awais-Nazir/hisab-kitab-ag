@@ -14,6 +14,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { useUser } from "@/context/UserContext";
 import { calculateEqualSplits } from "@/lib/splits";
 import { SharedExpenseQuickFields, Workspace, WorkspaceMember } from "@/components/SharedExpenseQuickFields";
+import { useSync } from "@/context/SyncContext";
 
 interface Expense {
   id: string;
@@ -91,6 +92,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { symbol } = useCurrency();
   const { user } = useUser();
+  const { isOnline } = useSync();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -189,13 +191,39 @@ export default function DashboardPage() {
         setOverview(overviewRes);
         setTrend(trendRes.days);
         setAccounts(accRes.accounts || []);
-      } catch {
-        router.push("/login");
+      } catch (err) {
+        if (typeof navigator !== "undefined" && navigator.onLine) {
+          router.push("/login");
+        }
       } finally {
         setLoading(false);
       }
     }
     load();
+
+    function handleSyncCompleted() {
+      // Refresh with latest reconciled server data
+      Promise.all([
+        apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
+        apiFetch<{ expenses: Expense[] }>("/api/expenses/personal"),
+        apiFetch<Overview>("/api/stats/overview"),
+        apiFetch<{ days: TrendDay[] }>("/api/stats/last7days?range=week"),
+        apiFetch<{ accounts: { id: string; name: string; type: string; balance: number | string }[] }>("/api/accounts"),
+      ])
+        .then(([wsRes, expRes, overviewRes, trendRes, accRes]) => {
+          if (wsRes?.workspaces) setWorkspaces(wsRes.workspaces);
+          if (expRes?.expenses) setExpenses(expRes.expenses);
+          if (overviewRes) setOverview(overviewRes);
+          if (trendRes?.days) setTrend(trendRes.days);
+          if (accRes?.accounts) setAccounts(accRes.accounts || []);
+        })
+        .catch(() => {});
+    }
+
+    window.addEventListener("offline-sync-completed", handleSyncCompleted);
+    return () => {
+      window.removeEventListener("offline-sync-completed", handleSyncCompleted);
+    };
   }, [router]);
 
   async function handleRangeChange(range: "week" | "month") {
@@ -249,7 +277,7 @@ export default function DashboardPage() {
             date: new Date(`${expDate}T${expTime}`).toISOString(),
           }),
         });
-        alert("Income deposited into account successfully!");
+        alert(isOnline ? "Income deposited into account successfully!" : "Saved offline! Income will sync when back online.");
       } else if (entryType === "transfer") {
         if (!accountId) {
           alert("Please select From account");
@@ -270,7 +298,7 @@ export default function DashboardPage() {
             note: description.trim() || undefined,
           }),
         });
-        alert("Transfer completed successfully!");
+        alert(isOnline ? "Transfer completed successfully!" : "Saved offline! Transfer will sync when back online.");
       } else if (entryType === "shared") {
         if (!selectedWsId) {
           alert("Please select a workspace");
@@ -369,15 +397,17 @@ export default function DashboardPage() {
           }),
         });
 
-        alert("Shared workspace expense logged successfully!");
+        alert(isOnline ? "Shared workspace expense logged successfully!" : "Saved offline! Shared workspace expense will sync when back online.");
 
         // Refresh workspaces and personal expenses
-        const [wsRes, expRes] = await Promise.all([
-          apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
-          apiFetch<{ expenses: Expense[] }>("/api/expenses/personal"),
-        ]);
-        setWorkspaces(wsRes.workspaces);
-        setExpenses(expRes.expenses);
+        try {
+          const [wsRes, expRes] = await Promise.all([
+            apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
+            apiFetch<{ expenses: Expense[] }>("/api/expenses/personal"),
+          ]);
+          if (wsRes?.workspaces) setWorkspaces(wsRes.workspaces);
+          if (expRes?.expenses) setExpenses(expRes.expenses);
+        } catch {}
       } else {
         // Personal Expense
         const payload = {
@@ -402,6 +432,9 @@ export default function DashboardPage() {
           setExpenses((prev) =>
             [res.expense, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           );
+          if (!isOnline) {
+            alert("Saved offline! Personal expense will sync when back online.");
+          }
         }
       }
 
@@ -1149,6 +1182,8 @@ export default function DashboardPage() {
                   >
                     {submitting
                       ? "Processing..."
+                      : !isOnline
+                      ? "💾 Save Offline"
                       : entryType === "income"
                       ? "+ Deposit Income"
                       : entryType === "transfer"
@@ -1637,6 +1672,8 @@ export default function DashboardPage() {
                 >
                   {submitting
                     ? "Saving..."
+                    : !isOnline
+                    ? "💾 Save Offline"
                     : entryType === "income"
                     ? "+ Deposit Income"
                     : entryType === "transfer"

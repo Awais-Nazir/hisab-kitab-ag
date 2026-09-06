@@ -7,6 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { TopHeader } from "./TopHeader";
 import { MobileHeader } from "./MobileHeader";
 import { BottomNav } from "./BottomNav";
+import { OfflineStatusBanner } from "./OfflineStatusBanner";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -276,6 +277,9 @@ export function AppLayout({
           onAddEntry={onAddEntry}
           addEntryLabel={addEntryLabel}
         />
+
+        {/* Offline and Sync Status Notification Banner */}
+        <OfflineStatusBanner />
 
         {/* Page Content */}
         <main
