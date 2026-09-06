@@ -596,11 +596,10 @@ export default function AccountsPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab("accounts")}
-                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                  activeTab === "accounts"
+                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${activeTab === "accounts"
                     ? "bg-[#0F5C53] text-white shadow-xs"
                     : "text-[#5A6863] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <span>💳 My Accounts &amp; Wallets</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeTab === "accounts" ? "bg-white/20 text-white" : "bg-stone-200 dark:bg-[#1E2824] text-stone-700 dark:text-stone-300"}`}>
@@ -610,11 +609,10 @@ export default function AccountsPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab("udhar")}
-                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                  activeTab === "udhar"
+                className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${activeTab === "udhar"
                     ? "bg-[#0F5C53] text-white shadow-xs"
                     : "text-[#5A6863] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
-                }`}
+                  }`}
               >
                 <span>📖 Udhar Khata (Credit Book)</span>
                 {unsettledUdharCount > 0 && (
@@ -744,14 +742,17 @@ export default function AccountsPage() {
                       );
                     })}
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 mt-2.5 text-[11px] text-emerald-100/70">
-                    {accounts.slice(0, 5).map((acc) => {
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2.5 text-[11px] text-emerald-100/80">
+                    {accounts.map((acc, idx) => {
                       const bal = Math.max(0, parseFloat(acc.balance.toString()));
-                      const pct = totalBalance > 0 ? Math.round((bal / totalBalance) * 100) : 0;
+                      const pct = totalBalance > 0 ? (bal / totalBalance) * 100 : 0;
+                      const fallbackColors = ["#34D399", "#2DD4BF", "#FBBF24", "#38BDF8", "#818CF8", "#C084FC"];
+                      const barColor = acc.color || fallbackColors[idx % fallbackColors.length];
+                      const pctLabel = pct > 0 && pct < 1 ? "<1%" : `${Math.round(pct)}%`;
                       return (
                         <span key={acc.id} className="inline-flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: acc.color || "#10B981" }} />
-                          <span>{acc.name} ({pct}%)</span>
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: barColor }} />
+                          <span>{acc.name} ({pctLabel})</span>
                         </span>
                       );
                     })}
@@ -783,11 +784,10 @@ export default function AccountsPage() {
                       <div
                         key={acc.id}
                         onClick={() => handleSelectAccount(acc)}
-                        className={`bg-white dark:bg-[#13191E] border rounded-3xl p-5 shadow-xs transition-all cursor-pointer relative group flex flex-col justify-between min-h-[170px] ${
-                          isSelected
+                        className={`bg-white dark:bg-[#13191E] border rounded-3xl p-5 shadow-xs transition-all cursor-pointer relative group flex flex-col justify-between min-h-[170px] ${isSelected
                             ? "border-[#0F5C53] dark:border-[#10B981] ring-2 ring-[#0F5C53]/20 dark:ring-[#10B981]/20 shadow-md"
                             : "border-[#E5E0D8] dark:border-[#1E2824] hover:border-[#0F5C53] dark:hover:border-[#10B981]"
-                        }`}
+                          }`}
                       >
                         <div>
                           <div className="flex items-start justify-between gap-3">
@@ -983,31 +983,28 @@ export default function AccountsPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setActivityFilter("ALL")}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                        activityFilter === "ALL"
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${activityFilter === "ALL"
                           ? "bg-[#0F5C53] text-white"
                           : "bg-[#FAF8F5] dark:bg-[#1A2229] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]"
-                      }`}
+                        }`}
                     >
                       All ({activities.length})
                     </button>
                     <button
                       onClick={() => setActivityFilter("IN")}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                        activityFilter === "IN"
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${activityFilter === "IN"
                           ? "bg-emerald-600 text-white"
                           : "bg-[#FAF8F5] dark:bg-[#1A2229] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]"
-                      }`}
+                        }`}
                     >
                       Money In (+)
                     </button>
                     <button
                       onClick={() => setActivityFilter("OUT")}
-                      className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
-                        activityFilter === "OUT"
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-all ${activityFilter === "OUT"
                           ? "bg-rose-600 text-white"
                           : "bg-[#FAF8F5] dark:bg-[#1A2229] text-stone-600 dark:text-stone-300 border border-[#E5E0D8] dark:border-[#1E2824]"
-                      }`}
+                        }`}
                     >
                       Money Out (-)
                     </button>
@@ -1028,11 +1025,10 @@ export default function AccountsPage() {
                         <div key={act.id} className="py-3 flex items-start justify-between gap-3">
                           <div className="flex items-start gap-3">
                             <div
-                              className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
-                                act.direction === "IN"
+                              className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${act.direction === "IN"
                                   ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                                   : "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
-                              }`}
+                                }`}
                             >
                               {act.direction === "IN" ? "↓" : "↑"}
                             </div>
@@ -1053,9 +1049,8 @@ export default function AccountsPage() {
 
                           <div className="text-right flex-shrink-0">
                             <span
-                              className={`font-serif font-bold text-sm ${
-                                act.direction === "IN" ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#162B27] dark:text-white"
-                              }`}
+                              className={`font-serif font-bold text-sm ${act.direction === "IN" ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#162B27] dark:text-white"
+                                }`}
                             >
                               {act.direction === "IN" ? "+" : "-"}{symbol}{Math.round(act.amount)}
                             </span>
@@ -1120,9 +1115,8 @@ export default function AccountsPage() {
                     <span className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider">
                       ⚖️ Net Equilibrium
                     </span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                      netUdhar > 0 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300" : netUdhar < 0 ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300" : "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
-                    }`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${netUdhar > 0 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300" : netUdhar < 0 ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300" : "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
+                      }`}>
                       {netUdhar > 0 ? "In Credit" : netUdhar < 0 ? "In Debt" : "Even"}
                     </span>
                   </div>
@@ -1161,36 +1155,32 @@ export default function AccountsPage() {
                 <button
                   type="button"
                   onClick={() => setUdharFilter("all")}
-                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    udharFilter === "all" ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${udharFilter === "all" ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
+                    }`}
                 >
                   All ({udharPeople.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setUdharFilter("lena")}
-                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    udharFilter === "lena" ? "bg-white dark:bg-[#1A2229] text-emerald-700 dark:text-emerald-400 font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${udharFilter === "lena" ? "bg-white dark:bg-[#1A2229] text-emerald-700 dark:text-emerald-400 font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
+                    }`}
                 >
                   Lena Hai ({lenaPeople.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setUdharFilter("dene")}
-                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    udharFilter === "dene" ? "bg-white dark:bg-[#1A2229] text-rose-700 dark:text-rose-400 font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${udharFilter === "dene" ? "bg-white dark:bg-[#1A2229] text-rose-700 dark:text-rose-400 font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
+                    }`}
                 >
                   Dene Hain ({denePeople.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setUdharFilter("settled")}
-                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    udharFilter === "settled" ? "bg-white dark:bg-[#1A2229] text-blue-700 dark:text-blue-400 font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${udharFilter === "settled" ? "bg-white dark:bg-[#1A2229] text-blue-700 dark:text-blue-400 font-bold shadow-xs" : "text-[#5A6863] dark:text-[#8E9C95]"
+                    }`}
                 >
                   Settled / History ({settledUdharEntries.length})
                 </button>
@@ -1435,11 +1425,10 @@ export default function AccountsPage() {
                                 {e.person.name}
                               </span>
                               <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                  e.type === "LENA"
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${e.type === "LENA"
                                     ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                                     : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
-                                }`}
+                                  }`}
                               >
                                 {e.type === "LENA" ? "Vasool Shuda (Received)" : "Ada Shuda (Paid)"}
                               </span>
@@ -1457,11 +1446,10 @@ export default function AccountsPage() {
 
                           <div className="flex items-center gap-3 self-end sm:self-center">
                             <span
-                              className={`font-serif font-bold text-base ${
-                                e.type === "LENA"
+                              className={`font-serif font-bold text-base ${e.type === "LENA"
                                   ? "text-emerald-700 dark:text-emerald-400"
                                   : "text-rose-700 dark:text-rose-400"
-                              }`}
+                                }`}
                             >
                               {e.type === "LENA" ? "+" : "-"}{symbol}
                               {Math.round(Number(e.amount)).toLocaleString()}
@@ -1569,11 +1557,10 @@ export default function AccountsPage() {
                     <div key={act.id} className="py-3 flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3">
                         <div
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
-                            act.direction === "IN"
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${act.direction === "IN"
                               ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                               : "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300"
-                          }`}
+                            }`}
                         >
                           {act.direction === "IN" ? "↓" : "↑"}
                         </div>
@@ -1594,9 +1581,8 @@ export default function AccountsPage() {
 
                       <div className="text-right flex-shrink-0">
                         <span
-                          className={`font-serif font-bold text-sm ${
-                            act.direction === "IN" ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#162B27] dark:text-white"
-                          }`}
+                          className={`font-serif font-bold text-sm ${act.direction === "IN" ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#162B27] dark:text-white"
+                            }`}
                         >
                           {act.direction === "IN" ? "+" : "-"}{symbol}{Math.round(act.amount)}
                         </span>
@@ -1626,124 +1612,124 @@ export default function AccountsPage() {
         <ModalPortal>
           <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                Add Income / Deposit
-              </h3>
-              <button
-                onClick={() => setIsDepositModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleDeposit} className="space-y-3.5">
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Destination Account
-                </label>
-                <select
-                  value={depositAccountId}
-                  onChange={(e) => setDepositAccountId(e.target.value)}
-                  required
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                >
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name} ({symbol}{Math.round(parseFloat(acc.balance.toString()))})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Amount ({symbol})
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="0"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  required
-                  autoFocus
-                  className="w-full text-2xl font-serif font-bold text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Income Source / Label
-                </label>
-                <select
-                  value={depositSource}
-                  onChange={(e) => setDepositSource(e.target.value)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                >
-                  <option value="Salary">💼 Monthly Salary</option>
-                  <option value="Freelance">💻 Freelance / Project</option>
-                  <option value="Cash Deposit">🏧 Cash Deposit</option>
-                  <option value="Business Profit">📈 Business Profit</option>
-                  <option value="Gift / Pocket Money">🎁 Gift / Allowance</option>
-                  <option value="Other">✨ Other Income</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Note (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. October payroll, Client advance"
-                  value={depositNote}
-                  onChange={(e) => setDepositNote(e.target.value)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={depositDate}
-                    onChange={(e) => setDepositDate(e.target.value)}
-                    required
-                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={depositTime}
-                    onChange={(e) => setDepositTime(e.target.value)}
-                    required
-                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex gap-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                  Add Income / Deposit
+                </h3>
                 <button
-                  type="button"
                   onClick={() => setIsDepositModalOpen(false)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={depositing}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {depositing ? "Adding..." : "+ Deposit Funds"}
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleDeposit} className="space-y-3.5">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Destination Account
+                  </label>
+                  <select
+                    value={depositAccountId}
+                    onChange={(e) => setDepositAccountId(e.target.value)}
+                    required
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  >
+                    {accounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({symbol}{Math.round(parseFloat(acc.balance.toString()))})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Amount ({symbol})
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    placeholder="0"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    required
+                    autoFocus
+                    className="w-full text-2xl font-serif font-bold text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Income Source / Label
+                  </label>
+                  <select
+                    value={depositSource}
+                    onChange={(e) => setDepositSource(e.target.value)}
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  >
+                    <option value="Salary">💼 Monthly Salary</option>
+                    <option value="Freelance">💻 Freelance / Project</option>
+                    <option value="Cash Deposit">🏧 Cash Deposit</option>
+                    <option value="Business Profit">📈 Business Profit</option>
+                    <option value="Gift / Pocket Money">🎁 Gift / Allowance</option>
+                    <option value="Other">✨ Other Income</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Note (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. October payroll, Client advance"
+                    value={depositNote}
+                    onChange={(e) => setDepositNote(e.target.value)}
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={depositDate}
+                      onChange={(e) => setDepositDate(e.target.value)}
+                      required
+                      className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Time</label>
+                    <input
+                      type="time"
+                      value={depositTime}
+                      onChange={(e) => setDepositTime(e.target.value)}
+                      required
+                      className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsDepositModalOpen(false)}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={depositing}
+                    className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {depositing ? "Adding..." : "+ Deposit Funds"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
@@ -1752,96 +1738,96 @@ export default function AccountsPage() {
         <ModalPortal>
           <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                Transfer Money
-              </h3>
-              <button
-                onClick={() => setIsTransferModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleTransfer} className="space-y-3.5">
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">From Account</label>
-                <select
-                  value={fromAccountId}
-                  onChange={(e) => setFromAccountId(e.target.value)}
-                  required
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                >
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id} disabled={acc.id === toAccountId}>
-                      {acc.name} ({symbol}{Math.round(parseFloat(acc.balance.toString()))})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">To Account</label>
-                <select
-                  value={toAccountId}
-                  onChange={(e) => setToAccountId(e.target.value)}
-                  required
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                >
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id} disabled={acc.id === fromAccountId}>
-                      {acc.name} ({symbol}{Math.round(parseFloat(acc.balance.toString()))})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Amount ({symbol})
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="0"
-                  value={transferAmount}
-                  onChange={(e) => setTransferAmount(e.target.value)}
-                  required
-                  className="w-full text-xl font-serif font-bold bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3 py-2 text-[#162B27] dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Note (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. ATM cash withdrawal"
-                  value={transferNote}
-                  onChange={(e) => setTransferNote(e.target.value)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                  Transfer Money
+                </h3>
                 <button
-                  type="button"
                   onClick={() => setIsTransferModalOpen(false)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={transferring}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {transferring ? "Transferring..." : "Transfer Funds"}
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleTransfer} className="space-y-3.5">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">From Account</label>
+                  <select
+                    value={fromAccountId}
+                    onChange={(e) => setFromAccountId(e.target.value)}
+                    required
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  >
+                    {accounts.map((acc) => (
+                      <option key={acc.id} value={acc.id} disabled={acc.id === toAccountId}>
+                        {acc.name} ({symbol}{Math.round(parseFloat(acc.balance.toString()))})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">To Account</label>
+                  <select
+                    value={toAccountId}
+                    onChange={(e) => setToAccountId(e.target.value)}
+                    required
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  >
+                    {accounts.map((acc) => (
+                      <option key={acc.id} value={acc.id} disabled={acc.id === fromAccountId}>
+                        {acc.name} ({symbol}{Math.round(parseFloat(acc.balance.toString()))})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Amount ({symbol})
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    placeholder="0"
+                    value={transferAmount}
+                    onChange={(e) => setTransferAmount(e.target.value)}
+                    required
+                    className="w-full text-xl font-serif font-bold bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3 py-2 text-[#162B27] dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Note (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ATM cash withdrawal"
+                    value={transferNote}
+                    onChange={(e) => setTransferNote(e.target.value)}
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsTransferModalOpen(false)}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={transferring}
+                    className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {transferring ? "Transferring..." : "Transfer Funds"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
@@ -1850,67 +1836,67 @@ export default function AccountsPage() {
         <ModalPortal>
           <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                Edit Account
-              </h3>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditAccount} className="space-y-3.5">
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Account Name
-                </label>
-                <input
-                  type="text"
-                  value={editAccName}
-                  onChange={(e) => setEditAccName(e.target.value)}
-                  required
-                  className="w-full text-sm font-semibold bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3 py-2 text-[#162B27] dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Type
-                </label>
-                <select
-                  value={editAccType}
-                  onChange={(e) => setEditAccType(e.target.value)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                >
-                  <option value="BANK">Bank Account</option>
-                  <option value="WALLET">Digital Wallet (NayaPay, SadaPay, etc.)</option>
-                  <option value="CASH">Physical Cash</option>
-                  <option value="UDHAR_KHATA">Udhar Khata</option>
-                </select>
-              </div>
-
-              <div className="pt-2 flex gap-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                  Edit Account
+                </h3>
                 <button
-                  type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {savingEdit ? "Saving..." : "Save Changes"}
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveEditAccount} className="space-y-3.5">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Account Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editAccName}
+                    onChange={(e) => setEditAccName(e.target.value)}
+                    required
+                    className="w-full text-sm font-semibold bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3 py-2 text-[#162B27] dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Type
+                  </label>
+                  <select
+                    value={editAccType}
+                    onChange={(e) => setEditAccType(e.target.value)}
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  >
+                    <option value="BANK">Bank Account</option>
+                    <option value="WALLET">Digital Wallet (NayaPay, SadaPay, etc.)</option>
+                    <option value="CASH">Physical Cash</option>
+                    <option value="UDHAR_KHATA">Udhar Khata</option>
+                  </select>
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit}
+                    className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {savingEdit ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
@@ -1919,81 +1905,81 @@ export default function AccountsPage() {
         <ModalPortal>
           <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                New Account
-              </h3>
-              <button
-                onClick={() => setIsAddAccountModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleAddAccount} className="space-y-3.5">
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Account Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Meezan Bank, EasyPaisa"
-                  value={newAccName}
-                  onChange={(e) => setNewAccName(e.target.value)}
-                  required
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Account Type
-                </label>
-                <select
-                  value={newAccType}
-                  onChange={(e) => setNewAccType(e.target.value as any)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                >
-                  <option value="WALLET">Digital Wallet (NayaPay, SadaPay, etc.)</option>
-                  <option value="BANK">Bank Account</option>
-                  <option value="CASH">Physical Cash</option>
-                  <option value="UDHAR_KHATA">Udhar Khata</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Starting Balance ({symbol})
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  value={newAccBalance}
-                  onChange={(e) => setNewAccBalance(e.target.value)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                  New Account
+                </h3>
                 <button
-                  type="button"
                   onClick={() => setIsAddAccountModalOpen(false)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addingAcc}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {addingAcc ? "Creating..." : "Create Account"}
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleAddAccount} className="space-y-3.5">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Account Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Meezan Bank, EasyPaisa"
+                    value={newAccName}
+                    onChange={(e) => setNewAccName(e.target.value)}
+                    required
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Account Type
+                  </label>
+                  <select
+                    value={newAccType}
+                    onChange={(e) => setNewAccType(e.target.value as any)}
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  >
+                    <option value="WALLET">Digital Wallet (NayaPay, SadaPay, etc.)</option>
+                    <option value="BANK">Bank Account</option>
+                    <option value="CASH">Physical Cash</option>
+                    <option value="UDHAR_KHATA">Udhar Khata</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Starting Balance ({symbol})
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    value={newAccBalance}
+                    onChange={(e) => setNewAccBalance(e.target.value)}
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddAccountModalOpen(false)}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingAcc}
+                    className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {addingAcc ? "Creating..." : "Create Account"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
@@ -2002,194 +1988,191 @@ export default function AccountsPage() {
         <ModalPortal>
           <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                  Record Udhar Entry
-                </h3>
-                <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-0.5">
-                  Separate personal loan credit book
-                </p>
-              </div>
-              <button
-                onClick={() => setIsUdharModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleRecordUdhar} className="space-y-3.5">
-              {/* Type Switcher: Maine Diye vs Maine Liye */}
-              <div className="grid grid-cols-2 gap-2 bg-[#FAF8F5] dark:bg-[#151A18] p-1 border border-[#E5E0D8] dark:border-[#28332E] rounded-xl text-xs font-semibold">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                    Record Udhar Entry
+                  </h3>
+                  <p className="text-xs text-[#6B7268] dark:text-stone-400 mt-0.5">
+                    Separate personal loan credit book
+                  </p>
+                </div>
                 <button
-                  type="button"
-                  onClick={() => setUdharType("LENA")}
-                  className={`py-2 rounded-lg transition-all cursor-pointer text-center ${
-                    udharType === "LENA"
-                      ? "bg-emerald-600 text-white shadow-xs"
-                      : "text-[#6B7268] dark:text-stone-400"
-                  }`}
+                  onClick={() => setIsUdharModalOpen(false)}
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
                 >
-                  Maine Diye (Lena Hai)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUdharType("DENA")}
-                  className={`py-2 rounded-lg transition-all cursor-pointer text-center ${
-                    udharType === "DENA"
-                      ? "bg-rose-600 text-white shadow-xs"
-                      : "text-[#6B7268] dark:text-stone-400"
-                  }`}
-                >
-                  Maine Liye (Dene Hain)
+                  ✕
                 </button>
               </div>
 
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Contact / Person
-                </label>
-                <select
-                  value={udharPersonId}
-                  onChange={(e) => setUdharPersonId(e.target.value)}
-                  required
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                >
-                  <option value="">Select person...</option>
-                  {contacts.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <form onSubmit={handleRecordUdhar} className="space-y-3.5">
+                {/* Type Switcher: Maine Diye vs Maine Liye */}
+                <div className="grid grid-cols-2 gap-2 bg-[#FAF8F5] dark:bg-[#151A18] p-1 border border-[#E5E0D8] dark:border-[#28332E] rounded-xl text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setUdharType("LENA")}
+                    className={`py-2 rounded-lg transition-all cursor-pointer text-center ${udharType === "LENA"
+                        ? "bg-emerald-600 text-white shadow-xs"
+                        : "text-[#6B7268] dark:text-stone-400"
+                      }`}
+                  >
+                    Maine Diye (Lena Hai)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUdharType("DENA")}
+                    className={`py-2 rounded-lg transition-all cursor-pointer text-center ${udharType === "DENA"
+                        ? "bg-rose-600 text-white shadow-xs"
+                        : "text-[#6B7268] dark:text-stone-400"
+                      }`}
+                  >
+                    Maine Liye (Dene Hain)
+                  </button>
+                </div>
 
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Amount ({symbol})
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="0"
-                  value={udharAmount}
-                  onChange={(e) => setUdharAmount(e.target.value)}
-                  required
-                  className="w-full text-2xl font-serif font-bold text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3 py-2"
-                />
-              </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Contact / Person
+                  </label>
+                  <select
+                    value={udharPersonId}
+                    onChange={(e) => setUdharPersonId(e.target.value)}
+                    required
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  >
+                    <option value="">Select person...</option>
+                    {contacts.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  {udharType === "LENA"
-                    ? "Deduct from Account (Kaha se diye)"
-                    : "Deposit into Account (Kaha jama huye)"}
-                </label>
-                <select
-                  value={udharAccountId}
-                  onChange={(e) => setUdharAccountId(e.target.value)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                >
-                  <option value="">No account (Credit ledger record only)</option>
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name} ({symbol}{Math.round(parseFloat(acc.balance.toString()))})
-                    </option>
-                  ))}
-                </select>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Amount ({symbol})
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    placeholder="0"
+                    value={udharAmount}
+                    onChange={(e) => setUdharAmount(e.target.value)}
+                    required
+                    className="w-full text-2xl font-serif font-bold text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-3 py-2"
+                  />
+                </div>
 
-                {(() => {
-                  if (udharType !== "LENA" || !udharAccountId) return null;
-                  const selectedAcc = accounts.find((a) => a.id === udharAccountId);
-                  if (!selectedAcc) return null;
-                  const num = parseFloat(udharAmount || "0");
-                  const isInsufficient = num > 0 && Number(selectedAcc.balance) < num;
-                  if (isInsufficient) {
-                    return (
-                      <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-800 dark:text-rose-300 text-xs flex items-start gap-2 mt-2">
-                        <span className="text-sm">⚠️</span>
-                        <div>
-                          <p className="font-bold">Insufficient Balance!</p>
-                          <p className="text-[11px] mt-0.5">
-                            {selectedAcc.name} only has{" "}
-                            <strong>
-                              {symbol}
-                              {Number(selectedAcc.balance).toFixed(2)}
-                            </strong>
-                            , but you entered <strong>{symbol}{num.toFixed(2)}</strong>. Balance cannot go negative.
-                          </p>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    {udharType === "LENA"
+                      ? "Deduct from Account (Kaha se diye)"
+                      : "Deposit into Account (Kaha jama huye)"}
+                  </label>
+                  <select
+                    value={udharAccountId}
+                    onChange={(e) => setUdharAccountId(e.target.value)}
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  >
+                    <option value="">No account (Credit ledger record only)</option>
+                    {accounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({symbol}{Math.round(parseFloat(acc.balance.toString()))})
+                      </option>
+                    ))}
+                  </select>
+
+                  {(() => {
+                    if (udharType !== "LENA" || !udharAccountId) return null;
+                    const selectedAcc = accounts.find((a) => a.id === udharAccountId);
+                    if (!selectedAcc) return null;
+                    const num = parseFloat(udharAmount || "0");
+                    const isInsufficient = num > 0 && Number(selectedAcc.balance) < num;
+                    if (isInsufficient) {
+                      return (
+                        <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-800 dark:text-rose-300 text-xs flex items-start gap-2 mt-2">
+                          <span className="text-sm">⚠️</span>
+                          <div>
+                            <p className="font-bold">Insufficient Balance!</p>
+                            <p className="text-[11px] mt-0.5">
+                              {selectedAcc.name} only has{" "}
+                              <strong>
+                                {symbol}
+                                {Number(selectedAcc.balance).toFixed(2)}
+                              </strong>
+                              , but you entered <strong>{symbol}{num.toFixed(2)}</strong>. Balance cannot go negative.
+                            </p>
+                          </div>
                         </div>
+                      );
+                    }
+                    return (
+                      <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center justify-between mt-2">
+                        <span>Available balance:</span>
+                        <span className="font-bold">
+                          {symbol}
+                          {Number(selectedAcc.balance).toFixed(2)}
+                        </span>
                       </div>
                     );
-                  }
-                  return (
-                    <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center justify-between mt-2">
-                      <span>Available balance:</span>
-                      <span className="font-bold">
-                        {symbol}
-                        {Number(selectedAcc.balance).toFixed(2)}
-                      </span>
-                    </div>
-                  );
-                })()}
-              </div>
+                  })()}
+                </div>
 
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
-                  Note / Reason
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Cash advance, Emergency help"
-                  value={udharNote}
-                  onChange={(e) => setUdharNote(e.target.value)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                />
-              </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">
+                    Note / Reason
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Cash advance, Emergency help"
+                    value={udharNote}
+                    onChange={(e) => setUdharNote(e.target.value)}
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  />
+                </div>
 
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Date</label>
-                <input
-                  type="date"
-                  value={udharDate}
-                  onChange={(e) => setUdharDate(e.target.value)}
-                  required
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
-                />
-              </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-stone-400 tracking-wider block mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={udharDate}
+                    onChange={(e) => setUdharDate(e.target.value)}
+                    required
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white"
+                  />
+                </div>
 
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsUdharModalOpen(false)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                {(() => {
-                  const selectedAcc = accounts.find((a) => a.id === udharAccountId);
-                  const num = parseFloat(udharAmount || "0");
-                  const isInsufficient =
-                    udharType === "LENA" && selectedAcc && num > 0 && Number(selectedAcc.balance) < num;
-                  return (
-                    <button
-                      type="submit"
-                      disabled={submittingUdhar || Boolean(isInsufficient)}
-                      className={`w-2/3 py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition-all ${
-                        isInsufficient
-                          ? "bg-stone-300 dark:bg-stone-800 text-stone-500 cursor-not-allowed"
-                          : "bg-[#0F5C53] hover:bg-[#0A3F38] text-white disabled:opacity-50"
-                      }`}
-                    >
-                      {submittingUdhar ? "Saving..." : isInsufficient ? "Insufficient Balance" : "Save Udhar Entry"}
-                    </button>
-                  );
-                })()}
-              </div>
-            </form>
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsUdharModalOpen(false)}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  {(() => {
+                    const selectedAcc = accounts.find((a) => a.id === udharAccountId);
+                    const num = parseFloat(udharAmount || "0");
+                    const isInsufficient =
+                      udharType === "LENA" && selectedAcc && num > 0 && Number(selectedAcc.balance) < num;
+                    return (
+                      <button
+                        type="submit"
+                        disabled={submittingUdhar || Boolean(isInsufficient)}
+                        className={`w-2/3 py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition-all ${isInsufficient
+                            ? "bg-stone-300 dark:bg-stone-800 text-stone-500 cursor-not-allowed"
+                            : "bg-[#0F5C53] hover:bg-[#0A3F38] text-white disabled:opacity-50"
+                          }`}
+                      >
+                        {submittingUdhar ? "Saving..." : isInsufficient ? "Insufficient Balance" : "Save Udhar Entry"}
+                      </button>
+                    );
+                  })()}
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
@@ -2198,124 +2181,123 @@ export default function AccountsPage() {
         <ModalPortal>
           <div className="fixed inset-0 bg-stone-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                {settlingEntry.type === "LENA" ? "Vasooli (Record Return)" : "Ada Karen (Pay Debt)"}
-              </h3>
-              <button
-                onClick={() => setSettlingEntry(null)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleConfirmSettleUdhar} className="space-y-3.5">
-              <div className="p-3 bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl">
-                <p className="text-xs text-[#6B7268] dark:text-stone-400">Contact</p>
-                <p className="text-sm font-bold text-[#162B27] dark:text-white mt-0.5">{settlingEntry.person.name}</p>
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#F0ECE6] dark:border-[#28332E]">
-                  <span className="text-xs text-[#6B7268] dark:text-stone-400">Amount</span>
-                  <span className={`text-base font-serif font-bold ${settlingEntry.type === "LENA" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>
-                    {symbol}{Math.round(Number(settlingEntry.amount))}
-                  </span>
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                  {settlingEntry.type === "LENA" ? "Vasooli (Record Return)" : "Ada Karen (Pay Debt)"}
+                </h3>
+                <button
+                  onClick={() => setSettlingEntry(null)}
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
 
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#0F5C53] dark:text-[#34D399] tracking-wider block mb-1">
-                  {settlingEntry.type === "LENA"
-                    ? "Deposit into Account (Kaha jama huye)"
-                    : "Pay from Account (Kaha se ada kiye)"}
-                </label>
-                <AccountSelect
-                  value={settleAccountId}
-                  onChange={setSettleAccountId}
-                  label=""
-                  placeholder="Select account (e.g. Cash, NayaPay)..."
-                />
-                <p className="text-[10px] text-[#6B7268] dark:text-stone-400 mt-1">
-                  {settlingEntry.type === "LENA"
-                    ? "Amount will be added to this account's balance."
-                    : "Amount will be deducted from this account's balance."}
-                </p>
+              <form onSubmit={handleConfirmSettleUdhar} className="space-y-3.5">
+                <div className="p-3 bg-[#FAF8F5] dark:bg-[#151A18] border border-[#E5E0D8] dark:border-[#28332E] rounded-xl">
+                  <p className="text-xs text-[#6B7268] dark:text-stone-400">Contact</p>
+                  <p className="text-sm font-bold text-[#162B27] dark:text-white mt-0.5">{settlingEntry.person.name}</p>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#F0ECE6] dark:border-[#28332E]">
+                    <span className="text-xs text-[#6B7268] dark:text-stone-400">Amount</span>
+                    <span className={`text-base font-serif font-bold ${settlingEntry.type === "LENA" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>
+                      {symbol}{Math.round(Number(settlingEntry.amount))}
+                    </span>
+                  </div>
+                </div>
 
-                {(() => {
-                  if (settlingEntry.type !== "DENA" || !settleAccountId) return null;
-                  const selectedAcc = accounts.find((a) => a.id === settleAccountId);
-                  if (!selectedAcc) return null;
-                  const isInsufficient = Number(selectedAcc.balance) < Number(settlingEntry.amount);
-                  if (isInsufficient) {
-                    return (
-                      <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-800 dark:text-rose-300 text-xs flex items-start gap-2 mt-2">
-                        <span className="text-sm">⚠️</span>
-                        <div>
-                          <p className="font-bold">Insufficient Balance!</p>
-                          <p className="text-[11px] mt-0.5">
-                            {selectedAcc.name} has{" "}
-                            <strong>
-                              {symbol}
-                              {Number(selectedAcc.balance).toFixed(2)}
-                            </strong>
-                            , but you need{" "}
-                            <strong>
-                              {symbol}
-                              {Number(settlingEntry.amount).toFixed(2)}
-                            </strong>
-                            . Balance cannot go negative.
-                          </p>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#0F5C53] dark:text-[#34D399] tracking-wider block mb-1">
+                    {settlingEntry.type === "LENA"
+                      ? "Deposit into Account (Kaha jama huye)"
+                      : "Pay from Account (Kaha se ada kiye)"}
+                  </label>
+                  <AccountSelect
+                    value={settleAccountId}
+                    onChange={setSettleAccountId}
+                    label=""
+                    placeholder="Select account (e.g. Cash, NayaPay)..."
+                  />
+                  <p className="text-[10px] text-[#6B7268] dark:text-stone-400 mt-1">
+                    {settlingEntry.type === "LENA"
+                      ? "Amount will be added to this account's balance."
+                      : "Amount will be deducted from this account's balance."}
+                  </p>
+
+                  {(() => {
+                    if (settlingEntry.type !== "DENA" || !settleAccountId) return null;
+                    const selectedAcc = accounts.find((a) => a.id === settleAccountId);
+                    if (!selectedAcc) return null;
+                    const isInsufficient = Number(selectedAcc.balance) < Number(settlingEntry.amount);
+                    if (isInsufficient) {
+                      return (
+                        <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-800 dark:text-rose-300 text-xs flex items-start gap-2 mt-2">
+                          <span className="text-sm">⚠️</span>
+                          <div>
+                            <p className="font-bold">Insufficient Balance!</p>
+                            <p className="text-[11px] mt-0.5">
+                              {selectedAcc.name} has{" "}
+                              <strong>
+                                {symbol}
+                                {Number(selectedAcc.balance).toFixed(2)}
+                              </strong>
+                              , but you need{" "}
+                              <strong>
+                                {symbol}
+                                {Number(settlingEntry.amount).toFixed(2)}
+                              </strong>
+                              . Balance cannot go negative.
+                            </p>
+                          </div>
                         </div>
+                      );
+                    }
+                    return (
+                      <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center justify-between mt-2">
+                        <span>Available balance:</span>
+                        <span className="font-bold">
+                          {symbol}
+                          {Number(selectedAcc.balance).toFixed(2)}
+                        </span>
                       </div>
                     );
-                  }
-                  return (
-                    <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-800 dark:text-emerald-300 text-[11px] flex items-center justify-between mt-2">
-                      <span>Available balance:</span>
-                      <span className="font-bold">
-                        {symbol}
-                        {Number(selectedAcc.balance).toFixed(2)}
-                      </span>
-                    </div>
-                  );
-                })()}
-              </div>
+                  })()}
+                </div>
 
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSettlingEntry(null)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                {(() => {
-                  const selectedAcc = accounts.find((a) => a.id === settleAccountId);
-                  const isInsufficient =
-                    settlingEntry.type === "DENA" &&
-                    selectedAcc &&
-                    Number(selectedAcc.balance) < Number(settlingEntry.amount);
-                  return (
-                    <button
-                      type="submit"
-                      disabled={settling || Boolean(isInsufficient)}
-                      className={`w-2/3 py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition-all ${
-                        isInsufficient
-                          ? "bg-stone-300 dark:bg-stone-800 text-stone-500 cursor-not-allowed"
-                          : "bg-[#0F5C53] hover:bg-[#0A3F38] text-white disabled:opacity-50"
-                      }`}
-                    >
-                      {settling
-                        ? "Recording..."
-                        : isInsufficient
-                        ? "Insufficient Balance"
-                        : "Confirm Settlement"}
-                    </button>
-                  );
-                })()}
-              </div>
-            </form>
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSettlingEntry(null)}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-stone-400 hover:bg-[#FAF8F5] dark:hover:bg-stone-800 rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  {(() => {
+                    const selectedAcc = accounts.find((a) => a.id === settleAccountId);
+                    const isInsufficient =
+                      settlingEntry.type === "DENA" &&
+                      selectedAcc &&
+                      Number(selectedAcc.balance) < Number(settlingEntry.amount);
+                    return (
+                      <button
+                        type="submit"
+                        disabled={settling || Boolean(isInsufficient)}
+                        className={`w-2/3 py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition-all ${isInsufficient
+                            ? "bg-stone-300 dark:bg-stone-800 text-stone-500 cursor-not-allowed"
+                            : "bg-[#0F5C53] hover:bg-[#0A3F38] text-white disabled:opacity-50"
+                          }`}
+                      >
+                        {settling
+                          ? "Recording..."
+                          : isInsufficient
+                            ? "Insufficient Balance"
+                            : "Confirm Settlement"}
+                      </button>
+                    );
+                  })()}
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         </ModalPortal>
       )}
     </AppLayout>
