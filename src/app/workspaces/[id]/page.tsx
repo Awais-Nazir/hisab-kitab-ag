@@ -656,13 +656,12 @@ export default function WorkspaceDetailPage() {
               <h1 className="font-serif font-bold text-3xl md:text-4xl text-[#162B27] dark:text-white tracking-tight">
                 {workspaceName}
               </h1>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase border ${
-                Math.abs(myNet) < 0.5
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase border ${Math.abs(myNet) < 0.5
                   ? "bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700"
                   : myNet > 0
-                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-[#0F5C53] dark:text-[#34D399] border-emerald-200 dark:border-emerald-900/50"
-                  : "bg-rose-50 dark:bg-rose-950/40 text-[#A8441F] dark:text-rose-400 border-rose-200 dark:border-rose-900/50"
-              }`}>
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-[#0F5C53] dark:text-[#34D399] border-emerald-200 dark:border-emerald-900/50"
+                    : "bg-rose-50 dark:bg-rose-950/40 text-[#A8441F] dark:text-rose-400 border-rose-200 dark:border-rose-900/50"
+                }`}>
                 {Math.abs(myNet) < 0.5 ? "Equilibrium" : myNet > 0 ? "Owed" : "In Debt"}
               </span>
             </div>
@@ -690,7 +689,7 @@ export default function WorkspaceDetailPage() {
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              <span>+ Add Expense</span>
+              <span>Add Expense</span>
             </button>
           </div>
         </div>
@@ -710,8 +709,8 @@ export default function WorkspaceDetailPage() {
                 {myNet > 0
                   ? "You are owed by roommates"
                   : myNet < 0
-                  ? "You owe the roommates"
-                  : "All settled up in this ledger"}
+                    ? "You owe the roommates"
+                    : "All settled up in this ledger"}
               </p>
             </div>
 
@@ -797,33 +796,30 @@ export default function WorkspaceDetailPage() {
                 <button
                   type="button"
                   onClick={() => setFilterTab("all")}
-                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    filterTab === "all"
+                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${filterTab === "all"
                       ? "bg-white dark:bg-[#13191E] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs"
                       : "text-[#5A6863] dark:text-[#8E9C95]"
-                  }`}
+                    }`}
                 >
                   All Activity
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterTab("expenses")}
-                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    filterTab === "expenses"
+                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${filterTab === "expenses"
                       ? "bg-white dark:bg-[#13191E] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs"
                       : "text-[#5A6863] dark:text-[#8E9C95]"
-                  }`}
+                    }`}
                 >
                   Expenses ({expenses.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterTab("settlements")}
-                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${
-                    filterTab === "settlements"
+                  className={`px-3.5 py-1.5 rounded-lg capitalize transition-all cursor-pointer ${filterTab === "settlements"
                       ? "bg-white dark:bg-[#13191E] text-[#0F5C53] dark:text-[#10B981] font-bold shadow-xs"
                       : "text-[#5A6863] dark:text-[#8E9C95]"
-                  }`}
+                    }`}
                 >
                   Settlements ({settlements.length})
                 </button>
@@ -900,19 +896,18 @@ export default function WorkspaceDetailPage() {
                                   {symbol}{Math.round(parseFloat(exp.amount)).toLocaleString()}
                                 </span>
                                 <span
-                                  className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md mt-0.5 border ${
-                                    impact > 0
+                                  className={`inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md mt-0.5 border ${impact > 0
                                       ? "bg-emerald-50 dark:bg-emerald-950/40 text-[#1E7D46] dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50"
                                       : impact < 0
-                                      ? "bg-rose-50 dark:bg-rose-950/40 text-[#A8441F] dark:text-rose-400 border-rose-200 dark:border-rose-900/50"
-                                      : "bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700"
-                                  }`}
+                                        ? "bg-rose-50 dark:bg-rose-950/40 text-[#A8441F] dark:text-rose-400 border-rose-200 dark:border-rose-900/50"
+                                        : "bg-stone-50 dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700"
+                                    }`}
                                 >
                                   {impact > 0
                                     ? `+${symbol}${impact.toLocaleString()} to balance`
                                     : impact < 0
-                                    ? `-${symbol}${Math.abs(impact).toLocaleString()} to balance`
-                                    : "0 net"}
+                                      ? `-${symbol}${Math.abs(impact).toLocaleString()} to balance`
+                                      : "0 net"}
                                 </span>
                               </div>
 
@@ -1061,8 +1056,8 @@ export default function WorkspaceDetailPage() {
                             b.netBalance > 0
                               ? `You are owed ${symbol}${Math.round(b.netBalance)}`
                               : b.netBalance < 0
-                              ? `You owe ${symbol}${Math.round(Math.abs(b.netBalance))}`
-                              : "Settled"
+                                ? `You owe ${symbol}${Math.round(Math.abs(b.netBalance))}`
+                                : "Settled"
                           ) : b.netBalance > 0 ? (
                             `Owes you ${symbol}${Math.round(b.netBalance)}`
                           ) : b.netBalance < 0 ? (
@@ -1141,433 +1136,428 @@ export default function WorkspaceDetailPage() {
         <ModalPortal>
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                  {editingExpenseId ? "Edit Shared Expense" : "Add Shared Expense"}
-                </h3>
-                <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-0.5">
-                  Whole integer splits • Remainder to you • Track payment source
-                </p>
-              </div>
-              <button
-                onClick={() => setIsExpenseModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleAddExpense} className="space-y-4">
-              {/* Amount & Description */}
-              <div>
-                <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                  Amount ({symbol})
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="0"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                  autoFocus
-                  className="w-full text-2xl font-serif font-bold text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. WiFi Bill, Weekly Groceries"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  required
-                  className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                />
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                  Category
-                </label>
-                <CategorySelect value={category} onChange={setCategory} />
-              </div>
-
-              {/* PAYER SECTION (Single vs Multiple / Custom Paid) */}
-              <div className="p-3.5 bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] uppercase font-bold text-[#162B27] dark:text-white tracking-wider">
-                    Who Paid?
-                  </label>
-                  <div className="flex bg-stone-200/60 dark:bg-[#13191E] p-0.5 rounded-lg text-[11px] font-medium border border-transparent dark:border-[#1E2824]">
-                    <button
-                      type="button"
-                      onClick={() => setPayerMode("single")}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                        payerMode === "single"
-                          ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
-                          : "text-[#6B7268] dark:text-[#8E9C95]"
-                      }`}
-                    >
-                      Single Payer
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPayerMode("multiple");
-                        if (Object.keys(customPayments).length === 0 && payerId) {
-                          setCustomPayments({ [payerId]: amount });
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                        payerMode === "multiple"
-                          ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
-                          : "text-[#6B7268] dark:text-[#8E9C95]"
-                      }`}
-                    >
-                      Multiple / Custom Paid
-                    </button>
-                  </div>
-                </div>
-
-                {payerMode === "single" ? (
-                  <div>
-                    <select
-                      value={payerId}
-                      onChange={(e) => setPayerId(e.target.value)}
-                      className="w-full text-xs bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2 text-[#162B27] dark:text-white font-medium focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                    >
-                      {members.map((m) => (
-                        <option key={m.personId} value={m.personId}>
-                          {m.person.isSelf ? "You (Paid full amount)" : `${m.person.name} (Paid full amount)`}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {members.map((m) => {
-                        const val = customPayments[m.personId] || "";
-                        return (
-                          <div key={m.personId} className="flex items-center gap-2 bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-2 rounded-xl">
-                            <span className="text-xs font-medium text-[#162B27] dark:text-white flex-1 truncate">
-                              {m.person.isSelf ? "You" : m.person.name}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs text-[#6B7268] dark:text-[#8E9C95]">{symbol}</span>
-                              <input
-                                type="number"
-                                step="1"
-                                placeholder="0"
-                                value={val}
-                                onChange={(e) => {
-                                  setCustomPayments({
-                                    ...customPayments,
-                                    [m.personId]: e.target.value,
-                                  });
-                                }}
-                                className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-lg px-2 py-1 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Paid Validation status */}
-                    <div className="flex items-center justify-between text-[11px] pt-1 px-1">
-                      <span className="text-[#6B7268] dark:text-[#8E9C95]">
-                        Total Paid:{" "}
-                        <strong className="text-[#162B27] dark:text-white">
-                          {symbol}{totalCustomPaid.toFixed(0)}
-                        </strong>{" "}
-                        / {symbol}{parsedAmount.toFixed(0)}
-                      </span>
-                      {Math.abs(totalCustomPaid - parsedAmount) < 0.01 && parsedAmount > 0 ? (
-                        <span className="text-emerald-700 dark:text-emerald-400 font-bold">✓ Matches total</span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!selfPersonId) return;
-                            const otherPaid = Object.entries(customPayments).reduce(
-                              (sum, [pid, v]) => (pid === selfPersonId ? sum : sum + (parseFloat(v) || 0)),
-                              0
-                            );
-                            const rem = Math.max(0, parsedAmount - otherPaid);
-                            setCustomPayments({
-                              ...customPayments,
-                              [selfPersonId]: rem.toFixed(0),
-                            });
-                          }}
-                          className="text-[#0F5C53] dark:text-[#34D399] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
-                        >
-                          Fill remainder to You
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ACCOUNT SELECTION: Shown whenever "Me" is paying (Kaha se hoyi ha) */}
-              {selfPaidAmountInModal > 0 && (
-                <div className="p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] uppercase font-bold text-[#0F5C53] dark:text-[#34D399] tracking-wider">
-                      Paid From Account (Kaha se hoyi ha)
-                    </label>
-                    <span className="text-[10px] text-emerald-800 dark:text-emerald-400 font-medium">
-                      Your payment: {symbol}{Math.round(selfPaidAmountInModal)}
-                    </span>
-                  </div>
-                  <AccountSelect
-                    value={accountId}
-                    onChange={setAccountId}
-                    label=""
-                    placeholder="Select payment source (Cash, NayaPay, SadaPay...)"
-                  />
-                  <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] mt-1">
-                    Deducts {symbol}{Math.round(selfPaidAmountInModal)} directly from this account balance.
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                    {editingExpenseId ? "Edit Shared Expense" : "Add Shared Expense"}
+                  </h3>
+                  <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-0.5">
+                    Whole integer splits • Remainder to you • Track payment source
                   </p>
                 </div>
-              )}
+                <button
+                  onClick={() => setIsExpenseModalOpen(false)}
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
+                >
+                  ✕
+                </button>
+              </div>
 
-              {/* SPLIT SECTION (Equal vs Custom Split) */}
-              <div className="p-3.5 bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-[11px] uppercase font-bold text-[#162B27] dark:text-white tracking-wider block">
-                      Split Between
-                    </label>
-                  </div>
-                  <div className="flex bg-stone-200/60 dark:bg-[#13191E] p-0.5 rounded-lg text-[11px] font-medium border border-transparent dark:border-[#1E2824]">
-                    <button
-                      type="button"
-                      onClick={() => setSplitMode("equal")}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                        splitMode === "equal"
-                          ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
-                          : "text-[#6B7268] dark:text-[#8E9C95]"
-                      }`}
-                    >
-                      Equal (Integer)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSplitMode("custom");
-                        if (Object.keys(customSplits).length === 0) {
-                          const initial: Record<string, string> = {};
-                          for (const m of members) {
-                            if (splitSelected.has(m.personId)) {
-                              initial[m.personId] = (equalSplitsMap[m.personId] || 0).toString();
-                            }
-                          }
-                          setCustomSplits(initial);
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                        splitMode === "custom"
-                          ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
-                          : "text-[#6B7268] dark:text-[#8E9C95]"
-                      }`}
-                    >
-                      Custom Amounts
-                    </button>
-                  </div>
+              <form onSubmit={handleAddExpense} className="space-y-4">
+                {/* Amount & Description */}
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                    Amount ({symbol})
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    placeholder="0"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    required
+                    autoFocus
+                    className="w-full text-2xl font-serif font-bold text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                  />
                 </div>
 
-                {splitMode === "equal" ? (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {members.map((m) => {
-                        const isChecked = splitSelected.has(m.personId);
-                        const assignedShare = isChecked ? equalSplitsMap[m.personId] || 0 : 0;
-                        const isSelf = m.person.isSelf;
-                        const baseShare = splitSelected.size > 0 ? Math.floor(parsedAmount / splitSelected.size) : 0;
-                        const hasExtraRupee = isSelf && isChecked && assignedShare > baseShare;
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                    Description
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. WiFi Bill, Weekly Groceries"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    required
+                    className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                  />
+                </div>
 
-                        return (
-                          <label
-                            key={m.personId}
-                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                              isChecked
-                                ? "bg-white dark:bg-[#1A2229] border-[#0F5C53] dark:border-[#10B981] shadow-xs"
-                                : "bg-[#FAF8F5] dark:bg-[#13191E] border-[#E5E0D8] dark:border-[#1E2824] text-stone-400 dark:text-stone-600 opacity-60"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => {
-                                  const next = new Set(splitSelected);
-                                  if (next.has(m.personId)) next.delete(m.personId);
-                                  else next.add(m.personId);
-                                  setSplitSelected(next);
-                                }}
-                                className="w-3.5 h-3.5 accent-[#0F5C53] dark:accent-[#10B981]"
-                              />
-                              <span className="font-semibold text-[#162B27] dark:text-white">
-                                {isSelf ? "You" : m.person.name}
-                              </span>
-                            </div>
+                {/* Category */}
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                    Category
+                  </label>
+                  <CategorySelect value={category} onChange={setCategory} />
+                </div>
 
-                            {isChecked && parsedAmount > 0 && (
-                              <div className="text-right">
-                                <span className="font-mono font-bold text-[#0F5C53] dark:text-[#34D399]">
-                                  {symbol}{assignedShare}
-                                </span>
-                                {hasExtraRupee && (
-                                  <span className="block text-[9px] font-bold text-amber-700 dark:text-amber-400">
-                                    (+{assignedShare - baseShare} remainder to you)
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </label>
-                        );
-                      })}
+                {/* PAYER SECTION (Single vs Multiple / Custom Paid) */}
+                <div className="p-3.5 bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] uppercase font-bold text-[#162B27] dark:text-white tracking-wider">
+                      Who Paid?
+                    </label>
+                    <div className="flex bg-stone-200/60 dark:bg-[#13191E] p-0.5 rounded-lg text-[11px] font-medium border border-transparent dark:border-[#1E2824]">
+                      <button
+                        type="button"
+                        onClick={() => setPayerMode("single")}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${payerMode === "single"
+                            ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                            : "text-[#6B7268] dark:text-[#8E9C95]"
+                          }`}
+                      >
+                        Single Payer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPayerMode("multiple");
+                          if (Object.keys(customPayments).length === 0 && payerId) {
+                            setCustomPayments({ [payerId]: amount });
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${payerMode === "multiple"
+                            ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                            : "text-[#6B7268] dark:text-[#8E9C95]"
+                          }`}
+                      >
+                        Multiple / Custom Paid
+                      </button>
                     </div>
-                    <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] pt-1">
-                      No fractions or decimals. Any remainder is assigned to You to keep sums exact.
-                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {members.map((m) => {
-                        const val = customSplits[m.personId] || "";
-                        return (
-                          <div key={m.personId} className="flex items-center gap-2 bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-2 rounded-xl">
-                            <span className="text-xs font-medium text-[#162B27] dark:text-white flex-1 truncate">
-                              {m.person.isSelf ? "You" : m.person.name}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs text-[#6B7268] dark:text-[#8E9C95]">{symbol}</span>
-                              <input
-                                type="number"
-                                step="1"
-                                placeholder="0"
-                                value={val}
-                                onChange={(e) => {
-                                  setCustomSplits({
-                                    ...customSplits,
-                                    [m.personId]: e.target.value,
-                                  });
-                                }}
-                                className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-lg px-2 py-1 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
 
-                    {/* Split Validation status */}
-                    <div className="flex items-center justify-between text-[11px] pt-1 px-1">
-                      <span className="text-[#6B7268] dark:text-[#8E9C95]">
-                        Total Split:{" "}
-                        <strong className="text-[#162B27] dark:text-white">
-                          {symbol}{totalCustomSplit.toFixed(0)}
-                        </strong>{" "}
-                        / {symbol}{parsedAmount.toFixed(0)}
-                      </span>
-                      {Math.abs(totalCustomSplit - parsedAmount) < 0.01 && parsedAmount > 0 ? (
-                        <span className="text-emerald-700 dark:text-emerald-400 font-bold">✓ Matches total</span>
-                      ) : (
-                        <div className="flex gap-2">
+                  {payerMode === "single" ? (
+                    <div>
+                      <select
+                        value={payerId}
+                        onChange={(e) => setPayerId(e.target.value)}
+                        className="w-full text-xs bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2 text-[#162B27] dark:text-white font-medium focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                      >
+                        {members.map((m) => (
+                          <option key={m.personId} value={m.personId}>
+                            {m.person.isSelf ? "You (Paid full amount)" : `${m.person.name} (Paid full amount)`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {members.map((m) => {
+                          const val = customPayments[m.personId] || "";
+                          return (
+                            <div key={m.personId} className="flex items-center gap-2 bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-2 rounded-xl">
+                              <span className="text-xs font-medium text-[#162B27] dark:text-white flex-1 truncate">
+                                {m.person.isSelf ? "You" : m.person.name}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-[#6B7268] dark:text-[#8E9C95]">{symbol}</span>
+                                <input
+                                  type="number"
+                                  step="1"
+                                  placeholder="0"
+                                  value={val}
+                                  onChange={(e) => {
+                                    setCustomPayments({
+                                      ...customPayments,
+                                      [m.personId]: e.target.value,
+                                    });
+                                  }}
+                                  className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-lg px-2 py-1 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Paid Validation status */}
+                      <div className="flex items-center justify-between text-[11px] pt-1 px-1">
+                        <span className="text-[#6B7268] dark:text-[#8E9C95]">
+                          Total Paid:{" "}
+                          <strong className="text-[#162B27] dark:text-white">
+                            {symbol}{totalCustomPaid.toFixed(0)}
+                          </strong>{" "}
+                          / {symbol}{parsedAmount.toFixed(0)}
+                        </span>
+                        {Math.abs(totalCustomPaid - parsedAmount) < 0.01 && parsedAmount > 0 ? (
+                          <span className="text-emerald-700 dark:text-emerald-400 font-bold">✓ Matches total</span>
+                        ) : (
                           <button
                             type="button"
                             onClick={() => {
-                              const eq = calculateEqualSplits(parsedAmount, members.map((m) => m.personId), selfPersonId);
-                              const mapped: Record<string, string> = {};
-                              for (const [pid, amt] of Object.entries(eq)) {
-                                mapped[pid] = amt.toString();
-                              }
-                              setCustomSplits(mapped);
+                              if (!selfPersonId) return;
+                              const otherPaid = Object.entries(customPayments).reduce(
+                                (sum, [pid, v]) => (pid === selfPersonId ? sum : sum + (parseFloat(v) || 0)),
+                                0
+                              );
+                              const rem = Math.max(0, parsedAmount - otherPaid);
+                              setCustomPayments({
+                                ...customPayments,
+                                [selfPersonId]: rem.toFixed(0),
+                              });
                             }}
                             className="text-[#0F5C53] dark:text-[#34D399] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
                           >
-                            Divide Evenly
+                            Fill remainder to You
                           </button>
-                          {selfPersonId && (
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ACCOUNT SELECTION: Shown whenever "Me" is paying (Kaha se hoyi ha) */}
+                {selfPaidAmountInModal > 0 && (
+                  <div className="p-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] uppercase font-bold text-[#0F5C53] dark:text-[#34D399] tracking-wider">
+                        Paid From Account (Kaha se hoyi ha)
+                      </label>
+                      <span className="text-[10px] text-emerald-800 dark:text-emerald-400 font-medium">
+                        Your payment: {symbol}{Math.round(selfPaidAmountInModal)}
+                      </span>
+                    </div>
+                    <AccountSelect
+                      value={accountId}
+                      onChange={setAccountId}
+                      label=""
+                      placeholder="Select payment source (Cash, NayaPay, SadaPay...)"
+                    />
+                    <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] mt-1">
+                      Deducts {symbol}{Math.round(selfPaidAmountInModal)} directly from this account balance.
+                    </p>
+                  </div>
+                )}
+
+                {/* SPLIT SECTION (Equal vs Custom Split) */}
+                <div className="p-3.5 bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-[11px] uppercase font-bold text-[#162B27] dark:text-white tracking-wider block">
+                        Split Between
+                      </label>
+                    </div>
+                    <div className="flex bg-stone-200/60 dark:bg-[#13191E] p-0.5 rounded-lg text-[11px] font-medium border border-transparent dark:border-[#1E2824]">
+                      <button
+                        type="button"
+                        onClick={() => setSplitMode("equal")}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${splitMode === "equal"
+                            ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                            : "text-[#6B7268] dark:text-[#8E9C95]"
+                          }`}
+                      >
+                        Equal (Integer)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSplitMode("custom");
+                          if (Object.keys(customSplits).length === 0) {
+                            const initial: Record<string, string> = {};
+                            for (const m of members) {
+                              if (splitSelected.has(m.personId)) {
+                                initial[m.personId] = (equalSplitsMap[m.personId] || 0).toString();
+                              }
+                            }
+                            setCustomSplits(initial);
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${splitMode === "custom"
+                            ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs"
+                            : "text-[#6B7268] dark:text-[#8E9C95]"
+                          }`}
+                      >
+                        Custom Amounts
+                      </button>
+                    </div>
+                  </div>
+
+                  {splitMode === "equal" ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {members.map((m) => {
+                          const isChecked = splitSelected.has(m.personId);
+                          const assignedShare = isChecked ? equalSplitsMap[m.personId] || 0 : 0;
+                          const isSelf = m.person.isSelf;
+                          const baseShare = splitSelected.size > 0 ? Math.floor(parsedAmount / splitSelected.size) : 0;
+                          const hasExtraRupee = isSelf && isChecked && assignedShare > baseShare;
+
+                          return (
+                            <label
+                              key={m.personId}
+                              className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${isChecked
+                                  ? "bg-white dark:bg-[#1A2229] border-[#0F5C53] dark:border-[#10B981] shadow-xs"
+                                  : "bg-[#FAF8F5] dark:bg-[#13191E] border-[#E5E0D8] dark:border-[#1E2824] text-stone-400 dark:text-stone-600 opacity-60"
+                                }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    const next = new Set(splitSelected);
+                                    if (next.has(m.personId)) next.delete(m.personId);
+                                    else next.add(m.personId);
+                                    setSplitSelected(next);
+                                  }}
+                                  className="w-3.5 h-3.5 accent-[#0F5C53] dark:accent-[#10B981]"
+                                />
+                                <span className="font-semibold text-[#162B27] dark:text-white">
+                                  {isSelf ? "You" : m.person.name}
+                                </span>
+                              </div>
+
+                              {isChecked && parsedAmount > 0 && (
+                                <div className="text-right">
+                                  <span className="font-mono font-bold text-[#0F5C53] dark:text-[#34D399]">
+                                    {symbol}{assignedShare}
+                                  </span>
+                                  {hasExtraRupee && (
+                                    <span className="block text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                                      (+{assignedShare - baseShare} remainder to you)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] pt-1">
+                        No fractions or decimals. Any remainder is assigned to You to keep sums exact.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {members.map((m) => {
+                          const val = customSplits[m.personId] || "";
+                          return (
+                            <div key={m.personId} className="flex items-center gap-2 bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-2 rounded-xl">
+                              <span className="text-xs font-medium text-[#162B27] dark:text-white flex-1 truncate">
+                                {m.person.isSelf ? "You" : m.person.name}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-[#6B7268] dark:text-[#8E9C95]">{symbol}</span>
+                                <input
+                                  type="number"
+                                  step="1"
+                                  placeholder="0"
+                                  value={val}
+                                  onChange={(e) => {
+                                    setCustomSplits({
+                                      ...customSplits,
+                                      [m.personId]: e.target.value,
+                                    });
+                                  }}
+                                  className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-lg px-2 py-1 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Split Validation status */}
+                      <div className="flex items-center justify-between text-[11px] pt-1 px-1">
+                        <span className="text-[#6B7268] dark:text-[#8E9C95]">
+                          Total Split:{" "}
+                          <strong className="text-[#162B27] dark:text-white">
+                            {symbol}{totalCustomSplit.toFixed(0)}
+                          </strong>{" "}
+                          / {symbol}{parsedAmount.toFixed(0)}
+                        </span>
+                        {Math.abs(totalCustomSplit - parsedAmount) < 0.01 && parsedAmount > 0 ? (
+                          <span className="text-emerald-700 dark:text-emerald-400 font-bold">✓ Matches total</span>
+                        ) : (
+                          <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => {
-                                const otherSplits = Object.entries(customSplits).reduce(
-                                  (sum, [pid, v]) => (pid === selfPersonId ? sum : sum + (parseFloat(v) || 0)),
-                                  0
-                                );
-                                const rem = Math.max(0, parsedAmount - otherSplits);
-                                setCustomSplits({
-                                  ...customSplits,
-                                  [selfPersonId]: rem.toFixed(0),
-                                });
+                                const eq = calculateEqualSplits(parsedAmount, members.map((m) => m.personId), selfPersonId);
+                                const mapped: Record<string, string> = {};
+                                for (const [pid, amt] of Object.entries(eq)) {
+                                  mapped[pid] = amt.toString();
+                                }
+                                setCustomSplits(mapped);
                               }}
                               className="text-[#0F5C53] dark:text-[#34D399] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
                             >
-                              Remainder to You
+                              Divide Evenly
                             </button>
-                          )}
-                        </div>
-                      )}
+                            {selfPersonId && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const otherSplits = Object.entries(customSplits).reduce(
+                                    (sum, [pid, v]) => (pid === selfPersonId ? sum : sum + (parseFloat(v) || 0)),
+                                    0
+                                  );
+                                  const rem = Math.max(0, parsedAmount - otherSplits);
+                                  setCustomSplits({
+                                    ...customSplits,
+                                    [selfPersonId]: rem.toFixed(0),
+                                  });
+                                }}
+                                className="text-[#0F5C53] dark:text-[#34D399] font-semibold underline cursor-pointer hover:text-[#0A3F38]"
+                              >
+                                Remainder to You
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  )}
+                </div>
+
+                {/* Date & Time */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Date</label>
+                    <input
+                      type="date"
+                      value={expDate}
+                      onChange={(e) => setExpDate(e.target.value)}
+                      required
+                      className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-white rounded-xl px-2.5 py-2 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    />
                   </div>
-                )}
-              </div>
-
-              {/* Date & Time */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={expDate}
-                    onChange={(e) => setExpDate(e.target.value)}
-                    required
-                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-white rounded-xl px-2.5 py-2 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                  />
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Time</label>
+                    <input
+                      type="time"
+                      value={expTime}
+                      onChange={(e) => setExpTime(e.target.value)}
+                      required
+                      className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-white rounded-xl px-2.5 py-2 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Time</label>
-                  <input
-                    type="time"
-                    value={expTime}
-                    onChange={(e) => setExpTime(e.target.value)}
-                    required
-                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-white rounded-xl px-2.5 py-2 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                  />
-                </div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="pt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsExpenseModalOpen(false)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingExp}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
-                >
-                  {submittingExp ? "Saving..." : editingExpenseId ? "Update Expense" : "+ Save Expense"}
-                </button>
-              </div>
-            </form>
+                {/* Action Buttons */}
+                <div className="pt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsExpenseModalOpen(false)}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingExp}
+                    className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+                  >
+                    {submittingExp ? "Saving..." : editingExpenseId ? "Update Expense" : "+ Save Expense"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
@@ -1576,131 +1566,131 @@ export default function WorkspaceDetailPage() {
         <ModalPortal>
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                {editingSettlementId ? "Edit Settlement" : "Record Settlement"}
-              </h3>
-              <button
-                onClick={() => {
-                  setEditingSettlementId(null);
-                  setIsSettleModalOpen(false);
-                }}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitSettle} className="space-y-3.5">
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Payer (Who paid)</label>
-                <select
-                  value={settleFrom}
-                  onChange={(e) => setSettleFrom(e.target.value)}
-                  required
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                >
-                  <option value="">Select payer...</option>
-                  {members.map((m) => (
-                    <option key={m.personId} value={m.personId}>
-                      {m.person.isSelf ? "You" : m.person.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Recipient (Who received)</label>
-                <select
-                  value={settleTo}
-                  onChange={(e) => setSettleTo(e.target.value)}
-                  required
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                >
-                  <option value="">Select recipient...</option>
-                  {members.map((m) => (
-                    <option key={m.personId} value={m.personId}>
-                      {m.person.isSelf ? "You" : m.person.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                    Amount ({symbol})
-                  </label>
-                  <input
-                    type="number"
-                    step="1"
-                    placeholder="0"
-                    value={settleAmount}
-                    onChange={(e) => setSettleAmount(e.target.value)}
-                    required
-                    className="w-full text-lg font-serif font-bold bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                    Date
-                  </label>
-                  <input
-                    type="date"
-                    value={settleDate}
-                    onChange={(e) => setSettleDate(e.target.value)}
-                    required
-                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                  />
-                </div>
-              </div>
-
-              {/* Account Selection if user is involved */}
-              {(settleTo === selfPersonId || settleFrom === selfPersonId) && (
-                <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-[#0F5C53] dark:text-[#34D399] tracking-wider block">
-                    {settleTo === selfPersonId
-                      ? "Deposit into Account (Kaha aayenge)"
-                      : "Pay from Account (Kaha se de rahe ho)"}
-                  </label>
-                  <AccountSelect
-                    value={settleAccountId}
-                    onChange={setSettleAccountId}
-                    label=""
-                    placeholder={settleTo === selfPersonId ? "Select deposit account..." : "Select payment account..."}
-                  />
-                  <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
-                    {settleTo === selfPersonId
-                      ? "Amount will be added directly to this account balance."
-                      : "Amount will be deducted directly from this account balance."}
-                  </p>
-                </div>
-              )}
-
-              <div className="pt-2 flex gap-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                  {editingSettlementId ? "Edit Settlement" : "Record Settlement"}
+                </h3>
                 <button
-                  type="button"
                   onClick={() => {
                     setEditingSettlementId(null);
                     setIsSettleModalOpen(false);
                   }}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={settling}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
-                >
-                  {settling
-                    ? (editingSettlementId ? "Saving..." : "Recording...")
-                    : (editingSettlementId ? "Save Changes" : "Record Settlement")}
+                  ✕
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSubmitSettle} className="space-y-3.5">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Payer (Who paid)</label>
+                  <select
+                    value={settleFrom}
+                    onChange={(e) => setSettleFrom(e.target.value)}
+                    required
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                  >
+                    <option value="">Select payer...</option>
+                    {members.map((m) => (
+                      <option key={m.personId} value={m.personId}>
+                        {m.person.isSelf ? "You" : m.person.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">Recipient (Who received)</label>
+                  <select
+                    value={settleTo}
+                    onChange={(e) => setSettleTo(e.target.value)}
+                    required
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                  >
+                    <option value="">Select recipient...</option>
+                    {members.map((m) => (
+                      <option key={m.personId} value={m.personId}>
+                        {m.person.isSelf ? "You" : m.person.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                      Amount ({symbol})
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      placeholder="0"
+                      value={settleAmount}
+                      onChange={(e) => setSettleAmount(e.target.value)}
+                      required
+                      className="w-full text-lg font-serif font-bold bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={settleDate}
+                      onChange={(e) => setSettleDate(e.target.value)}
+                      required
+                      className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                    />
+                  </div>
+                </div>
+
+                {/* Account Selection if user is involved */}
+                {(settleTo === selfPersonId || settleFrom === selfPersonId) && (
+                  <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-[#0F5C53] dark:text-[#34D399] tracking-wider block">
+                      {settleTo === selfPersonId
+                        ? "Deposit into Account (Kaha aayenge)"
+                        : "Pay from Account (Kaha se de rahe ho)"}
+                    </label>
+                    <AccountSelect
+                      value={settleAccountId}
+                      onChange={setSettleAccountId}
+                      label=""
+                      placeholder={settleTo === selfPersonId ? "Select deposit account..." : "Select payment account..."}
+                    />
+                    <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
+                      {settleTo === selfPersonId
+                        ? "Amount will be added directly to this account balance."
+                        : "Amount will be deducted directly from this account balance."}
+                    </p>
+                  </div>
+                )}
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingSettlementId(null);
+                      setIsSettleModalOpen(false);
+                    }}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={settling}
+                    className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+                  >
+                    {settling
+                      ? (editingSettlementId ? "Saving..." : "Recording...")
+                      : (editingSettlementId ? "Save Changes" : "Record Settlement")}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         </ModalPortal>
       )}
     </AppLayout>

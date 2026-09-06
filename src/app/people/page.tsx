@@ -188,7 +188,7 @@ export default function PeoplePage() {
       title="People"
       subtitle="Contacts & Directory"
       onAddEntry={() => setIsAddModalOpen(true)}
-      addEntryLabel="+ Add Contact"
+      addEntryLabel="Add Contact"
     >
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header Section */}
@@ -212,7 +212,7 @@ export default function PeoplePage() {
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" />
             </svg>
-            <span>+ Add Contact</span>
+            <span>Add Contact</span>
           </button>
         </div>
 
@@ -291,11 +291,10 @@ export default function PeoplePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setFilterTab(tab.id)}
-                  className={`flex-1 py-1.5 px-2 rounded-xl whitespace-nowrap transition-all cursor-pointer text-center ${
-                    filterTab === tab.id
-                      ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs border border-transparent dark:border-[#1E2824]"
-                      : "text-[#6B7268] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
-                  }`}
+                  className={`flex-1 py-1.5 px-2 rounded-xl whitespace-nowrap transition-all cursor-pointer text-center ${filterTab === tab.id
+                    ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs border border-transparent dark:border-[#1E2824]"
+                    : "text-[#6B7268] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -319,11 +318,10 @@ export default function PeoplePage() {
                     <div
                       key={person.id}
                       onClick={() => setSelectedPerson(person)}
-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                        isSelected
-                          ? "bg-emerald-50/70 dark:bg-emerald-950/30 border-[#0F5C53] dark:border-[#10B981] shadow-xs"
-                          : "bg-white dark:bg-[#161D22] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] border-[#E5E0D8] dark:border-[#1E2824]"
-                      }`}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${isSelected
+                        ? "bg-emerald-50/70 dark:bg-emerald-950/30 border-[#0F5C53] dark:border-[#10B981] shadow-xs"
+                        : "bg-white dark:bg-[#161D22] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] border-[#E5E0D8] dark:border-[#1E2824]"
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-[#0F5C53] dark:text-[#34D399] font-serif font-bold text-sm flex items-center justify-center flex-shrink-0">
@@ -480,72 +478,72 @@ export default function PeoplePage() {
         <ModalPortal>
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-sm w-full shadow-2xl my-auto max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
-                Add New Contact
-              </h3>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            {error && (
-              <div className="mb-4 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-medium">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleAdd} className="space-y-3.5">
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Razaq, Hamza"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  autoFocus
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
-                  Email Address (Optional)
-                </label>
-                <input
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                  Add New Contact
+                </h3>
                 <button
-                  type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white cursor-pointer text-lg font-bold"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || !name.trim()}
-                  className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
-                >
-                  {submitting ? "Saving..." : "+ Save Contact"}
+                  ✕
                 </button>
               </div>
-            </form>
+
+              {error && (
+                <div className="mb-4 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-medium">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleAdd} className="space-y-3.5">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Razaq, Hamza"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    autoFocus
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block mb-1">
+                    Email Address (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2.5 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                  />
+                </div>
+
+                <div className="pt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#6B7268] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting || !name.trim()}
+                    className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50 transition-colors"
+                  >
+                    {submitting ? "Saving..." : "+ Save Contact"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         </ModalPortal>
       )}
     </AppLayout>
