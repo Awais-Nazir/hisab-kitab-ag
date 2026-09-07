@@ -66,8 +66,17 @@ type LedgerItem = LedgerExpenseItem | LedgerSettlementItem;
 
 interface LedgerDay {
   date: string;
+  dayExpenseDelta?: number;
+  dayExpenseLena?: number;
+  dayExpenseDena?: number;
+  daySettlementDelta?: number;
+  daySettledAmount?: number;
+  dayNetDelta?: number;
   delta: number;
+  openingBalance?: number;
+  closingBalance?: number;
   runningTotal: number;
+  isSettled?: boolean;
   items?: LedgerItem[];
 }
 
@@ -606,57 +615,153 @@ export default function PeoplePage() {
                             key={day.date}
                             className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl overflow-hidden shadow-xs transition-all"
                           >
-                            {/* Day Accordion Header Button */}
+                            {/* Day Accordion Header Button with the 2 Balances */}
                             <button
                               type="button"
                               onClick={() => toggleDayAccordion(day.date)}
-                              className="w-full px-4 py-3 bg-[#FAF8F5]/80 dark:bg-[#1A2229]/60 hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] border-b border-[#E5E0D8]/60 dark:border-[#1E2824]/60 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer"
+                              className="w-full px-4 py-3.5 bg-[#FAF8F5]/90 dark:bg-[#1A2229]/70 hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] border-b border-[#E5E0D8]/60 dark:border-[#1E2824]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left transition-colors cursor-pointer"
                             >
                               <div className="flex items-center gap-2.5">
                                 <div
-                                  className={`w-5 h-5 rounded-md bg-stone-200/70 dark:bg-stone-800 flex items-center justify-center text-stone-600 dark:text-stone-300 transition-transform duration-200 ${
+                                  className={`w-6 h-6 rounded-lg bg-stone-200/70 dark:bg-stone-800 flex items-center justify-center text-stone-600 dark:text-stone-300 transition-transform duration-200 ${
                                     isOpen ? "rotate-90" : ""
                                   }`}
                                 >
-                                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                     <polyline points="9 18 15 12 9 6" />
                                   </svg>
                                 </div>
                                 <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-xs text-[#162B27] dark:text-white">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-xs sm:text-sm text-[#162B27] dark:text-white">
                                       {dateLabel}
                                     </span>
-                                    <span className="text-[10px] px-2 py-0.2 rounded-full bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] text-[#6B7268] dark:text-[#8E9C95]">
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] text-[#6B7268] dark:text-[#8E9C95]">
                                       {items.length} {items.length === 1 ? "entry" : "entries"}
                                     </span>
+                                    {(day.daySettledAmount || 0) > 0 && (
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/40">
+                                        🤝 Settled
+                                      </span>
+                                    )}
                                   </div>
-                                  <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
+                                  <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] block mt-0.5">
                                     {fullDateLabel}
                                   </span>
                                 </div>
                               </div>
 
-                              {/* Day Net Impact & Cumulative Balance */}
-                              <div className="text-right flex-shrink-0">
-                                <div className={`font-serif font-bold text-xs ${
-                                  day.delta > 0
-                                    ? "text-[#1E7D46] dark:text-emerald-400"
-                                    : day.delta < 0
-                                    ? "text-[#A8441F] dark:text-rose-400"
-                                    : "text-[#6B7268] dark:text-[#8E9C95]"
-                                }`}>
-                                  {day.delta > 0 ? "+" : ""}{symbol}{Math.round(day.delta).toLocaleString()}
+                              {/* THE 2 DAY BALANCES: (1) Total Lena / Dena for this day, (2) Balance Left After Settled */}
+                              <div className="flex items-center gap-4 sm:gap-6 self-end sm:self-auto pt-1 sm:pt-0">
+                                {/* Balance 1: Total Lena ya Dena for that day */}
+                                <div className="text-right">
+                                  <span className="text-[9px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
+                                    Day Lena/Dena
+                                  </span>
+                                  <div className={`font-serif font-bold text-xs ${
+                                    (day.dayExpenseDelta ?? day.delta) > 0
+                                      ? "text-[#1E7D46] dark:text-emerald-400"
+                                      : (day.dayExpenseDelta ?? day.delta) < 0
+                                      ? "text-[#A8441F] dark:text-rose-400"
+                                      : "text-stone-600 dark:text-stone-300"
+                                  }`}>
+                                    {(day.dayExpenseDelta ?? day.delta) > 0
+                                      ? `+${symbol}${Math.round(day.dayExpenseDelta ?? day.delta).toLocaleString()} (Lena)`
+                                      : (day.dayExpenseDelta ?? day.delta) < 0
+                                      ? `-${symbol}${Math.round(Math.abs(day.dayExpenseDelta ?? day.delta)).toLocaleString()} (Dena)`
+                                      : "Rs 0"}
+                                  </div>
+                                  {(day.daySettledAmount || 0) > 0 && (
+                                    <span className="text-[9px] text-teal-600 dark:text-teal-400 font-medium block">
+                                      Settled: {symbol}{Math.round(day.daySettledAmount || 0).toLocaleString()}
+                                    </span>
+                                  )}
                                 </div>
-                                <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] font-mono block">
-                                  Running: {symbol}{Math.round(day.runningTotal).toLocaleString()}
-                                </span>
+
+                                <span className="h-7 w-[1px] bg-stone-300 dark:bg-stone-700" />
+
+                                {/* Balance 2: Remaining Balance Left After Settled */}
+                                <div className="text-right">
+                                  <span className="text-[9px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
+                                    Remaining Left
+                                  </span>
+                                  <div className={`font-serif font-bold text-xs sm:text-sm ${
+                                    (day.closingBalance ?? day.runningTotal) > 0.01
+                                      ? "text-[#1E7D46] dark:text-emerald-400"
+                                      : (day.closingBalance ?? day.runningTotal) < -0.01
+                                      ? "text-[#A8441F] dark:text-rose-400"
+                                      : "text-emerald-600 dark:text-emerald-400"
+                                  }`}>
+                                    {(day.closingBalance ?? day.runningTotal) > 0.01
+                                      ? `+${symbol}${Math.round(day.closingBalance ?? day.runningTotal).toLocaleString()} (Lena)`
+                                      : (day.closingBalance ?? day.runningTotal) < -0.01
+                                      ? `-${symbol}${Math.round(Math.abs(day.closingBalance ?? day.runningTotal)).toLocaleString()} (Dena)`
+                                      : "✓ Fully Settled"}
+                                  </div>
+                                  <span className="text-[9px] text-[#6B7268] dark:text-[#8E9C95] block">
+                                    {(day.closingBalance ?? day.runningTotal) > 0.01
+                                      ? "Owed to you"
+                                      : (day.closingBalance ?? day.runningTotal) < -0.01
+                                      ? "You owe"
+                                      : "Clear (Rs 0 left)"}
+                                  </span>
+                                </div>
                               </div>
                             </button>
 
                             {/* Day Items List */}
                             {isOpen && (
-                              <div className="divide-y divide-[#E5E0D8]/40 dark:divide-[#1E2824]/40 p-1">
+                              <div className="divide-y divide-[#E5E0D8]/40 dark:divide-[#1E2824]/40 p-2 space-y-2">
+                                {/* Explicit Day Balance & Settlement Breakdown Banner */}
+                                <div className="bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8]/80 dark:border-[#1E2824]/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                  <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                                    <div>
+                                      <span className="text-[9px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] block">
+                                        Day Total Lena/Dena
+                                      </span>
+                                      <span className="font-semibold text-xs text-[#162B27] dark:text-white">
+                                        {(day.dayExpenseDelta ?? day.delta) > 0
+                                          ? `+${symbol}${Math.round(day.dayExpenseDelta ?? day.delta).toLocaleString()} (Lena - ${selectedPerson.name} owes you)`
+                                          : (day.dayExpenseDelta ?? day.delta) < 0
+                                          ? `-${symbol}${Math.round(Math.abs(day.dayExpenseDelta ?? day.delta)).toLocaleString()} (Dena - You owe ${selectedPerson.name})`
+                                          : "Rs 0 (Balanced)"}
+                                      </span>
+                                    </div>
+
+                                    {(day.daySettledAmount || 0) > 0 && (
+                                      <>
+                                        <span className="h-5 w-[1px] bg-stone-300 dark:bg-stone-700" />
+                                        <div>
+                                          <span className="text-[9px] uppercase font-bold text-teal-600 dark:text-teal-400 block">
+                                            Settled on this Day
+                                          </span>
+                                          <span className="font-semibold text-xs text-teal-700 dark:text-teal-300">
+                                            🤝 {symbol}{Math.round(day.daySettledAmount || 0).toLocaleString()} settled
+                                          </span>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  <div className="text-right">
+                                    <span className="text-[9px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] block">
+                                      Remaining Balance Left
+                                    </span>
+                                    <span className={`font-serif font-bold text-xs ${
+                                      (day.closingBalance ?? day.runningTotal) > 0.01
+                                        ? "text-[#1E7D46] dark:text-emerald-400"
+                                        : (day.closingBalance ?? day.runningTotal) < -0.01
+                                        ? "text-[#A8441F] dark:text-rose-400"
+                                        : "text-emerald-600 dark:text-emerald-400"
+                                    }`}>
+                                      {(day.closingBalance ?? day.runningTotal) > 0.01
+                                        ? `+${symbol}${Math.round(day.closingBalance ?? day.runningTotal).toLocaleString()} Left (Lena / Owes you)`
+                                        : (day.closingBalance ?? day.runningTotal) < -0.01
+                                        ? `-${symbol}${Math.round(Math.abs(day.closingBalance ?? day.runningTotal)).toLocaleString()} Left (Dena / You owe)`
+                                        : "✓ Fully Settled (Rs 0 Left)"}
+                                    </span>
+                                  </div>
+                                </div>
                                 {items.length === 0 ? (
                                   <div className="p-3 text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">
                                     No item records found for this day.

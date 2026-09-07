@@ -101,7 +101,6 @@ export async function GET(
     string,
     {
       date: string;
-      delta: number;
       items: any[];
     }
   > = {};
@@ -110,7 +109,6 @@ export async function GET(
     if (!daysMap[dStr]) {
       daysMap[dStr] = {
         date: dStr,
-        delta: 0,
         items: [],
       };
     }
@@ -148,7 +146,6 @@ export async function GET(
     totalExpensesCount++;
     const key = dayKey(e.date);
     const bucket = getDayBucket(key);
-    bucket.delta += delta;
 
     bucket.items.push({
       type: "expense",
@@ -183,15 +180,16 @@ export async function GET(
     const amount = Number(s.amount);
     let delta = 0;
     if (s.fromPersonId === personId && s.toPersonId === user.selfPersonId) {
+      // Contact paid user -> debt owed by contact to user decreases
       delta = -amount;
     } else if (s.fromPersonId === user.selfPersonId && s.toPersonId === personId) {
+      // User paid contact -> debt owed by user to contact cleared / contact owes user more
       delta = +amount;
     }
 
     totalSettlementsCount++;
     const key = dayKey(s.date);
     const bucket = getDayBucket(key);
-    bucket.delta += delta;
 
     bucket.items.push({
       type: "settlement",
@@ -215,19 +213,56 @@ export async function GET(
     });
   }
 
-  // Sort chronologically to compute cumulative running total
+  // Sort chronologically to compute cumulative running total & day breakdown
   const sortedDates = Object.keys(daysMap).sort();
   let running = 0;
+
   const chronological = sortedDates.map((day) => {
-    running = Math.round((running + daysMap[day].delta) * 100) / 100;
+    const bucket = daysMap[day];
+    const openingBalance = running;
+
+    let dayExpenseDelta = 0;
+    let dayExpenseLena = 0;
+    let dayExpenseDena = 0;
+    let daySettlementDelta = 0;
+    let daySettledAmount = 0;
+
+    for (const item of bucket.items) {
+      if (item.type === "expense") {
+        dayExpenseDelta += item.pairwiseDelta;
+        if (item.pairwiseDelta > 0) {
+          dayExpenseLena += item.pairwiseDelta;
+        } else if (item.pairwiseDelta < 0) {
+          dayExpenseDena += Math.abs(item.pairwiseDelta);
+        }
+      } else if (item.type === "settlement") {
+        daySettlementDelta += item.pairwiseDelta;
+        daySettledAmount += item.amount;
+      }
+    }
+
+    const dayNetDelta = Math.round((dayExpenseDelta + daySettlementDelta) * 100) / 100;
+    running = Math.round((running + dayNetDelta) * 100) / 100;
+    const closingBalance = running;
+
     // Sort items within each day by time descending
-    const items = [...daysMap[day].items].sort(
+    const items = [...bucket.items].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
+
     return {
       date: day,
-      delta: Math.round(daysMap[day].delta * 100) / 100,
-      runningTotal: running,
+      dayExpenseDelta: Math.round(dayExpenseDelta * 100) / 100,
+      dayExpenseLena: Math.round(dayExpenseLena * 100) / 100,
+      dayExpenseDena: Math.round(dayExpenseDena * 100) / 100,
+      daySettlementDelta: Math.round(daySettlementDelta * 100) / 100,
+      daySettledAmount: Math.round(daySettledAmount * 100) / 100,
+      dayNetDelta,
+      delta: dayNetDelta,
+      openingBalance: Math.round(openingBalance * 100) / 100,
+      closingBalance,
+      runningTotal: closingBalance,
+      isSettled: Math.abs(closingBalance) < 0.01,
       items,
     };
   });
