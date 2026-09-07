@@ -19,10 +19,19 @@ import { useSync } from "@/context/SyncContext";
 
 interface Expense {
   id: string;
-  amount: string;
+  amount: string | number;
   description: string;
   category: string | null;
   date: string;
+  createdAt?: string;
+  isPersonal?: boolean;
+  workspaceId?: string | null;
+  workspaceName?: string | null;
+  account?: { id: string; name: string; type: string; color: string | null; icon: string | null } | null;
+  userShare?: number;
+  userPaid?: number;
+  paidBy?: { personId: string; name: string; amount: number; isSelf: boolean }[];
+  splitWith?: { personId: string; name: string; amount: number; isSelf: boolean }[];
 }
 
 interface DayStat {
@@ -101,6 +110,8 @@ export default function DashboardPage() {
   const [accounts, setAccounts] = useState<{ id: string; name: string; type: string; balance: number | string }[]>([]);
   const [showBalance, setShowBalance] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activityScope, setActivityScope] = useState<"all" | "personal">("all");
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
   // Quick Entry State
   const [entryType, setEntryType] = useState<"expense" | "shared" | "income" | "transfer">("expense");
@@ -182,7 +193,7 @@ export default function DashboardPage() {
       try {
         const [wsRes, expRes, overviewRes, trendRes, accRes] = await Promise.all([
           apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
-          apiFetch<{ expenses: Expense[] }>("/api/expenses/personal"),
+          apiFetch<{ expenses: Expense[] }>("/api/expenses"),
           apiFetch<Overview>("/api/stats/overview"),
           apiFetch<{ days: TrendDay[] }>("/api/stats/last7days?range=week"),
           apiFetch<{ accounts: { id: string; name: string; type: string; balance: number | string }[] }>("/api/accounts"),
@@ -206,7 +217,7 @@ export default function DashboardPage() {
       // Refresh with latest reconciled server data
       Promise.all([
         apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
-        apiFetch<{ expenses: Expense[] }>("/api/expenses/personal"),
+        apiFetch<{ expenses: Expense[] }>("/api/expenses"),
         apiFetch<Overview>("/api/stats/overview"),
         apiFetch<{ days: TrendDay[] }>("/api/stats/last7days?range=week"),
         apiFetch<{ accounts: { id: string; name: string; type: string; balance: number | string }[] }>("/api/accounts"),
@@ -404,7 +415,7 @@ export default function DashboardPage() {
         try {
           const [wsRes, expRes] = await Promise.all([
             apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
-            apiFetch<{ expenses: Expense[] }>("/api/expenses/personal"),
+            apiFetch<{ expenses: Expense[] }>("/api/expenses"),
           ]);
           if (wsRes?.workspaces) setWorkspaces(wsRes.workspaces);
           if (expRes?.expenses) setExpenses(expRes.expenses);
@@ -461,7 +472,7 @@ export default function DashboardPage() {
 
   function handleEditClick(exp: Expense) {
     setEditingId(exp.id);
-    setAmount(exp.amount);
+    setAmount(String(exp.amount)); if (exp.account?.id) setAccountId(exp.account.id);
     setDescription(exp.description);
     setCategory(exp.category ?? "");
     const d = new Date(exp.date);
@@ -490,6 +501,91 @@ export default function DashboardPage() {
     }
   }
 
+  // Unified & Grouped Expenses (personal & shared) - MUST be called unconditionally before early returns
+  const filteredActivityExpenses = useMemo(() => {
+    if (activityScope === "personal") {
+      return expenses.filter((e) => e.isPersonal !== false);
+    }
+    return expenses;
+  }, [expenses, activityScope]);
+
+  const groupedDays = useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+    const map: Record<
+      string,
+      {
+        dateStr: string;
+        label: string;
+        subLabel: string;
+        items: Expense[];
+        totalDayAmount: number;
+        totalDayShare: number;
+      }
+    > = {};
+
+    for (const exp of filteredActivityExpenses) {
+      const dStr = exp.date.slice(0, 10);
+      if (!map[dStr]) {
+        let label = "";
+        if (dStr === todayStr) {
+          label = "Today";
+        } else if (dStr === yesterdayStr) {
+          label = "Yesterday";
+        } else {
+          const dObj = new Date(dStr + "T00:00:00");
+          label = dObj.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          });
+        }
+
+        const dObj = new Date(dStr + "T00:00:00");
+        const subLabel = dObj.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+
+        map[dStr] = {
+          dateStr: dStr,
+          label,
+          subLabel,
+          items: [],
+          totalDayAmount: 0,
+          totalDayShare: 0,
+        };
+      }
+
+      map[dStr].items.push(exp);
+      const amt = Number(exp.amount) || 0;
+      const share = typeof exp.userShare === "number" ? exp.userShare : (exp.isPersonal !== false ? amt : 0);
+      map[dStr].totalDayAmount += amt;
+      map[dStr].totalDayShare += share;
+    }
+
+    return Object.values(map).sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+  }, [filteredActivityExpenses]);
+
+  const toggleDayAccordion = (dateStr: string) => {
+    setExpandedDays((prev) => ({
+      ...prev,
+      [dateStr]: prev[dateStr] === undefined ? false : !prev[dateStr],
+    }));
+  };
+
+  const toggleAllAccordions = (expand: boolean) => {
+    const updated: Record<string, boolean> = {};
+    for (const g of groupedDays) {
+      updated[g.dateStr] = expand;
+    }
+    setExpandedDays(updated);
+  };
+
   if (loading) {
     return (
       <AppLayout title="Dashboard" subtitle="Financial Pulse">
@@ -505,18 +601,6 @@ export default function DashboardPage() {
   const totalYouOwe = Math.abs(youOwe.reduce((s, p) => s + p.netBalance, 0));
   const totalOwesYou = owedToYou.reduce((s, p) => s + p.netBalance, 0);
   const netTotal = (overview?.netByPerson ?? []).reduce((s, p) => s + p.netBalance, 0);
-
-  // Group expenses into Today, Yesterday, and Older
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
-
-  const todayExpenses = expenses.filter((e) => e.date.startsWith(todayStr));
-  const yesterdayExpenses = expenses.filter((e) => e.date.startsWith(yesterdayStr));
-  const olderExpenses = expenses.filter(
-    (e) => !e.date.startsWith(todayStr) && !e.date.startsWith(yesterdayStr)
-  );
 
   return (
     <AppLayout
@@ -771,193 +855,280 @@ export default function DashboardPage() {
         {/* Two-Column Grid: Left Activity Feed, Right Quick Entry & Settlements */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* Left Column (2 Cols wide on desktop): Recent Activity Feed */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="font-serif font-bold text-2xl text-[#162B27] dark:text-white">
-                Recent Activity
-              </h2>
-              <span className="text-xs text-[#5A6863] dark:text-[#8E9C95]">
-                {expenses.length} personal entries
-              </span>
+          <div className="lg:col-span-2 space-y-5">
+            {/* Header & Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 shadow-xs">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                    Activity Ledger
+                  </h2>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#5A6863] dark:text-[#8E9C95]">
+                    {filteredActivityExpenses.length} {activityScope === "all" ? "entries (all)" : "personal"}
+                  </span>
+                </div>
+                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                  Day-by-day expenditure across your personal & shared workspaces
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                {/* Scope Switcher */}
+                <div className="flex bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-0.5 rounded-xl text-xs">
+                  <button
+                    onClick={() => setActivityScope("all")}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      activityScope === "all"
+                        ? "bg-[#0F5C53] text-white shadow-xs"
+                        : "text-[#5A6863] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
+                    }`}
+                  >
+                    All Everywhere
+                  </button>
+                  <button
+                    onClick={() => setActivityScope("personal")}
+                    className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                      activityScope === "personal"
+                        ? "bg-[#0F5C53] text-white shadow-xs"
+                        : "text-[#5A6863] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
+                    }`}
+                  >
+                    Personal Only
+                  </button>
+                </div>
+
+                {/* Link to Full Page */}
+                <Link
+                  href="/expenses"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF8F5] dark:bg-[#1A2229] hover:bg-[#0F5C53]/10 dark:hover:bg-[#10B981]/10 text-[#0F5C53] dark:text-[#10B981] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl text-xs font-semibold transition-colors"
+                >
+                  <span>Full Ledger</span>
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
             </div>
 
-            {/* TODAY Group */}
-            {todayExpenses.length > 0 && (
-              <div>
-                <div className="text-[10px] uppercase tracking-wider font-bold text-[#5A6863] dark:text-[#8E9C95] mb-3 flex items-center gap-2">
-                  <span>Today</span>
-                  <span className="flex-1 h-[1px] bg-[#E5E0D8] dark:bg-[#1E2824]" />
-                </div>
-                <div className="space-y-2.5">
-                  {todayExpenses.map((exp) => (
-                    <div
-                      key={exp.id}
-                      className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 shadow-xs flex items-center justify-between hover:border-[#0F5C53]/40 dark:hover:border-[#10B981]/40 transition-colors"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#0F5C53] dark:text-[#10B981] flex items-center justify-center flex-shrink-0">
-                          {getCategoryIcon(exp.category)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm text-[#162B27] dark:text-white">
-                            {exp.description}
-                          </p>
-                          <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
-                            {exp.category ? `• ${exp.category}` : "• Uncategorized"} • {new Date(exp.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
-                          -{symbol}{Math.round(Number(exp.amount)).toLocaleString()}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleEditClick(exp)}
-                            className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
-                            title="Edit"
-                          >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteExpense(exp.id)}
-                            className="p-1.5 text-stone-400 hover:text-rose-600 text-xs cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                            title="Delete"
-                          >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+            {/* Quick Expand/Collapse toggles if groups exist */}
+            {groupedDays.length > 0 && (
+              <div className="flex items-center justify-between text-xs text-[#5A6863] dark:text-[#8E9C95] px-1">
+                <span>Grouped by Date ({groupedDays.length} days recorded)</span>
+                <div className="flex items-center gap-3 font-medium">
+                  <button
+                    onClick={() => toggleAllAccordions(true)}
+                    className="hover:text-[#0F5C53] dark:hover:text-[#10B981] cursor-pointer"
+                  >
+                    Expand All
+                  </button>
+                  <span>•</span>
+                  <button
+                    onClick={() => toggleAllAccordions(false)}
+                    className="hover:text-[#0F5C53] dark:hover:text-[#10B981] cursor-pointer"
+                  >
+                    Collapse All
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* YESTERDAY Group */}
-            {yesterdayExpenses.length > 0 && (
-              <div>
-                <div className="text-[10px] uppercase tracking-wider font-bold text-[#5A6863] dark:text-[#8E9C95] mb-3 flex items-center gap-2">
-                  <span>Yesterday</span>
-                  <span className="flex-1 h-[1px] bg-[#E5E0D8] dark:bg-[#1E2824]" />
-                </div>
-                <div className="space-y-2.5">
-                  {yesterdayExpenses.map((exp) => (
-                    <div
-                      key={exp.id}
-                      className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 shadow-xs flex items-center justify-between hover:border-[#0F5C53]/40 dark:hover:border-[#10B981]/40 transition-colors"
+            {/* Day-by-Day Accordion Groups */}
+            <div className="space-y-4">
+              {groupedDays.map((group) => {
+                const isOpen = expandedDays[group.dateStr] !== false; // default open
+
+                return (
+                  <div
+                    key={group.dateStr}
+                    className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl overflow-hidden shadow-xs transition-all"
+                  >
+                    {/* Day Accordion Header Button */}
+                    <button
+                      type="button"
+                      onClick={() => toggleDayAccordion(group.dateStr)}
+                      className="w-full px-4 py-3.5 bg-[#FAF8F5]/60 dark:bg-[#1A2229]/40 hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229]/80 border-b border-[#E5E0D8]/60 dark:border-[#1E2824]/60 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer"
                     >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#0F5C53] dark:text-[#10B981] flex items-center justify-center flex-shrink-0">
-                          {getCategoryIcon(exp.category)}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-6 h-6 rounded-lg bg-stone-200/60 dark:bg-stone-800 flex items-center justify-center text-stone-600 dark:text-stone-300 transition-transform duration-200 ${
+                            isOpen ? "rotate-90" : ""
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
                         </div>
                         <div>
-                          <p className="font-medium text-sm text-[#162B27] dark:text-white">
-                            {exp.description}
-                          </p>
-                          <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
-                            {exp.category ? `• ${exp.category}` : "• Uncategorized"} • {new Date(exp.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
-                          -{symbol}{Math.round(Number(exp.amount)).toLocaleString()}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleEditClick(exp)}
-                            className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
-                          >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteExpense(exp.id)}
-                            className="p-1.5 text-stone-400 hover:text-rose-600 text-xs cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                          >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* OLDER Group */}
-            {olderExpenses.length > 0 && (
-              <div>
-                <div className="text-[10px] uppercase tracking-wider font-bold text-[#5A6863] dark:text-[#8E9C95] mb-3 flex items-center gap-2">
-                  <span>Earlier Transactions</span>
-                  <span className="flex-1 h-[1px] bg-[#E5E0D8] dark:bg-[#1E2824]" />
-                </div>
-                <div className="space-y-2.5">
-                  {olderExpenses.slice(0, 10).map((exp) => (
-                    <div
-                      key={exp.id}
-                      className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 shadow-xs flex items-center justify-between hover:border-[#0F5C53]/40 dark:hover:border-[#10B981]/40 transition-colors"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#0F5C53] dark:text-[#10B981] flex items-center justify-center flex-shrink-0">
-                          {getCategoryIcon(exp.category)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm text-[#162B27] dark:text-white">
-                            {exp.description}
-                          </p>
-                          <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
-                            {exp.category ? `• ${exp.category}` : "• Uncategorized"} • {new Date(exp.date).toLocaleDateString()}
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm text-[#162B27] dark:text-white">
+                              {group.label}
+                            </span>
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] text-[#5A6863] dark:text-[#8E9C95]">
+                              {group.items.length} {group.items.length === 1 ? "entry" : "entries"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95]">
+                            {group.subLabel}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <span className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
-                          -{symbol}{Math.round(Number(exp.amount)).toLocaleString()}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleEditClick(exp)}
-                            className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
-                          >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteExpense(exp.id)}
-                            className="p-1.5 text-stone-400 hover:text-rose-600 text-xs cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                          >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                            </svg>
-                          </button>
+                      {/* Day summary totals */}
+                      <div className="text-right flex-shrink-0">
+                        <div className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
+                          -{symbol}{Math.round(group.totalDayShare).toLocaleString()}
                         </div>
+                        {group.totalDayAmount !== group.totalDayShare && (
+                          <div className="text-[10px] text-[#5A6863] dark:text-[#8E9C95]">
+                            Bill: {symbol}{Math.round(group.totalDayAmount).toLocaleString()}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    </button>
 
-            {expenses.length === 0 && (
+                    {/* Day Items List */}
+                    {isOpen && (
+                      <div className="divide-y divide-[#E5E0D8]/50 dark:divide-[#1E2824]/50">
+                        {group.items.map((exp) => {
+                          const isPersonal = exp.isPersonal !== false;
+                          const userShare = typeof exp.userShare === "number" ? exp.userShare : (isPersonal ? Number(exp.amount) : 0);
+                          const userPaid = typeof exp.userPaid === "number" ? exp.userPaid : (isPersonal ? Number(exp.amount) : 0);
+                          const timeStr = new Date(exp.date).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          });
+
+                          return (
+                            <div
+                              key={exp.id}
+                              className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-[#FAF8F5]/30 dark:hover:bg-[#1A2229]/20 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#0F5C53] dark:text-[#10B981] flex items-center justify-center flex-shrink-0">
+                                  {getCategoryIcon(exp.category)}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-medium text-sm text-[#162B27] dark:text-white truncate">
+                                      {exp.description}
+                                    </p>
+
+                                    {/* Workspace or Personal Badge */}
+                                    {isPersonal ? (
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
+                                        Personal
+                                      </span>
+                                    ) : (
+                                      <Link
+                                        href={`/workspaces/${exp.workspaceId}`}
+                                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800/40 hover:underline flex items-center gap-1"
+                                      >
+                                        <span>📁 {exp.workspaceName || "Shared"}</span>
+                                      </Link>
+                                    )}
+
+                                    {/* Funding Account Badge */}
+                                    {exp.account && (
+                                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#FAF8F5] dark:bg-[#1A2229] text-[#5A6863] dark:text-[#8E9C95] border border-[#E5E0D8] dark:border-[#1E2824] flex items-center gap-1">
+                                        <span>💳</span>
+                                        <span>{exp.account.name}</span>
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5 flex-wrap">
+                                    <span>{exp.category || "Uncategorized"}</span>
+                                    <span>•</span>
+                                    <span>{timeStr}</span>
+                                    <span>•</span>
+                                    {/* Who paid info */}
+                                    {isPersonal ? (
+                                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                        Paid by You
+                                      </span>
+                                    ) : userPaid > 0 ? (
+                                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                        You paid {symbol}{Math.round(userPaid).toLocaleString()}
+                                      </span>
+                                    ) : (
+                                      <span className="text-amber-600 dark:text-amber-400 font-medium">
+                                        Paid by {exp.paidBy?.map((p) => p.name).join(", ") || "Others"}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                <div className="text-right">
+                                  <div className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
+                                    -{symbol}{Math.round(userShare).toLocaleString()}
+                                  </div>
+                                  {!isPersonal && Number(exp.amount) !== userShare && (
+                                    <div className="text-[10px] text-[#5A6863] dark:text-[#8E9C95]">
+                                      Total: {symbol}{Math.round(Number(exp.amount)).toLocaleString()}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                  {isPersonal ? (
+                                    <>
+                                      <button
+                                        onClick={() => handleEditClick(exp)}
+                                        className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
+                                        title="Edit"
+                                      >
+                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteExpense(exp.id)}
+                                        className="p-1.5 text-stone-400 hover:text-rose-600 text-xs cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                                        title="Delete"
+                                      >
+                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                          <polyline points="3 6 5 6 21 6" />
+                                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        </svg>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <Link
+                                      href={`/workspaces/${exp.workspaceId}`}
+                                      className="p-1.5 text-stone-400 hover:text-[#0F5C53] dark:hover:text-[#10B981] text-xs rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
+                                      title="Open Workspace"
+                                    >
+                                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                        <polyline points="15 3 21 3 21 9" />
+                                        <line x1="10" y1="14" x2="21" y2="3" />
+                                      </svg>
+                                    </Link>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {filteredActivityExpenses.length === 0 && (
               <div className="bg-white dark:bg-[#13191E] border border-dashed border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-12 text-center text-[#5A6863] dark:text-[#8E9C95]">
-                <p className="font-serif font-semibold text-base text-[#162B27] dark:text-white">No personal expenses yet</p>
-                <p className="text-xs mt-1">Use the Quick Entry form to log your first expenditure.</p>
+                <p className="font-serif font-semibold text-base text-[#162B27] dark:text-white">
+                  No expenses found
+                </p>
+                <p className="text-xs mt-1">
+                  {activityScope === "all"
+                    ? "Log a personal expense or shared workspace expense to see it here."
+                    : "No personal expenses yet. Switch to 'All Everywhere' or add a new entry."}
+                </p>
               </div>
             )}
           </div>

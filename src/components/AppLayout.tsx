@@ -20,6 +20,7 @@ interface AppLayoutProps {
 
 const MOBILE_TABS = [
   "/dashboard",
+  "/expenses",
   "/workspaces",
   "/accounts",
   "/people",

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
 import { ModalPortal } from "@/components/ModalPortal";
@@ -23,16 +24,102 @@ interface Overview {
   netByPerson: PersonNet[];
 }
 
+interface ParticipantInfo {
+  personId: string;
+  name: string;
+  amount: number;
+  isSelf: boolean;
+}
+
+interface LedgerExpenseItem {
+  type: "expense";
+  id: string;
+  description: string;
+  category: string | null;
+  date: string;
+  workspace: { id: string; name: string };
+  account: { id: string; name: string; type: string; color: string | null; icon: string | null } | null;
+  totalAmount: number;
+  personShare: number;
+  personPaid: number;
+  selfShare: number;
+  selfPaid: number;
+  pairwiseDelta: number;
+  payments: ParticipantInfo[];
+  splits: ParticipantInfo[];
+}
+
+interface LedgerSettlementItem {
+  type: "settlement";
+  id: string;
+  date: string;
+  workspace: { id: string; name: string };
+  account: { id: string; name: string; type: string; color: string | null; icon: string | null } | null;
+  amount: number;
+  fromPerson: { id: string; name: string; isSelf: boolean };
+  toPerson: { id: string; name: string; isSelf: boolean };
+  pairwiseDelta: number;
+  note: string | null;
+}
+
+type LedgerItem = LedgerExpenseItem | LedgerSettlementItem;
+
 interface LedgerDay {
   date: string;
   delta: number;
   runningTotal: number;
+  items?: LedgerItem[];
 }
 
 interface Ledger {
   personId: string;
+  personName?: string;
   total: number;
+  totalExpensesCount?: number;
+  totalSettlementsCount?: number;
   days: LedgerDay[];
+}
+
+function getCategoryIcon(cat: string | null) {
+  const c = (cat || "").toLowerCase();
+  if (c.includes("coffee") || c.includes("food") || c.includes("eat") || c.includes("din") || c.includes("lunch")) {
+    return (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3" />
+      </svg>
+    );
+  }
+  if (c.includes("uber") || c.includes("transport") || c.includes("auto") || c.includes("fuel") || c.includes("cab") || c.includes("travel")) {
+    return (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+        <circle cx="7" cy="17" r="2" />
+        <circle cx="17" cy="17" r="2" />
+      </svg>
+    );
+  }
+  if (c.includes("grocer") || c.includes("shop") || c.includes("blink") || c.includes("mart") || c.includes("supplies")) {
+    return (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="8" cy="21" r="1" />
+        <circle cx="19" cy="21" r="1" />
+        <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+      </svg>
+    );
+  }
+  if (c.includes("bill") || c.includes("util") || c.includes("electr") || c.includes("rent") || c.includes("wifi")) {
+    return (
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+      <circle cx="7" cy="7" r=".5" fill="currentColor" />
+    </svg>
+  );
 }
 
 export default function PeoplePage() {
@@ -51,6 +138,8 @@ export default function PeoplePage() {
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [loadingLedger, setLoadingLedger] = useState(false);
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [expandedDrawers, setExpandedDrawers] = useState<Record<string, boolean>>({});
 
   // Add Contact Modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -98,11 +187,45 @@ export default function PeoplePage() {
   useEffect(() => {
     if (!selectedPerson) return;
     setLoadingLedger(true);
+    setExpandedDrawers({});
     apiFetch<Ledger>(`/api/people/${selectedPerson.id}/ledger`)
-      .then((res) => setLedger(res))
+      .then((res) => {
+        setLedger(res);
+        // By default, expand all days
+        const defaultOpen: Record<string, boolean> = {};
+        if (res?.days) {
+          for (const d of res.days) {
+            defaultOpen[d.date] = true;
+          }
+        }
+        setExpandedDays(defaultOpen);
+      })
       .catch(() => setLedger(null))
       .finally(() => setLoadingLedger(false));
   }, [selectedPerson]);
+
+  function toggleDayAccordion(dateStr: string) {
+    setExpandedDays((prev) => ({
+      ...prev,
+      [dateStr]: prev[dateStr] === undefined ? false : !prev[dateStr],
+    }));
+  }
+
+  function toggleAllAccordions(expand: boolean) {
+    if (!ledger?.days) return;
+    const updated: Record<string, boolean> = {};
+    for (const d of ledger.days) {
+      updated[d.date] = expand;
+    }
+    setExpandedDays(updated);
+  }
+
+  function toggleDrawer(itemId: string) {
+    setExpandedDrawers((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -198,101 +321,89 @@ export default function PeoplePage() {
               Network Directory
             </div>
             <h1 className="font-serif font-bold text-3xl md:text-4xl text-[#162B27] dark:text-white tracking-tight mt-0.5">
-              People
+              Contacts & Balances
             </h1>
-            <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1">
-              Track multi-ledger balances and transaction history with your contacts.
-            </p>
           </div>
 
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white px-5 py-2.5 rounded-2xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+            className="inline-flex items-center gap-2 bg-[#0F5C53] hover:bg-[#0A3F38] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-xs transition-all cursor-pointer self-start sm:self-auto"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            <span>Add Contact</span>
+            <span>+ Add Contact</span>
           </button>
         </div>
 
-        {/* Top 3 Summary Cards matching Figma */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {/* Card 1: Total Owed to You */}
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs transition-all hover:border-[#0F5C53]/30">
-            <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
-              Total Owed to You
+        {/* Global Net Balance Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 shadow-xs">
+            <span className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
+              Overall Balance
             </span>
-            <div className="font-serif font-bold text-3xl text-[#1E7D46] dark:text-emerald-400 mt-2">
+            <div className={`font-serif font-bold text-2xl mt-1 ${netTotal > 0 ? "text-[#1E7D46] dark:text-emerald-400" : netTotal < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-[#162B27] dark:text-white"}`}>
+              {netTotal > 0 ? "+" : ""}{symbol}{Math.round(netTotal).toLocaleString()}
+            </div>
+            <span className="text-[11px] text-[#6B7268] dark:text-[#8E9C95] block mt-0.5">
+              Across all contacts
+            </span>
+          </div>
+
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 shadow-xs">
+            <span className="text-[10px] uppercase font-bold text-[#1E7D46] dark:text-emerald-400 tracking-wider block">
+              Owed to You (Lena)
+            </span>
+            <div className="font-serif font-bold text-2xl text-[#1E7D46] dark:text-emerald-400 mt-1">
               +{symbol}{Math.round(totalOwedToYou).toLocaleString()}
             </div>
-            <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1">
-              receivable across contacts
-            </p>
+            <span className="text-[11px] text-[#6B7268] dark:text-[#8E9C95] block mt-0.5">
+              Total to collect
+            </span>
           </div>
 
-          {/* Card 2: Total You Owe */}
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs transition-all hover:border-rose-500/30">
-            <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
-              Total You Owe
+          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 shadow-xs">
+            <span className="text-[10px] uppercase font-bold text-[#A8441F] dark:text-rose-400 tracking-wider block">
+              You Owe (Dena)
             </span>
-            <div className="font-serif font-bold text-3xl text-[#A8441F] dark:text-rose-400 mt-2">
+            <div className="font-serif font-bold text-2xl text-[#A8441F] dark:text-rose-400 mt-1">
               -{symbol}{Math.round(totalYouOwe).toLocaleString()}
             </div>
-            <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1">
-              payable across contacts
-            </p>
-          </div>
-
-          {/* Card 3: Net Position */}
-          <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs transition-all hover:border-[#0F5C53]/30">
-            <span className="text-[11px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider block">
-              Net Position
+            <span className="text-[11px] text-[#6B7268] dark:text-[#8E9C95] block mt-0.5">
+              Total to pay back
             </span>
-            <div className={`font-serif font-bold text-3xl mt-2 ${netTotal >= 0 ? "text-[#1E7D46] dark:text-emerald-400" : "text-[#A8441F] dark:text-rose-400"}`}>
-              {netTotal >= 0 ? "+" : "-"}{symbol}{Math.round(Math.abs(netTotal)).toLocaleString()}
-            </div>
-            <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-1">
-              {netTotal >= 0 ? "Overall net positive" : "Overall net payable"}
-            </p>
           </div>
         </div>
 
-        {/* Master-Detail Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column (5 Cols): Contacts List with Search & Filter */}
-          <div className="lg:col-span-5 bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+        {/* Two-Column Master-Detail Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column (5 Cols): Contacts Directory List */}
+          <div className="lg:col-span-5 bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 shadow-xs space-y-4">
             {/* Search Input */}
             <div className="relative">
-              <svg className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <input
+                type="text"
+                placeholder="Search contact by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 pl-9 text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+              />
+              <svg className="w-4 h-4 text-stone-400 absolute left-3 top-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.3-4.3" />
               </svg>
-              <input
-                type="text"
-                placeholder="Search contacts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3 py-2.5 bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl text-xs text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-              />
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] p-1 rounded-2xl text-[11px] font-medium overflow-x-auto">
-              {(
-                [
-                  { id: "all", label: "All" },
-                  { id: "owes_me", label: "Owes Me" },
-                  { id: "i_owe", label: "I Owe" },
-                  { id: "settled", label: "Settled" },
-                ] as const
-              ).map((tab) => (
+            {/* Filter Tabs */}
+            <div className="flex bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-1 rounded-xl text-xs">
+              {[
+                { id: "all", label: "All" },
+                { id: "owes_me", label: "Owes Me" },
+                { id: "i_owe", label: "I Owe" },
+                { id: "settled", label: "Settled" },
+              ].map((tab) => (
                 <button
                   key={tab.id}
-                  type="button"
-                  onClick={() => setFilterTab(tab.id)}
-                  className={`flex-1 py-1.5 px-2 rounded-xl whitespace-nowrap transition-all cursor-pointer text-center ${filterTab === tab.id
-                    ? "bg-white dark:bg-[#1A2229] text-[#0F5C53] dark:text-[#34D399] font-bold shadow-xs border border-transparent dark:border-[#1E2824]"
+                  onClick={() => setFilterTab(tab.id as any)}
+                  className={`flex-1 py-1.5 rounded-lg font-medium transition-all text-center cursor-pointer ${filterTab === tab.id
+                    ? "bg-[#0F5C53] text-white shadow-xs"
                     : "text-[#6B7268] dark:text-[#8E9C95] hover:text-[#162B27] dark:hover:text-white"
                     }`}
                 >
@@ -309,7 +420,7 @@ export default function PeoplePage() {
                 No contacts match the filter.
               </div>
             ) : (
-              <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
                 {filteredPeople.map((person) => {
                   const bal = netMap[person.id] || 0;
                   const isSelected = selectedPerson?.id === person.id;
@@ -323,21 +434,21 @@ export default function PeoplePage() {
                         : "bg-white dark:bg-[#161D22] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] border-[#E5E0D8] dark:border-[#1E2824]"
                         }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-10 h-10 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-[#0F5C53] dark:text-[#34D399] font-serif font-bold text-sm flex items-center justify-center flex-shrink-0">
                           {person.name.slice(0, 2).toUpperCase()}
                         </div>
-                        <div>
-                          <p className="font-semibold text-xs text-[#162B27] dark:text-white">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-xs text-[#162B27] dark:text-white truncate">
                             {person.name}
                           </p>
-                          <p className="text-[11px] text-[#6B7268] dark:text-[#8E9C95] truncate max-w-[140px]">
+                          <p className="text-[11px] text-[#6B7268] dark:text-[#8E9C95] truncate">
                             {person.email || "No email"}
                           </p>
                         </div>
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0 ml-2">
                         <span className={`font-serif font-bold text-xs ${bal > 0 ? "text-[#1E7D46] dark:text-emerald-400" : bal < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-[#6B7268] dark:text-[#8E9C95]"}`}>
                           {bal > 0 ? `+${symbol}${Math.round(bal).toLocaleString()}` : bal < 0 ? `-${symbol}${Math.round(Math.abs(bal)).toLocaleString()}` : "Settled"}
                         </span>
@@ -352,14 +463,14 @@ export default function PeoplePage() {
             )}
           </div>
 
-          {/* Right Column (7 Cols): Contact Detail & Running Ledger Inspection */}
-          <div className="lg:col-span-7 bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 shadow-xs space-y-6">
+          {/* Right Column (7 Cols): Contact Detail & Detailed Day-by-Day Ledger */}
+          <div className="lg:col-span-7 bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-5 sm:p-6 shadow-xs space-y-6">
             {selectedPerson ? (
               <>
-                {/* Contact Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#F0ECE6] dark:border-[#1E2824]">
+                {/* Contact Profile Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#F0ECE6] dark:border-[#1E2824]">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-[#0F5C53] dark:text-[#34D399] font-serif font-bold text-xl flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 dark:bg-emerald-500/20 text-[#0F5C53] dark:text-[#34D399] font-serif font-bold text-xl flex items-center justify-center flex-shrink-0">
                       {selectedPerson.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
@@ -382,18 +493,18 @@ export default function PeoplePage() {
                   </div>
                 </div>
 
-                {/* Quick Action Buttons: WhatsApp Reminder & Copy */}
+                {/* Quick Actions: WhatsApp Reminder, Copy Nudge & Remove */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => handleWhatsAppReminder(selectedPerson, netMap[selectedPerson.id] || 0)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <span>💬 WhatsApp Reminder</span>
                     </button>
                     <button
                       onClick={() => handleCopyReminder(selectedPerson, netMap[selectedPerson.id] || 0)}
-                      className="bg-[#FAF8F5] dark:bg-[#1A2229] hover:bg-[#F2EEE9] dark:hover:bg-[#161D22] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-stone-200 px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                      className="bg-[#FAF8F5] dark:bg-[#1A2229] hover:bg-[#F2EEE9] dark:hover:bg-[#161D22] border border-[#E5E0D8] dark:border-[#1E2824] text-[#162B27] dark:text-stone-200 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <span>📋 Copy Nudge</span>
                     </button>
@@ -413,53 +524,376 @@ export default function PeoplePage() {
                   </button>
                 </div>
 
-                {/* Running Ledger History matching Lena / Dena Figma Spec */}
-                <div>
-                  <h3 className="font-serif font-bold text-lg text-[#162B27] dark:text-white mb-1">
-                    Running Ledger Delta
-                  </h3>
-                  <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mb-4">
-                    Day-by-day balance timeline across all shared workspaces.
-                  </p>
-
-                  {loadingLedger ? (
-                    <div className="py-12 text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">
-                      Loading ledger timeline...
+                {/* Detailed Day-by-Day Expense Ledger Across All Workspaces */}
+                <div className="space-y-4">
+                  {/* Ledger Header & Controls */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-3.5 rounded-2xl">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-serif font-bold text-base text-[#162B27] dark:text-white">
+                          Shared Expense History
+                        </h3>
+                        {ledger && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] text-[#0F5C53] dark:text-[#10B981]">
+                            {ledger.totalExpensesCount || 0} expenses • {ledger.totalSettlementsCount || 0} settlements
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[#6B7268] dark:text-[#8E9C95] mt-0.5">
+                        Grouped day-by-day across all shared workspaces with {selectedPerson.name}
+                      </p>
                     </div>
-                  ) : !ledger || ledger.days.length === 0 ? (
+
+                    {ledger && ledger.days && ledger.days.length > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-[#6B7268] dark:text-[#8E9C95]">
+                        <button
+                          onClick={() => toggleAllAccordions(true)}
+                          className="hover:text-[#0F5C53] dark:hover:text-[#10B981] font-medium cursor-pointer"
+                        >
+                          Expand All
+                        </button>
+                        <span>•</span>
+                        <button
+                          onClick={() => toggleAllAccordions(false)}
+                          className="hover:text-[#0F5C53] dark:hover:text-[#10B981] font-medium cursor-pointer"
+                        >
+                          Collapse All
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Loading State */}
+                  {loadingLedger ? (
+                    <div className="py-16 text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">
+                      Loading complete transaction timeline across workspaces...
+                    </div>
+                  ) : !ledger || !ledger.days || ledger.days.length === 0 ? (
                     <div className="p-8 rounded-2xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">
-                      No recorded activity with {selectedPerson.name} yet.
+                      <p className="font-medium text-[#162B27] dark:text-white">No shared activity recorded yet</p>
+                      <p className="mt-1">Add {selectedPerson.name} to a shared workspace or log an expense with them.</p>
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
-                      {ledger.days.map((day) => (
-                        <div
-                          key={day.date}
-                          className="bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-3.5 flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <span className="font-semibold text-[#162B27] dark:text-white">
-                              {new Date(day.date).toLocaleDateString(undefined, {
-                                weekday: "short",
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </span>
-                            <span className="text-[#6B7268] dark:text-[#8E9C95] text-[11px] block mt-0.5 font-mono">
-                              Cumulative: {symbol}{Math.round(day.runningTotal).toLocaleString()}
-                            </span>
-                          </div>
+                    <div className="space-y-3.5 max-h-[600px] overflow-y-auto pr-1">
+                      {ledger.days.map((day) => {
+                        const isOpen = expandedDays[day.date] !== false; // default open
+                        const todayStr = new Date().toISOString().slice(0, 10);
+                        const yesterday = new Date();
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        const yesterdayStr = yesterday.toISOString().slice(0, 10);
 
-                          <div className="text-right">
-                            <span className={`font-serif font-bold text-sm ${day.delta > 0 ? "text-[#1E7D46] dark:text-emerald-400" : day.delta < 0 ? "text-[#A8441F] dark:text-rose-400" : "text-stone-500 dark:text-stone-400"}`}>
-                              {day.delta > 0 ? "+" : ""}{symbol}{Math.round(Math.abs(day.delta)).toLocaleString()}
-                            </span>
-                            <span className="block text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
-                              {day.delta > 0 ? "Owed to you" : "You paid/owe"}
-                            </span>
+                        let dateLabel = "";
+                        if (day.date === todayStr) dateLabel = "Today";
+                        else if (day.date === yesterdayStr) dateLabel = "Yesterday";
+                        else {
+                          dateLabel = new Date(day.date + "T00:00:00").toLocaleDateString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          });
+                        }
+
+                        const fullDateLabel = new Date(day.date + "T00:00:00").toLocaleDateString(undefined, {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        });
+
+                        const items = day.items || [];
+
+                        return (
+                          <div
+                            key={day.date}
+                            className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl overflow-hidden shadow-xs transition-all"
+                          >
+                            {/* Day Accordion Header Button */}
+                            <button
+                              type="button"
+                              onClick={() => toggleDayAccordion(day.date)}
+                              className="w-full px-4 py-3 bg-[#FAF8F5]/80 dark:bg-[#1A2229]/60 hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] border-b border-[#E5E0D8]/60 dark:border-[#1E2824]/60 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={`w-5 h-5 rounded-md bg-stone-200/70 dark:bg-stone-800 flex items-center justify-center text-stone-600 dark:text-stone-300 transition-transform duration-200 ${
+                                    isOpen ? "rotate-90" : ""
+                                  }`}
+                                >
+                                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <polyline points="9 18 15 12 9 6" />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-xs text-[#162B27] dark:text-white">
+                                      {dateLabel}
+                                    </span>
+                                    <span className="text-[10px] px-2 py-0.2 rounded-full bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] text-[#6B7268] dark:text-[#8E9C95]">
+                                      {items.length} {items.length === 1 ? "entry" : "entries"}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
+                                    {fullDateLabel}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Day Net Impact & Cumulative Balance */}
+                              <div className="text-right flex-shrink-0">
+                                <div className={`font-serif font-bold text-xs ${
+                                  day.delta > 0
+                                    ? "text-[#1E7D46] dark:text-emerald-400"
+                                    : day.delta < 0
+                                    ? "text-[#A8441F] dark:text-rose-400"
+                                    : "text-[#6B7268] dark:text-[#8E9C95]"
+                                }`}>
+                                  {day.delta > 0 ? "+" : ""}{symbol}{Math.round(day.delta).toLocaleString()}
+                                </div>
+                                <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] font-mono block">
+                                  Running: {symbol}{Math.round(day.runningTotal).toLocaleString()}
+                                </span>
+                              </div>
+                            </button>
+
+                            {/* Day Items List */}
+                            {isOpen && (
+                              <div className="divide-y divide-[#E5E0D8]/40 dark:divide-[#1E2824]/40 p-1">
+                                {items.length === 0 ? (
+                                  <div className="p-3 text-center text-xs text-[#6B7268] dark:text-[#8E9C95]">
+                                    No item records found for this day.
+                                  </div>
+                                ) : (
+                                  items.map((item) => {
+                                    if (item.type === "settlement") {
+                                      // Settlement Item
+                                      return (
+                                        <div
+                                          key={item.id}
+                                          className="p-3 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl m-1 border border-emerald-200/50 dark:border-emerald-800/30 flex flex-col gap-2"
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                              <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center flex-shrink-0 text-xs">
+                                                🤝
+                                              </div>
+                                              <div className="min-w-0">
+                                                <p className="font-semibold text-xs text-[#162B27] dark:text-white truncate">
+                                                  {item.fromPerson.isSelf
+                                                    ? `You paid ${item.toPerson.name}`
+                                                    : `${item.fromPerson.name} paid You`}
+                                                </p>
+                                                <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
+                                                  Settlement {item.note ? `• ${item.note}` : ""}
+                                                </p>
+                                              </div>
+                                            </div>
+
+                                            <div className="text-right flex-shrink-0">
+                                              <span className="font-serif font-bold text-xs text-emerald-700 dark:text-emerald-400 block">
+                                                {symbol}{Math.round(item.amount).toLocaleString()}
+                                              </span>
+                                              <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
+                                                {item.pairwiseDelta > 0 ? "You settled debt" : "Debt received"}
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          <div className="flex items-center gap-2 text-[10px]">
+                                            <Link
+                                              href={`/workspaces/${item.workspace.id}`}
+                                              className="text-teal-700 dark:text-teal-400 hover:underline flex items-center gap-1 font-medium"
+                                            >
+                                              <span>📁 {item.workspace.name} ↗</span>
+                                            </Link>
+                                            {item.account && (
+                                              <span className="text-[#6B7268] dark:text-[#8E9C95]">
+                                                • 💳 {item.account.name}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+
+                                    // Expense Item
+                                    const isDrawerOpen = Boolean(expandedDrawers[item.id]);
+                                    const timeStr = new Date(item.date).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    });
+
+                                    return (
+                                      <div
+                                        key={item.id}
+                                        className="p-3 sm:p-3.5 hover:bg-[#FAF8F5]/50 dark:hover:bg-[#1A2229]/30 rounded-xl transition-colors space-y-2"
+                                      >
+                                        {/* Top Line: Category Icon, Description, Pairwise Impact Badge */}
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-start gap-2.5 min-w-0">
+                                            <div className="w-8 h-8 rounded-xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#0F5C53] dark:text-[#10B981] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                              {getCategoryIcon(item.category)}
+                                            </div>
+                                            <div className="min-w-0">
+                                              <p className="font-semibold text-xs text-[#162B27] dark:text-white truncate">
+                                                {item.description}
+                                              </p>
+                                              <div className="flex items-center gap-1.5 text-[10px] text-[#6B7268] dark:text-[#8E9C95] mt-0.5 flex-wrap">
+                                                <span>{item.category || "Uncategorized"}</span>
+                                                <span>•</span>
+                                                <span>{timeStr}</span>
+                                                <span>•</span>
+                                                <Link
+                                                  href={`/workspaces/${item.workspace.id}`}
+                                                  className="text-teal-700 dark:text-teal-400 hover:underline flex items-center gap-0.5 font-medium"
+                                                >
+                                                  <span>📁 {item.workspace.name}</span>
+                                                  <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                                    <polyline points="15 3 21 3 21 9" />
+                                                  </svg>
+                                                </Link>
+                                                {item.account && (
+                                                  <>
+                                                    <span>•</span>
+                                                    <span className="font-medium text-stone-700 dark:text-stone-300">
+                                                      💳 {item.account.name}
+                                                    </span>
+                                                  </>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {/* Pairwise Impact Badge */}
+                                          <div className="text-right flex-shrink-0">
+                                            <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                              item.pairwiseDelta > 0
+                                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
+                                                : item.pairwiseDelta < 0
+                                                ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800"
+                                                : "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300 border border-stone-200 dark:border-stone-700"
+                                            }`}>
+                                              {item.pairwiseDelta > 0
+                                                ? `+${symbol}${Math.round(item.pairwiseDelta)} (Owes you)`
+                                                : item.pairwiseDelta < 0
+                                                ? `-${symbol}${Math.round(Math.abs(item.pairwiseDelta))} (You owe)`
+                                                : "Settled / Neutral"}
+                                            </div>
+                                            <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] block mt-0.5">
+                                              Total Bill: {symbol}{Math.round(item.totalAmount).toLocaleString()}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        {/* Bottom Line: Who Paid & Individual Shares */}
+                                        <div className="bg-[#FAF8F5]/80 dark:bg-[#1A2229]/50 border border-[#E5E0D8]/60 dark:border-[#1E2824]/60 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                          <div className="flex items-center gap-3 flex-wrap">
+                                            {/* Payer Summary */}
+                                            <div>
+                                              <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] block uppercase font-bold tracking-wider">
+                                                Paid
+                                              </span>
+                                              <span className="font-semibold text-[11px] text-[#162B27] dark:text-white">
+                                                {item.selfPaid > 0 && item.personPaid === 0
+                                                  ? `You paid ${symbol}${Math.round(item.selfPaid)}`
+                                                  : item.personPaid > 0 && item.selfPaid === 0
+                                                  ? `${selectedPerson.name} paid ${symbol}${Math.round(item.personPaid)}`
+                                                  : item.selfPaid > 0 && item.personPaid > 0
+                                                  ? `You (${symbol}${Math.round(item.selfPaid)}) • ${selectedPerson.name} (${symbol}${Math.round(item.personPaid)})`
+                                                  : `Paid by ${item.payments.map((p) => p.name).join(", ") || "Other"}`}
+                                              </span>
+                                            </div>
+
+                                            <span className="h-4 w-[1px] bg-stone-300 dark:bg-stone-700" />
+
+                                            {/* Contact Share */}
+                                            <div>
+                                              <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] block uppercase font-bold tracking-wider">
+                                                {selectedPerson.name}&apos;s Share
+                                              </span>
+                                              <span className="font-semibold text-[11px] text-[#162B27] dark:text-white">
+                                                {symbol}{Math.round(item.personShare).toLocaleString()}
+                                              </span>
+                                            </div>
+
+                                            <span className="h-4 w-[1px] bg-stone-300 dark:bg-stone-700" />
+
+                                            {/* Your Share */}
+                                            <div>
+                                              <span className="text-[10px] text-[#6B7268] dark:text-[#8E9C95] block uppercase font-bold tracking-wider">
+                                                Your Share
+                                              </span>
+                                              <span className="font-semibold text-[11px] text-[#162B27] dark:text-white">
+                                                {symbol}{Math.round(item.selfShare).toLocaleString()}
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          {/* Toggle Split Details */}
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleDrawer(item.id)}
+                                            className="text-[10px] font-semibold text-[#0F5C53] dark:text-[#10B981] hover:underline flex items-center gap-1 cursor-pointer ml-auto"
+                                          >
+                                            <span>{isDrawerOpen ? "Hide Breakdown" : "View Breakdown"}</span>
+                                            <svg className={`w-3 h-3 transition-transform ${isDrawerOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                              <polyline points="6 9 12 15 18 9" />
+                                            </svg>
+                                          </button>
+                                        </div>
+
+                                        {/* Expandable Split Participants Drawer */}
+                                        {isDrawerOpen && (
+                                          <div className="p-3 bg-white dark:bg-[#161D22] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl text-xs space-y-2.5">
+                                            <div className="grid grid-cols-2 gap-4">
+                                              {/* Who Paid */}
+                                              <div>
+                                                <p className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider mb-1.5">
+                                                  Payments Made
+                                                </p>
+                                                <div className="space-y-1">
+                                                  {item.payments.map((p) => (
+                                                    <div key={p.personId} className="flex items-center justify-between text-[11px]">
+                                                      <span className={p.isSelf ? "font-bold text-[#0F5C53] dark:text-[#10B981]" : "text-stone-700 dark:text-stone-300"}>
+                                                        {p.name}
+                                                      </span>
+                                                      <span className="font-medium text-stone-900 dark:text-stone-100">
+                                                        {symbol}{Math.round(p.amount).toLocaleString()}
+                                                      </span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+
+                                              {/* Who Split */}
+                                              <div>
+                                                <p className="text-[10px] uppercase font-bold text-[#6B7268] dark:text-[#8E9C95] tracking-wider mb-1.5">
+                                                  Split Allocation
+                                                </p>
+                                                <div className="space-y-1">
+                                                  {item.splits.map((s) => (
+                                                    <div key={s.personId} className="flex items-center justify-between text-[11px]">
+                                                      <span className={s.isSelf ? "font-bold text-[#0F5C53] dark:text-[#10B981]" : "text-stone-700 dark:text-stone-300"}>
+                                                        {s.name}
+                                                      </span>
+                                                      <span className="font-medium text-stone-900 dark:text-stone-100">
+                                                        {symbol}{Math.round(s.amount).toLocaleString()}
+                                                      </span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
