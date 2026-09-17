@@ -12,7 +12,7 @@ const updateExpenseSchema = z.object({
     amount: z.number().positive(),
     description: z.string().min(1),
     category: z.string().optional(),
-    accountId: z.string().optional(),
+    accountId: z.string().nullable().optional(),
     date: z.string().optional(),
     splits: z.array(shareEntrySchema).min(1),
     payments: z.array(shareEntrySchema).min(1),
@@ -31,7 +31,10 @@ export async function PATCH(
     if (!workspace || workspace.ownerId !== user.id) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    const existing = await prisma.expense.findUnique({ where: { id: expenseId } });
+    const existing = await prisma.expense.findUnique({
+        where: { id: expenseId },
+        include: { payments: true },
+    });
     if (!existing || existing.workspaceId !== workspaceId) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -73,37 +76,101 @@ export async function PATCH(
         );
     }
 
-    let verifiedAccountId: string | null | undefined = undefined;
+    let targetAccountId: string | null = existing.accountId;
     if (accountId !== undefined) {
         if (accountId) {
             const acc = await prisma.account.findUnique({ where: { id: accountId } });
             if (acc && acc.ownerId === user.id) {
-                verifiedAccountId = acc.id;
+                targetAccountId = acc.id;
+            } else {
+                return NextResponse.json({ error: "Invalid account" }, { status: 400 });
             }
         } else {
-            verifiedAccountId = null;
+            targetAccountId = null;
         }
     }
 
-    const expense = await prisma.$transaction(async (tx) => {
-        await tx.expenseSplit.deleteMany({ where: { expenseId } });
-        await tx.expensePayment.deleteMany({ where: { expenseId } });
-        return tx.expense.update({
-            where: { id: expenseId },
-            data: {
-                amount,
-                description,
-                category,
-                ...(verifiedAccountId !== undefined ? { accountId: verifiedAccountId } : {}),
-                date: date ? new Date(date) : existing.date,
-                splits: { create: splits.map((s) => ({ personId: s.personId, shareAmount: s.amount })) },
-                payments: { create: payments.map((p) => ({ personId: p.personId, amountPaid: p.amount })) },
-            },
-            include: { splits: { include: { person: true } }, payments: { include: { person: true } }, account: true },
-        });
-    });
+    // Old payment by user
+    const oldSelfPayment = existing.payments.find((p) => p.personId === user.selfPersonId);
+    const oldSelfPaidAmount = oldSelfPayment ? Number(oldSelfPayment.amountPaid) : 0;
+    const oldAccountId = existing.accountId;
 
-    return NextResponse.json({ expense });
+    // New payment by user
+    const newSelfPayment = payments.find((p) => p.personId === user.selfPersonId);
+    const newSelfPaidAmount = newSelfPayment ? newSelfPayment.amount : 0;
+
+    try {
+        const expense = await prisma.$transaction(async (tx) => {
+            // Reconcile user account deductions
+            if (oldAccountId && targetAccountId && oldAccountId === targetAccountId) {
+                const diff = newSelfPaidAmount - oldSelfPaidAmount;
+                if (diff > 0) {
+                    const freshAcc = await tx.account.findUnique({ where: { id: targetAccountId } });
+                    if (!freshAcc || Number(freshAcc.balance) < diff) {
+                        throw new Error(
+                            `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
+                                freshAcc?.balance || 0
+                            )}, Additional required: ${diff}. Account balance cannot go negative.`
+                        );
+                    }
+                    await tx.account.update({
+                        where: { id: targetAccountId },
+                        data: { balance: { decrement: diff } },
+                    });
+                } else if (diff < 0) {
+                    await tx.account.update({
+                        where: { id: targetAccountId },
+                        data: { balance: { increment: Math.abs(diff) } },
+                    });
+                }
+            } else {
+                // Account changed or added/removed
+                if (oldAccountId && oldSelfPaidAmount > 0) {
+                    await tx.account.update({
+                        where: { id: oldAccountId },
+                        data: { balance: { increment: oldSelfPaidAmount } },
+                    });
+                }
+                if (targetAccountId && newSelfPaidAmount > 0) {
+                    const freshAcc = await tx.account.findUnique({ where: { id: targetAccountId } });
+                    if (!freshAcc || Number(freshAcc.balance) < newSelfPaidAmount) {
+                        throw new Error(
+                            `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
+                                freshAcc?.balance || 0
+                            )}, Required: ${newSelfPaidAmount}. Account balance cannot go negative.`
+                        );
+                    }
+                    await tx.account.update({
+                        where: { id: targetAccountId },
+                        data: { balance: { decrement: newSelfPaidAmount } },
+                    });
+                }
+            }
+
+            await tx.expenseSplit.deleteMany({ where: { expenseId } });
+            await tx.expensePayment.deleteMany({ where: { expenseId } });
+            return tx.expense.update({
+                where: { id: expenseId },
+                data: {
+                    amount,
+                    description,
+                    category,
+                    accountId: targetAccountId,
+                    date: date ? new Date(date) : existing.date,
+                    splits: { create: splits.map((s) => ({ personId: s.personId, shareAmount: s.amount })) },
+                    payments: { create: payments.map((p) => ({ personId: p.personId, amountPaid: p.amount })) },
+                },
+                include: { splits: { include: { person: true } }, payments: { include: { person: true } }, account: true },
+            });
+        });
+
+        return NextResponse.json({ expense });
+    } catch (err) {
+        return NextResponse.json(
+            { error: err instanceof Error ? err.message : "Failed to update shared expense" },
+            { status: 400 }
+        );
+    }
 }
 
 export async function DELETE(
@@ -118,16 +185,29 @@ export async function DELETE(
     if (!workspace || workspace.ownerId !== user.id) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    const existing = await prisma.expense.findUnique({ where: { id: expenseId } });
+    const existing = await prisma.expense.findUnique({
+        where: { id: expenseId },
+        include: { payments: true },
+    });
     if (!existing || existing.workspaceId !== workspaceId) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.$transaction([
-        prisma.expenseSplit.deleteMany({ where: { expenseId } }),
-        prisma.expensePayment.deleteMany({ where: { expenseId } }),
-        prisma.expense.delete({ where: { id: expenseId } }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+        if (existing.accountId) {
+            const selfPayment = existing.payments.find((p) => p.personId === user.selfPersonId);
+            const selfPaidAmount = selfPayment ? Number(selfPayment.amountPaid) : 0;
+            if (selfPaidAmount > 0) {
+                await tx.account.update({
+                    where: { id: existing.accountId },
+                    data: { balance: { increment: selfPaidAmount } },
+                });
+            }
+        }
+        await tx.expenseSplit.deleteMany({ where: { expenseId } });
+        await tx.expensePayment.deleteMany({ where: { expenseId } });
+        await tx.expense.delete({ where: { id: expenseId } });
+    });
 
     return NextResponse.json({ success: true });
 }

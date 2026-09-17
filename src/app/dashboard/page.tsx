@@ -406,10 +406,18 @@ export default function DashboardPage() {
             date: new Date(`${expDate}T${expTime}`).toISOString(),
             payments: paymentsPayload,
             splits: splitsPayload,
+            fromPersonalExpenseId: editingId || undefined,
           }),
         });
 
-        alert(isOnline ? "Shared workspace expense logged successfully!" : "Saved offline! Shared workspace expense will sync when back online.");
+        alert(
+          editingId
+            ? "Moved to shared workspace successfully!"
+            : isOnline
+            ? "Shared workspace expense logged successfully!"
+            : "Saved offline! Shared workspace expense will sync when back online."
+        );
+        setEditingId(null);
 
         // Refresh workspaces and personal expenses
         try {

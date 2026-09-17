@@ -33,20 +33,8 @@ const UserContext = createContext<UserContextType>({
 });
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with cached user data if available to prevent avatar flicker on refresh
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem(USER_CACHE_KEY);
-        if (cached) {
-          return JSON.parse(cached);
-        }
-      } catch {}
-    }
-    return null;
-  });
-
-  const [loading, setLoading] = useState(!user);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -73,8 +61,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Fetch once on app mount
+  // Hydrate from cache on mount and fetch fresh user data
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem(USER_CACHE_KEY);
+      if (cached) {
+        setUser(JSON.parse(cached));
+        setLoading(false);
+      }
+    } catch {}
     refreshUser();
   }, [refreshUser]);
 

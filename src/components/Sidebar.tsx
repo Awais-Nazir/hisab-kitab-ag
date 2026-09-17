@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "./BrandLogo";
@@ -13,6 +14,11 @@ interface SidebarProps {
 
 export function Sidebar({ userName = "Account Admin", userImage, onLogout }: SidebarProps) {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navItems = [
     {
@@ -154,16 +160,22 @@ export function Sidebar({ userName = "Account Admin", userImage, onLogout }: Sid
       <div className="p-4 border-t border-[#E5E0D8] dark:border-[#28332E]">
         <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#EAE4DC] dark:hover:bg-[#202925] transition-colors">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-full bg-[#0F5C53]/15 border border-[#0F5C53]/20 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] font-semibold font-serif text-sm flex-shrink-0 overflow-hidden">
-              {userImage ? (
+            <div
+              className="w-9 h-9 rounded-full bg-[#0F5C53]/15 border border-[#0F5C53]/20 flex items-center justify-center text-[#0F5C53] dark:text-[#34D399] font-semibold font-serif text-sm flex-shrink-0 overflow-hidden"
+              suppressHydrationWarning
+            >
+              {mounted && userImage ? (
                 <img src={userImage} alt={userName} className="w-full h-full object-cover" />
               ) : (
-                userName.slice(0, 2).toUpperCase()
+                (mounted ? userName : "Account Admin").slice(0, 2).toUpperCase()
               )}
             </div>
             <div className="truncate">
-              <p className="text-xs font-semibold text-[#162B27] dark:text-white truncate leading-tight">
-                {userName}
+              <p
+                className="text-xs font-semibold text-[#162B27] dark:text-white truncate leading-tight"
+                suppressHydrationWarning
+              >
+                {mounted ? userName : "Account Admin"}
               </p>
               <p className="text-[10px] uppercase tracking-wider font-bold text-[#0F5C53]/80 dark:text-[#34D399] mt-0.5">
                 Premium

@@ -16,6 +16,7 @@ const createExpenseSchema = z.object({
     date: z.string().optional(),
     splits: z.array(shareEntrySchema).min(1),
     payments: z.array(shareEntrySchema).min(1),
+    fromPersonalExpenseId: z.string().optional(),
 });
 
 export async function POST(
@@ -40,7 +41,7 @@ export async function POST(
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { amount, description, category, accountId, date, splits, payments } = parsed.data;
+    const { amount, description, category, accountId, date, splits, payments, fromPersonalExpenseId } = parsed.data;
 
     const splitSum = splits.reduce((s, x) => s + x.amount, 0);
     if (Math.abs(splitSum - amount) > 0.01) {
@@ -91,7 +92,8 @@ export async function POST(
     const selfPayment = payments.find((p) => p.personId === user.selfPersonId);
     const selfPaidAmount = selfPayment ? selfPayment.amount : 0;
 
-    if (verifiedAccountId && selfPaidAmount > 0 && targetAccount) {
+    // If not converting from personal, do quick pre-check
+    if (verifiedAccountId && selfPaidAmount > 0 && targetAccount && !fromPersonalExpenseId) {
         if (Number(targetAccount.balance) < selfPaidAmount) {
             return NextResponse.json(
                 {
@@ -104,48 +106,72 @@ export async function POST(
         }
     }
 
-    const expense = await prisma.$transaction(async (tx) => {
-        if (verifiedAccountId && selfPaidAmount > 0) {
-            const freshAcc = await tx.account.findUnique({ where: { id: verifiedAccountId } });
-            if (!freshAcc || Number(freshAcc.balance) < selfPaidAmount) {
-                throw new Error(
-                    `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
-                        freshAcc?.balance || 0
-                    )}, Required: ${selfPaidAmount}.`
-                );
+    try {
+        const expense = await prisma.$transaction(async (tx) => {
+            // 1. If converting from personal expense, refund its deduction and delete it
+            if (fromPersonalExpenseId) {
+                const personalExp = await tx.expense.findUnique({
+                    where: { id: fromPersonalExpenseId },
+                });
+                if (personalExp && personalExp.ownerId === user.id && personalExp.workspaceId === null) {
+                    if (personalExp.accountId) {
+                        await tx.account.update({
+                            where: { id: personalExp.accountId },
+                            data: { balance: { increment: Number(personalExp.amount) } },
+                        });
+                    }
+                    await tx.expense.delete({ where: { id: fromPersonalExpenseId } });
+                }
             }
-            await tx.account.update({
-                where: { id: verifiedAccountId },
-                data: { balance: { decrement: selfPaidAmount } },
-            });
-        }
 
-        const exp = await tx.expense.create({
-            data: {
-                amount,
-                description,
-                category,
-                accountId: verifiedAccountId,
-                date: date ? new Date(date) : new Date(),
-                workspaceId,
-                splits: {
-                    create: splits.map((s) => ({ personId: s.personId, shareAmount: s.amount })),
+            // 2. Check and deduct user's payment from account
+            if (verifiedAccountId && selfPaidAmount > 0) {
+                const freshAcc = await tx.account.findUnique({ where: { id: verifiedAccountId } });
+                if (!freshAcc || Number(freshAcc.balance) < selfPaidAmount) {
+                    throw new Error(
+                        `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
+                            freshAcc?.balance || 0
+                        )}, Required: ${selfPaidAmount}. Account balance cannot go negative.`
+                    );
+                }
+                await tx.account.update({
+                    where: { id: verifiedAccountId },
+                    data: { balance: { decrement: selfPaidAmount } },
+                });
+            }
+
+            const exp = await tx.expense.create({
+                data: {
+                    amount,
+                    description,
+                    category,
+                    accountId: verifiedAccountId,
+                    date: date ? new Date(date) : new Date(),
+                    workspaceId,
+                    splits: {
+                        create: splits.map((s) => ({ personId: s.personId, shareAmount: s.amount })),
+                    },
+                    payments: {
+                        create: payments.map((p) => ({ personId: p.personId, amountPaid: p.amount })),
+                    },
                 },
-                payments: {
-                    create: payments.map((p) => ({ personId: p.personId, amountPaid: p.amount })),
+                include: {
+                    splits: { include: { person: true } },
+                    payments: { include: { person: true } },
+                    account: true,
                 },
-            },
-            include: {
-                splits: { include: { person: true } },
-                payments: { include: { person: true } },
-                account: true,
-            },
+            });
+
+            return exp;
         });
 
-        return exp;
-    });
-
-    return NextResponse.json({ expense });
+        return NextResponse.json({ expense });
+    } catch (err) {
+        return NextResponse.json(
+            { error: err instanceof Error ? err.message : "Failed to create shared expense" },
+            { status: 400 }
+        );
+    }
 }
 
 export async function GET(
@@ -159,9 +185,17 @@ export async function GET(
 
     const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
+        include: { members: true },
     });
-    if (!workspace || workspace.ownerId !== user.id) {
+    if (!workspace) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const isMember =
+        workspace.ownerId === user.id ||
+        workspace.members.some((m) => m.personId === user.selfPersonId);
+    if (!isMember) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const expenses = await prisma.expense.findMany({
