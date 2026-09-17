@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
 import { computeSelfRelativeBalances } from "@/lib/balances";
+import { reconcileAccount } from "@/lib/account-balance";
 
 const globalSettleSchema = z.object({
     fromPersonId: z.string(),
@@ -89,19 +90,6 @@ export async function POST(req: NextRequest) {
 
     const totalOwed = Math.round(candidates.reduce((s, c) => s + c.owed, 0) * 100) / 100;
 
-    if (amount > totalOwed + 0.01) {
-        return NextResponse.json(
-            {
-                error: `This payment (${amount.toFixed(
-                    2
-                )}) is more than what's owed across shared workspaces (${totalOwed.toFixed(
-                    2
-                )}). Record it per-workspace instead if this is an advance.`,
-            },
-            { status: 400 }
-        );
-    }
-
     candidates.sort((a, b) => a.oldestDate.getTime() - b.oldestDate.getTime());
 
     const batchId = randomUUID();
@@ -134,50 +122,47 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    for (const c of candidates) {
-        if (remaining <= 0) break;
-        const allocate = Math.round(Math.min(remaining, c.owed) * 100) / 100;
-        if (allocate <= 0) continue;
-        const settlement = await prisma.settlement.create({
+    if (candidates.length > 0) {
+        for (const c of candidates) {
+            if (remaining <= 0) break;
+            const allocate = Math.round(Math.min(remaining, c.owed) * 100) / 100;
+            if (allocate <= 0) continue;
+            const settlement = await prisma.settlement.create({
+                data: {
+                    workspaceId: c.workspaceId,
+                    fromPersonId,
+                    toPersonId,
+                    amount: allocate,
+                    note: note ? note : undefined,
+                    batchId,
+                    accountId: verifiedAccountId,
+                },
+                include: { workspace: true, account: true },
+            });
+            created.push(settlement);
+            remaining = Math.round((remaining - allocate) * 100) / 100;
+        }
+    }
+
+    // If there is any remaining amount or no workspace candidates, record direct person-to-person settlement
+    if (remaining > 0 || created.length === 0) {
+        const directSettlement = await prisma.settlement.create({
             data: {
-                workspaceId: c.workspaceId,
+                workspaceId: null,
                 fromPersonId,
                 toPersonId,
-                amount: allocate,
+                amount: remaining > 0 ? remaining : amount,
                 note: note ? note : undefined,
                 batchId,
                 accountId: verifiedAccountId,
             },
             include: { workspace: true, account: true },
         });
-        created.push(settlement);
-        remaining = Math.round((remaining - allocate) * 100) / 100;
+        created.push(directSettlement);
     }
 
-    if (verifiedAccountId && created.length > 0) {
-        const totalSettled = created.reduce((s, r) => s + Number(r.amount), 0);
-        if (isSelfPayer) {
-            const freshAcc = await prisma.account.findUnique({ where: { id: verifiedAccountId } });
-            if (!freshAcc || Number(freshAcc.balance) < totalSettled) {
-                return NextResponse.json(
-                    {
-                        error: `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
-                            freshAcc?.balance || 0
-                        )}, Required: ${totalSettled}.`,
-                    },
-                    { status: 400 }
-                );
-            }
-            await prisma.account.update({
-                where: { id: verifiedAccountId },
-                data: { balance: { decrement: totalSettled } },
-            });
-        } else if (isSelfReceiver) {
-            await prisma.account.update({
-                where: { id: verifiedAccountId },
-                data: { balance: { increment: totalSettled } },
-            });
-        }
+    if (verifiedAccountId) {
+        await reconcileAccount(verifiedAccountId);
     }
 
     return NextResponse.json({ batchId, settlements: created, totalOwedBefore: totalOwed });
@@ -209,7 +194,7 @@ export async function GET() {
             toPerson: { id: rows[0].toPerson.id, name: rows[0].toPerson.name, isSelf: rows[0].toPerson.isSelf },
             total: rows.reduce((s, r) => s + Number(r.amount), 0),
             accountName: accountUsed?.name ?? null,
-            breakdown: rows.map((r) => ({ workspaceName: r.workspace.name, amount: Number(r.amount) })),
+            breakdown: rows.map((r) => ({ workspaceName: r.workspace?.name ?? "Direct Settlement", amount: Number(r.amount) })),
         };
     });
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
+import { reconcileAccount } from "@/lib/account-balance";
 
 export async function GET(req: NextRequest) {
   const { user, errorResponse } = await requireUser();
@@ -21,10 +23,18 @@ export async function GET(req: NextRequest) {
   // Base where clauses
   const where: any = {};
 
-  // Scope filtering (personal vs workspace)
+  // Scope filtering (personal vs shared vs workspace)
   if (scope === "personal") {
     where.ownerId = user.id;
     where.workspaceId = null;
+    where.splits = { none: {} };
+    where.payments = { none: {} };
+  } else if (scope === "shared") {
+    where.OR = [
+      { workspaceId: { not: null } },
+      { splits: { some: {} } },
+      { payments: { some: {} } },
+    ];
   } else if (scope !== "all") {
     where.workspaceId = scope;
     where.OR = [
@@ -32,12 +42,15 @@ export async function GET(req: NextRequest) {
       { workspace: { members: { some: { personId: selfPersonId || "" } } } },
     ];
   } else {
-    // All: Personal OR Workspaces where user is owner or member
+    // All: User is owner OR user is workspace member OR user is participant in splits/payments
     where.OR = [
-      { ownerId: user.id, workspaceId: null },
-      { workspace: { ownerId: user.id } },
+      { ownerId: user.id },
       ...(selfPersonId
-        ? [{ workspace: { members: { some: { personId: selfPersonId } } } }]
+        ? [
+            { workspace: { members: { some: { personId: selfPersonId } } } },
+            { splits: { some: { personId: selfPersonId } } },
+            { payments: { some: { personId: selfPersonId } } },
+          ]
         : []),
     ];
   }
@@ -85,7 +98,7 @@ export async function GET(req: NextRequest) {
 
   // Post-process computed fields & payer/search filtering
   const processed = rawExpenses.map((exp) => {
-    const isPersonal = exp.workspaceId === null;
+    const isPersonal = exp.workspaceId === null && exp.splits.length === 0 && exp.payments.length === 0;
     const amountNum = Number(exp.amount);
 
     // Compute user's share
@@ -217,4 +230,102 @@ export async function GET(req: NextRequest) {
       accounts,
     },
   });
+}
+
+const createShareEntrySchema = z.object({
+  personId: z.string(),
+  amount: z.number().nonnegative(),
+});
+
+const createExpenseSchema = z.object({
+  amount: z.number().positive(),
+  description: z.string().min(1),
+  category: z.string().optional(),
+  accountId: z.string().nullable().optional(),
+  date: z.string().optional(),
+  isShared: z.boolean().optional().default(false),
+  payments: z.array(createShareEntrySchema).optional(),
+  splits: z.array(createShareEntrySchema).optional(),
+});
+
+export async function POST(req: NextRequest) {
+  const { user, errorResponse } = await requireUser();
+  if (!user) return errorResponse;
+
+  const body = await req.json();
+  const parsed = createExpenseSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const { amount, description, category, accountId, date, isShared, payments, splits } = parsed.data;
+
+  // Validate account
+  let targetAccountId: string | null = null;
+  if (accountId) {
+    const acc = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!acc || acc.ownerId !== user.id) {
+      return NextResponse.json({ error: "Invalid account" }, { status: 400 });
+    }
+    targetAccountId = acc.id;
+  }
+
+  // If shared expense, validate sums
+  if (isShared && splits && splits.length > 0) {
+    const splitSum = splits.reduce((s, x) => s + x.amount, 0);
+    if (Math.abs(splitSum - amount) > 0.05) {
+      return NextResponse.json(
+        { error: `Splits sum to ${splitSum.toFixed(2)} but expense is ${amount.toFixed(2)}` },
+        { status: 400 }
+      );
+    }
+  }
+  if (isShared && payments && payments.length > 0) {
+    const paymentSum = payments.reduce((s, x) => s + x.amount, 0);
+    if (Math.abs(paymentSum - amount) > 0.05) {
+      return NextResponse.json(
+        { error: `Payments sum to ${paymentSum.toFixed(2)} but expense is ${amount.toFixed(2)}` },
+        { status: 400 }
+      );
+    }
+  }
+
+  try {
+    const expense = await prisma.$transaction(async (tx) => {
+      const created = await tx.expense.create({
+        data: {
+          ownerId: user.id,
+          amount,
+          description,
+          category,
+          accountId: targetAccountId,
+          date: date ? new Date(date) : new Date(),
+          ...(isShared && splits && splits.length > 0
+            ? { splits: { create: splits.map((s) => ({ personId: s.personId, shareAmount: s.amount })) } }
+            : {}),
+          ...(isShared && payments && payments.length > 0
+            ? { payments: { create: payments.map((p) => ({ personId: p.personId, amountPaid: p.amount })) } }
+            : {}),
+        },
+        include: {
+          splits: { include: { person: true } },
+          payments: { include: { person: true } },
+          account: true,
+        },
+      });
+
+      if (targetAccountId) {
+        await reconcileAccount(targetAccountId, tx);
+      }
+
+      return created;
+    });
+
+    return NextResponse.json({ expense });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to create expense" },
+      { status: 400 }
+    );
+  }
 }

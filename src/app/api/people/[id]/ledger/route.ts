@@ -59,7 +59,13 @@ export async function GET(
 
   const [rawExpenses, rawSettlements] = await Promise.all([
     prisma.expense.findMany({
-      where: { workspaceId: { in: workspaceIds } },
+      where: {
+        OR: [
+          { splits: { some: { personId } } },
+          { payments: { some: { personId } } },
+          ...(workspaceIds.length > 0 ? [{ workspaceId: { in: workspaceIds } }] : []),
+        ],
+      },
       include: {
         workspace: { select: { id: true, name: true } },
         account: { select: { id: true, name: true, type: true, color: true, icon: true } },
@@ -78,7 +84,6 @@ export async function GET(
     }),
     prisma.settlement.findMany({
       where: {
-        workspaceId: { in: workspaceIds },
         OR: [
           { fromPersonId: personId, toPersonId: user.selfPersonId },
           { fromPersonId: user.selfPersonId, toPersonId: personId },

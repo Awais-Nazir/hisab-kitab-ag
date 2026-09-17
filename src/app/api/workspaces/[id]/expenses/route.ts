@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
+import { reconcileAccount } from "@/lib/account-balance";
 
 const shareEntrySchema = z.object({
     personId: z.string(),
@@ -124,22 +125,6 @@ export async function POST(
                 }
             }
 
-            // 2. Check and deduct user's payment from account
-            if (verifiedAccountId && selfPaidAmount > 0) {
-                const freshAcc = await tx.account.findUnique({ where: { id: verifiedAccountId } });
-                if (!freshAcc || Number(freshAcc.balance) < selfPaidAmount) {
-                    throw new Error(
-                        `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
-                            freshAcc?.balance || 0
-                        )}, Required: ${selfPaidAmount}. Account balance cannot go negative.`
-                    );
-                }
-                await tx.account.update({
-                    where: { id: verifiedAccountId },
-                    data: { balance: { decrement: selfPaidAmount } },
-                });
-            }
-
             const exp = await tx.expense.create({
                 data: {
                     amount,
@@ -161,6 +146,10 @@ export async function POST(
                     account: true,
                 },
             });
+
+            if (verifiedAccountId) {
+                await reconcileAccount(verifiedAccountId, tx);
+            }
 
             return exp;
         });

@@ -109,19 +109,19 @@ model ExpensePayment {
 }
 
 model Settlement {
-  id           String    @id @default(cuid())
-  workspaceId  String
+  id           String     @id @default(cuid())
+  workspaceId  String?
   fromPersonId String
   toPersonId   String
-  amount       Decimal   @db.Decimal(10, 2)
-  date         DateTime  @default(now())
+  amount       Decimal    @db.Decimal(10, 2)
+  date         DateTime   @default(now())
   note         String?
   batchId      String?
   accountId    String?
-  fromPerson   Person    @relation("SettlementFrom", fields: [fromPersonId], references: [id])
-  toPerson     Person    @relation("SettlementTo", fields: [toPersonId], references: [id])
-  workspace    Workspace @relation(fields: [workspaceId], references: [id])
-  account      Account?  @relation("AccountSettlements", fields: [accountId], references: [id])
+  fromPerson   Person     @relation("SettlementFrom", fields: [fromPersonId], references: [id])
+  toPerson     Person     @relation("SettlementTo", fields: [toPersonId], references: [id])
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id])
+  account      Account?   @relation("AccountSettlements", fields: [accountId], references: [id])
 }
 
 model Category {
@@ -139,14 +139,15 @@ model Category {
 }
 
 model Account {
-  id        String            @id @default(cuid())
-  ownerId   String
-  name      String
-  type      String            @default("CASH") // CASH | BANK | WALLET | UDHAR_KHATA
-  balance   Decimal           @default(0) @db.Decimal(10, 2)
-  color     String?           @default("#0F5C53")
-  icon      String?           @default("wallet")
-  createdAt DateTime          @default(now())
+  id             String            @id @default(cuid())
+  ownerId        String
+  name           String
+  type           String            @default("CASH") // CASH | BANK | WALLET | UDHAR_KHATA
+  initialBalance Decimal           @default(0) @db.Decimal(10, 2)
+  balance        Decimal           @default(0) @db.Decimal(10, 2)
+  color          String?           @default("#0F5C53")
+  icon           String?           @default("wallet")
+  createdAt      DateTime          @default(now())
 
   owner          User              @relation(fields: [ownerId], references: [id])
   transfersFrom    AccountTransfer[] @relation("TransferFrom")

@@ -14,7 +14,7 @@ import { ModalPortal } from "@/components/ModalPortal";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useUser } from "@/context/UserContext";
 import { calculateEqualSplits } from "@/lib/splits";
-import { SharedExpenseQuickFields, Workspace, WorkspaceMember } from "@/components/SharedExpenseQuickFields";
+import { SharedExpenseQuickFields, Person } from "@/components/SharedExpenseQuickFields";
 import { useSync } from "@/context/SyncContext";
 
 interface Expense {
@@ -103,7 +103,7 @@ export default function DashboardPage() {
   const { symbol } = useCurrency();
   const { user } = useUser();
   const { isOnline } = useSync();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [contacts, setContacts] = useState<Person[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [trend, setTrend] = useState<TrendDay[]>([]);
@@ -127,8 +127,7 @@ export default function DashboardPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [trendRange, setTrendRange] = useState<"week" | "month">("week");
 
-  // Shared Workspace Entry State
-  const [selectedWsId, setSelectedWsId] = useState<string>("");
+  // Shared Expense Entry State
   const [payerMode, setPayerMode] = useState<"single" | "multiple">("single");
   const [payerId, setPayerId] = useState<string>("");
   const [customPayments, setCustomPayments] = useState<Record<string, string>>({});
@@ -141,44 +140,36 @@ export default function DashboardPage() {
   const [showGlobalSettle, setShowGlobalSettle] = useState(false);
   const [quickEntryOpen, setQuickEntryOpen] = useState(false);
 
-  // Active workspace and members
-  const currentWorkspace = useMemo(() => {
-    return workspaces.find((w) => w.id === selectedWsId) || workspaces[0] || null;
-  }, [workspaces, selectedWsId]);
-
-  const currentMembers = useMemo(() => {
-    return currentWorkspace?.members || [];
-  }, [currentWorkspace]);
-
+  // Sync default payer and split selections when user is available
   useEffect(() => {
-    if (workspaces.length > 0 && !selectedWsId) {
-      setSelectedWsId(workspaces[0].id);
+    if (user?.selfPersonId) {
+      setPayerId((prev) => (!prev || prev === "self" ? user.selfPersonId! : prev));
+      setSplitSelected((prev) => {
+        if (prev.size === 0 || prev.has("self")) {
+          const next = new Set(prev);
+          next.delete("self");
+          next.add(user.selfPersonId!);
+          return next;
+        }
+        return prev;
+      });
     }
-  }, [workspaces, selectedWsId]);
-
-  useEffect(() => {
-    if (!currentWorkspace) return;
-    const members = currentWorkspace.members || [];
-    const selfMem = members.find((m) => m.personId === user?.selfPersonId);
-    setPayerId(selfMem?.personId || members[0]?.personId || "");
-    setPayerMode("single");
-    setCustomPayments({});
-    setSplitMode("equal");
-    setSplitSelected(new Set(members.map((m) => m.personId)));
-    setCustomSplits({});
-  }, [currentWorkspace, user?.selfPersonId]);
+  }, [user?.selfPersonId]);
 
   const parsedAmount = parseFloat(amount) || 0;
+  const selfPersonId = user?.selfPersonId;
   const equalSplitsMap = useMemo(() => {
-    return calculateEqualSplits(parsedAmount, Array.from(splitSelected), user?.selfPersonId);
-  }, [parsedAmount, splitSelected, user?.selfPersonId]);
+    return calculateEqualSplits(parsedAmount, Array.from(splitSelected), selfPersonId);
+  }, [parsedAmount, splitSelected, selfPersonId]);
 
   const selfPaidAmount = useMemo(() => {
     if (payerMode === "single") {
-      return payerId === user?.selfPersonId ? parsedAmount : 0;
+      return (payerId === selfPersonId || payerId === "self" || !payerId) ? parsedAmount : 0;
     }
-    return parseFloat(customPayments[user?.selfPersonId || ""] || "0") || 0;
-  }, [payerMode, payerId, user?.selfPersonId, parsedAmount, customPayments]);
+    return (
+      parseFloat(customPayments[selfPersonId || ""] || customPayments["self"] || "0") || 0
+    );
+  }, [payerMode, payerId, selfPersonId, parsedAmount, customPayments]);
 
   const totalCustomPaid = useMemo(() => {
     return Object.values(customPayments).reduce((s, v) => s + (parseFloat(v) || 0), 0);
@@ -191,17 +182,17 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [wsRes, expRes, overviewRes, trendRes, accRes] = await Promise.all([
-          apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
+        const [peopleRes, expRes, overviewRes, trendRes, accRes] = await Promise.all([
+          apiFetch<{ people: Person[] }>("/api/people"),
           apiFetch<{ expenses: Expense[] }>("/api/expenses"),
           apiFetch<Overview>("/api/stats/overview"),
           apiFetch<{ days: TrendDay[] }>("/api/stats/last7days?range=week"),
           apiFetch<{ accounts: { id: string; name: string; type: string; balance: number | string }[] }>("/api/accounts"),
         ]);
-        setWorkspaces(wsRes.workspaces);
-        setExpenses(expRes.expenses);
+        setContacts(peopleRes.people || []);
+        setExpenses(expRes.expenses || []);
         setOverview(overviewRes);
-        setTrend(trendRes.days);
+        setTrend(trendRes.days || []);
         setAccounts(accRes.accounts || []);
       } catch (err) {
         if (typeof navigator !== "undefined" && navigator.onLine) {
@@ -216,14 +207,14 @@ export default function DashboardPage() {
     function handleSyncCompleted() {
       // Refresh with latest reconciled server data
       Promise.all([
-        apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
+        apiFetch<{ people: Person[] }>("/api/people"),
         apiFetch<{ expenses: Expense[] }>("/api/expenses"),
         apiFetch<Overview>("/api/stats/overview"),
         apiFetch<{ days: TrendDay[] }>("/api/stats/last7days?range=week"),
         apiFetch<{ accounts: { id: string; name: string; type: string; balance: number | string }[] }>("/api/accounts"),
       ])
-        .then(([wsRes, expRes, overviewRes, trendRes, accRes]) => {
-          if (wsRes?.workspaces) setWorkspaces(wsRes.workspaces);
+        .then(([peopleRes, expRes, overviewRes, trendRes, accRes]) => {
+          if (peopleRes?.people) setContacts(peopleRes.people);
           if (expRes?.expenses) setExpenses(expRes.expenses);
           if (overviewRes) setOverview(overviewRes);
           if (trendRes?.days) setTrend(trendRes.days);
@@ -312,36 +303,28 @@ export default function DashboardPage() {
         });
         alert(isOnline ? "Transfer completed successfully!" : "Saved offline! Transfer will sync when back online.");
       } else if (entryType === "shared") {
-        if (!selectedWsId) {
-          alert("Please select a workspace");
-          setSubmitting(false);
-          return;
-        }
-
-        const ws = workspaces.find((w) => w.id === selectedWsId);
-        const wsMembers = ws?.members || [];
-        if (wsMembers.length === 0) {
-          alert("The selected workspace has no members");
-          setSubmitting(false);
-          return;
-        }
+        const myPersonId = user?.selfPersonId || "self";
 
         // Prepare payments
         let paymentsPayload: { personId: string; amount: number }[] = [];
         if (payerMode === "single") {
-          if (!payerId) {
+          const pid = payerId === "self" || payerId === myPersonId ? user?.selfPersonId : payerId;
+          if (!pid) {
             alert("Please select who paid");
             setSubmitting(false);
             return;
           }
-          paymentsPayload = [{ personId: payerId, amount: num }];
+          paymentsPayload = [{ personId: pid, amount: num }];
         } else {
-          paymentsPayload = wsMembers
-            .map((m) => ({
-              personId: m.personId,
-              amount: parseFloat(customPayments[m.personId] || "0") || 0,
-            }))
-            .filter((p) => p.amount > 0);
+          paymentsPayload = Object.entries(customPayments)
+            .map(([pid, amtStr]) => {
+              const actualId = pid === "self" || pid === myPersonId ? user?.selfPersonId : pid;
+              return {
+                personId: actualId || "",
+                amount: parseFloat(amtStr) || 0,
+              };
+            })
+            .filter((p) => p.personId && p.amount > 0);
 
           const sumPaid = paymentsPayload.reduce((s, p) => s + p.amount, 0);
           if (Math.abs(sumPaid - num) > 0.01) {
@@ -356,9 +339,12 @@ export default function DashboardPage() {
         // Prepare splits
         let splitsPayload: { personId: string; amount: number }[] = [];
         if (splitMode === "equal") {
-          const splitArray = Array.from(splitSelected);
+          const splitArray = Array.from(splitSelected)
+            .map((pid) => (pid === "self" || pid === myPersonId ? user?.selfPersonId! : pid))
+            .filter(Boolean);
+
           if (splitArray.length === 0) {
-            alert("Select at least one member to split with");
+            alert("Select at least one contact to split with");
             setSubmitting(false);
             return;
           }
@@ -368,12 +354,15 @@ export default function DashboardPage() {
             amount: splitsMap[personId] ?? 0,
           }));
         } else {
-          splitsPayload = wsMembers
-            .map((m) => ({
-              personId: m.personId,
-              amount: parseFloat(customSplits[m.personId] || "0") || 0,
-            }))
-            .filter((s) => s.amount > 0);
+          splitsPayload = Object.entries(customSplits)
+            .map(([pid, amtStr]) => {
+              const actualId = pid === "self" || pid === myPersonId ? user?.selfPersonId : pid;
+              return {
+                personId: actualId || "",
+                amount: parseFloat(amtStr) || 0,
+              };
+            })
+            .filter((s) => s.personId && s.amount > 0);
 
           const sumSplit = splitsPayload.reduce((s, x) => s + x.amount, 0);
           if (Math.abs(sumSplit - num) > 0.01) {
@@ -396,36 +385,41 @@ export default function DashboardPage() {
           }
         }
 
-        await apiFetch(`/api/workspaces/${selectedWsId}/expenses`, {
-          method: "POST",
-          body: JSON.stringify({
-            amount: num,
-            description: description.trim() || "Shared Expense",
-            category: category || undefined,
-            accountId: myPayment && myPayment.amount > 0 && accountId ? accountId : undefined,
-            date: new Date(`${expDate}T${expTime}`).toISOString(),
-            payments: paymentsPayload,
-            splits: splitsPayload,
-            fromPersonalExpenseId: editingId || undefined,
-          }),
-        });
-
-        alert(
-          editingId
-            ? "Moved to shared workspace successfully!"
-            : isOnline
-            ? "Shared workspace expense logged successfully!"
-            : "Saved offline! Shared workspace expense will sync when back online."
-        );
+        if (editingId) {
+          await apiFetch(`/api/expenses/${editingId}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              amount: num,
+              description: description.trim() || "Shared Expense",
+              category: category || undefined,
+              accountId: myPayment && myPayment.amount > 0 && accountId ? accountId : null,
+              date: new Date(`${expDate}T${expTime}`).toISOString(),
+              payments: paymentsPayload,
+              splits: splitsPayload,
+            }),
+          });
+          alert("Shared expense updated successfully!");
+        } else {
+          await apiFetch("/api/expenses", {
+            method: "POST",
+            body: JSON.stringify({
+              isShared: true,
+              amount: num,
+              description: description.trim() || "Shared Expense",
+              category: category || undefined,
+              accountId: myPayment && myPayment.amount > 0 && accountId ? accountId : undefined,
+              date: new Date(`${expDate}T${expTime}`).toISOString(),
+              payments: paymentsPayload,
+              splits: splitsPayload,
+            }),
+          });
+          alert("Shared expense logged successfully!");
+        }
         setEditingId(null);
 
-        // Refresh workspaces and personal expenses
+        // Refresh expenses
         try {
-          const [wsRes, expRes] = await Promise.all([
-            apiFetch<{ workspaces: Workspace[] }>("/api/workspaces"),
-            apiFetch<{ expenses: Expense[] }>("/api/expenses"),
-          ]);
-          if (wsRes?.workspaces) setWorkspaces(wsRes.workspaces);
+          const expRes = await apiFetch<{ expenses: Expense[] }>("/api/expenses");
           if (expRes?.expenses) setExpenses(expRes.expenses);
         } catch {}
       } else {
@@ -434,28 +428,28 @@ export default function DashboardPage() {
           amount: num,
           description: description.trim() || "Expense",
           category: category || undefined,
-          accountId: accountId || undefined,
+          accountId: accountId || null,
           date: new Date(`${expDate}T${expTime}`).toISOString(),
         };
         if (editingId) {
-          const res = await apiFetch<{ expense: Expense }>(`/api/expenses/personal/${editingId}`, {
+          await apiFetch(`/api/expenses/${editingId}`, {
             method: "PATCH",
             body: JSON.stringify(payload),
           });
-          setExpenses((prev) => prev.map((e) => (e.id === editingId ? res.expense : e)));
           setEditingId(null);
         } else {
-          const res = await apiFetch<{ expense: Expense }>("/api/expenses/personal", {
+          await apiFetch("/api/expenses", {
             method: "POST",
-            body: JSON.stringify(payload),
+            body: JSON.stringify({
+              ...payload,
+              isShared: false,
+            }),
           });
-          setExpenses((prev) =>
-            [res.expense, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          );
-          if (!isOnline) {
-            alert("Saved offline! Personal expense will sync when back online.");
-          }
         }
+        try {
+          const expRes = await apiFetch<{ expenses: Expense[] }>("/api/expenses");
+          if (expRes?.expenses) setExpenses(expRes.expenses);
+        } catch {}
       }
 
       setAmount("");
@@ -480,12 +474,47 @@ export default function DashboardPage() {
 
   function handleEditClick(exp: Expense) {
     setEditingId(exp.id);
-    setAmount(String(exp.amount)); if (exp.account?.id) setAccountId(exp.account.id);
+    setAmount(String(exp.amount));
+    if (exp.account?.id) setAccountId(exp.account.id);
     setDescription(exp.description);
     setCategory(exp.category ?? "");
     const d = new Date(exp.date);
     setExpDate(d.toISOString().slice(0, 10));
     setExpTime(d.toTimeString().slice(0, 5));
+
+    if (exp.isPersonal === false) {
+      setEntryType("shared");
+      if (exp.paidBy && exp.paidBy.length > 0) {
+        if (exp.paidBy.length === 1) {
+          setPayerMode("single");
+          setPayerId(exp.paidBy[0].isSelf ? (user?.selfPersonId || "self") : exp.paidBy[0].personId);
+          setCustomPayments({});
+        } else {
+          setPayerMode("multiple");
+          const cp: Record<string, string> = {};
+          for (const p of exp.paidBy) {
+            const pid = p.isSelf ? (user?.selfPersonId || "self") : p.personId;
+            cp[pid] = String(p.amount);
+          }
+          setCustomPayments(cp);
+        }
+      }
+      if (exp.splitWith && exp.splitWith.length > 0) {
+        const splitIds = new Set(
+          exp.splitWith.map((s) => (s.isSelf ? (user?.selfPersonId || "self") : s.personId))
+        );
+        setSplitSelected(splitIds);
+        const cs: Record<string, string> = {};
+        for (const s of exp.splitWith) {
+          const pid = s.isSelf ? (user?.selfPersonId || "self") : s.personId;
+          cs[pid] = String(s.amount);
+        }
+        setCustomSplits(cs);
+      }
+    } else {
+      setEntryType("expense");
+    }
+
     setQuickEntryOpen(true);
   }
 
@@ -501,7 +530,7 @@ export default function DashboardPage() {
   async function handleDeleteExpense(id: string) {
     if (!confirm("Delete this expense?")) return;
     try {
-      await apiFetch(`/api/expenses/personal/${id}`, { method: "DELETE" });
+      await apiFetch(`/api/expenses/${id}`, { method: "DELETE" });
       setExpenses((prev) => prev.filter((e) => e.id !== id));
       await refreshStats();
     } catch (err) {
@@ -745,7 +774,7 @@ export default function DashboardPage() {
               {youOwe.length > 0 ? (
                 <>
                   <h4 className="font-serif font-bold text-lg text-white">
-                    {workspaces[0]?.name || "Shared Workspace"}
+                    {youOwe[0]?.name || "Payable"}
                   </h4>
                   <p className="text-xs text-emerald-100/80 mt-0.5">
                     You owe {symbol}{Math.round(Math.abs(youOwe[0].netBalance)).toLocaleString()} to {youOwe[0].name}
@@ -876,7 +905,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
-                  Day-by-day expenditure across your personal & shared workspaces
+                  Day-by-day expenditure across your personal & shared expenses
                 </p>
               </div>
 
@@ -1027,12 +1056,9 @@ export default function DashboardPage() {
                                         Personal
                                       </span>
                                     ) : (
-                                      <Link
-                                        href={`/workspaces/${exp.workspaceId}`}
-                                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800/40 hover:underline flex items-center gap-1"
-                                      >
-                                        <span>📁 {exp.workspaceName || "Shared"}</span>
-                                      </Link>
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800/40 flex items-center gap-1">
+                                        <span>👥 {exp.workspaceName || "Shared"}</span>
+                                      </span>
                                     )}
 
                                     {/* Funding Account Badge */}
@@ -1080,41 +1106,25 @@ export default function DashboardPage() {
                                 </div>
 
                                 <div className="flex items-center gap-1">
-                                  {isPersonal ? (
-                                    <>
-                                      <button
-                                        onClick={() => handleEditClick(exp)}
-                                        className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
-                                        title="Edit"
-                                      >
-                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                                        </svg>
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteExpense(exp.id)}
-                                        className="p-1.5 text-stone-400 hover:text-rose-600 text-xs cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                                        title="Delete"
-                                      >
-                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                          <polyline points="3 6 5 6 21 6" />
-                                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                        </svg>
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <Link
-                                      href={`/workspaces/${exp.workspaceId}`}
-                                      className="p-1.5 text-stone-400 hover:text-[#0F5C53] dark:hover:text-[#10B981] text-xs rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
-                                      title="Open Workspace"
-                                    >
-                                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                                        <polyline points="15 3 21 3 21 9" />
-                                        <line x1="10" y1="14" x2="21" y2="3" />
-                                      </svg>
-                                    </Link>
-                                  )}
+                                  <button
+                                    onClick={() => handleEditClick(exp)}
+                                    className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
+                                    title="Edit"
+                                  >
+                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteExpense(exp.id)}
+                                    className="p-1.5 text-stone-400 hover:text-rose-600 text-xs cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                                    title="Delete"
+                                  >
+                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <polyline points="3 6 5 6 21 6" />
+                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                    </svg>
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -1221,9 +1231,8 @@ export default function DashboardPage() {
 
                 {entryType === "shared" && (
                   <SharedExpenseQuickFields
-                    workspaces={workspaces}
-                    selectedWsId={selectedWsId}
-                    onSelectWsId={setSelectedWsId}
+                    contacts={contacts}
+                    onContactCreated={(newPerson) => setContacts((prev) => [...prev, newPerson])}
                     payerMode={payerMode}
                     setPayerMode={setPayerMode}
                     payerId={payerId}
@@ -1241,8 +1250,6 @@ export default function DashboardPage() {
                     parsedAmount={parsedAmount}
                     symbol={symbol}
                     selfPersonId={user?.selfPersonId}
-                    currentWorkspace={currentWorkspace}
-                    currentMembers={currentMembers}
                     equalSplitsMap={equalSplitsMap}
                     selfPaidAmount={selfPaidAmount}
                     totalCustomPaid={totalCustomPaid}
@@ -1394,10 +1401,10 @@ export default function DashboardPage() {
                   Settlements
                 </h3>
                 <Link
-                  href="/workspaces"
+                  href="/people"
                   className="text-xs font-semibold text-[#0F5C53] dark:text-[#10B981] hover:underline"
                 >
-                  Workspaces →
+                  Contacts →
                 </Link>
               </div>
 
@@ -1573,7 +1580,7 @@ export default function DashboardPage() {
                   </svg>
                 </button>
 
-                {/* Option 2: Shared Workspace Expense */}
+                {/* Option 2: Shared Expense */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1594,10 +1601,10 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <h4 className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
-                        Shared Workspace Expense
+                        Shared Expense
                       </h4>
                       <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
-                        Split bill with friends, trips, flatmates
+                        Split bill with contacts, friends, roommates
                       </p>
                     </div>
                   </div>
@@ -1708,9 +1715,8 @@ export default function DashboardPage() {
 
               {entryType === "shared" && (
                 <SharedExpenseQuickFields
-                  workspaces={workspaces}
-                  selectedWsId={selectedWsId}
-                  onSelectWsId={setSelectedWsId}
+                  contacts={contacts}
+                  onContactCreated={(newPerson) => setContacts((prev) => [...prev, newPerson])}
                   payerMode={payerMode}
                   setPayerMode={setPayerMode}
                   payerId={payerId}
@@ -1728,8 +1734,6 @@ export default function DashboardPage() {
                   parsedAmount={parsedAmount}
                   symbol={symbol}
                   selfPersonId={user?.selfPersonId}
-                  currentWorkspace={currentWorkspace}
-                  currentMembers={currentMembers}
                   equalSplitsMap={equalSplitsMap}
                   selfPaidAmount={selfPaidAmount}
                   totalCustomPaid={totalCustomPaid}

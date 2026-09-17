@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
+import { reconcileAccount } from "@/lib/account-balance";
 
 const createPersonalExpenseSchema = z.object({
     amount: z.number().positive(),
@@ -52,21 +53,6 @@ export async function POST(req: NextRequest) {
     }
 
     const expense = await prisma.$transaction(async (tx) => {
-        if (verifiedAccountId) {
-            const freshAcc = await tx.account.findUnique({ where: { id: verifiedAccountId } });
-            if (!freshAcc || Number(freshAcc.balance) < amount) {
-                throw new Error(
-                    `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
-                        freshAcc?.balance || 0
-                    )}, Required: ${amount}.`
-                );
-            }
-            await tx.account.update({
-                where: { id: verifiedAccountId },
-                data: { balance: { decrement: amount } },
-            });
-        }
-
         const exp = await tx.expense.create({
             data: {
                 amount,
@@ -80,6 +66,10 @@ export async function POST(req: NextRequest) {
                 account: true,
             },
         });
+
+        if (verifiedAccountId) {
+            await reconcileAccount(verifiedAccountId, tx);
+        }
 
         return exp;
     });

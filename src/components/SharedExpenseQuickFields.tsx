@@ -1,9 +1,17 @@
 "use client";
 
-import React from "react";
-import Link from "next/link";
+import React, { useState } from "react";
 import { AccountSelect } from "./AccountSelect";
+import { apiFetch } from "@/lib/api";
 
+export interface Person {
+  id: string;
+  name: string;
+  email?: string | null;
+  isSelf?: boolean;
+}
+
+// For backwards-compatibility with existing imports
 export interface WorkspaceMember {
   personId: string;
   person: {
@@ -20,9 +28,8 @@ export interface Workspace {
 }
 
 interface SharedExpenseQuickFieldsProps {
-  workspaces: Workspace[];
-  selectedWsId: string;
-  onSelectWsId: (id: string) => void;
+  contacts: Person[];
+  onContactCreated?: (newPerson: Person) => void;
   payerMode: "single" | "multiple";
   setPayerMode: (mode: "single" | "multiple") => void;
   payerId: string;
@@ -40,8 +47,6 @@ interface SharedExpenseQuickFieldsProps {
   parsedAmount: number;
   symbol: string;
   selfPersonId?: string;
-  currentWorkspace: Workspace | null;
-  currentMembers: WorkspaceMember[];
   equalSplitsMap: Record<string, number>;
   selfPaidAmount: number;
   totalCustomPaid: number;
@@ -49,9 +54,8 @@ interface SharedExpenseQuickFieldsProps {
 }
 
 export function SharedExpenseQuickFields({
-  workspaces,
-  selectedWsId,
-  onSelectWsId,
+  contacts,
+  onContactCreated,
   payerMode,
   setPayerMode,
   payerId,
@@ -69,54 +73,119 @@ export function SharedExpenseQuickFields({
   parsedAmount,
   symbol,
   selfPersonId,
-  currentWorkspace,
-  currentMembers,
   equalSplitsMap,
   selfPaidAmount,
   totalCustomPaid,
   totalCustomSplit,
 }: SharedExpenseQuickFieldsProps) {
-  if (workspaces.length === 0) {
-    return (
-      <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-2xl text-center">
-        <p className="text-xs font-semibold text-amber-800 dark:text-amber-400">
-          No shared workspaces found
-        </p>
-        <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-1">
-          Create a workspace first to split expenses with friends & family.
-        </p>
-        <Link
-          href="/workspaces"
-          className="inline-block mt-2 px-3 py-1.5 bg-[#0F5C53] hover:bg-[#0A3F38] text-white rounded-xl text-xs font-semibold"
-        >
-          Go to Workspaces →
-        </Link>
-      </div>
-    );
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
+  const [addingContact, setAddingContact] = useState(false);
+
+  // Combine You + Contacts
+  const allParticipants: Person[] = [
+    { id: selfPersonId || "self", name: "You", isSelf: true },
+    ...contacts.filter((c) => !c.isSelf && c.id !== selfPersonId),
+  ];
+
+  async function handleQuickAddContact(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newContactName.trim()) return;
+    setAddingContact(true);
+    try {
+      const res = await apiFetch<{ person: Person }>("/api/people", {
+        method: "POST",
+        body: JSON.stringify({ name: newContactName.trim() }),
+      });
+      if (res.person) {
+        if (onContactCreated) {
+          onContactCreated(res.person);
+        }
+        // Auto-select this contact for split
+        const next = new Set(splitSelected);
+        next.add(res.person.id);
+        setSplitSelected(next);
+        setNewContactName("");
+        setShowAddContact(false);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to add contact");
+    } finally {
+      setAddingContact(false);
+    }
   }
 
   return (
     <div className="space-y-3.5">
-      {/* Workspace Selection Dropdown */}
-      <div>
-        <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
-          Select Workspace
-        </label>
-        <select
-          value={selectedWsId}
-          onChange={(e) => onSelectWsId(e.target.value)}
-          required
-          className="w-full text-xs font-medium text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-        >
-          {workspaces.map((ws) => (
-            <option key={ws.id} value={ws.id}>
-              {ws.name} ({ws.members?.length || 0} members)
-            </option>
-          ))}
-        </select>
+      {/* 1. Select People to Split With */}
+      <div className="p-3 bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl space-y-2.5">
+        <div className="flex items-center justify-between">
+          <label className="text-[10px] uppercase font-bold text-[#162B27] dark:text-white tracking-wider block">
+            Split With (Contacts)
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowAddContact(!showAddContact)}
+            className="text-[10px] font-semibold text-[#0F5C53] dark:text-[#34D399] hover:underline cursor-pointer"
+          >
+            {showAddContact ? "Cancel" : "+ Add New Person"}
+          </button>
+        </div>
+
+        {showAddContact && (
+          <form onSubmit={handleQuickAddContact} className="flex gap-2 pb-1">
+            <input
+              type="text"
+              placeholder="Person name (e.g. Ali, Kaif)"
+              value={newContactName}
+              onChange={(e) => setNewContactName(e.target.value)}
+              className="flex-1 text-xs bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-1.5 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={addingContact || !newContactName.trim()}
+              className="px-3 py-1.5 bg-[#0F5C53] hover:bg-[#0A3F38] text-white rounded-xl text-xs font-semibold disabled:opacity-50 cursor-pointer"
+            >
+              {addingContact ? "Adding..." : "Add"}
+            </button>
+          </form>
+        )}
+
+        {/* Contact Selector Chips */}
+        <div className="flex flex-wrap gap-1.5">
+          {allParticipants.map((p) => {
+            const isSelected = splitSelected.has(p.id);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  const next = new Set(splitSelected);
+                  if (next.has(p.id)) {
+                    if (next.size > 1) {
+                      next.delete(p.id);
+                    }
+                  } else {
+                    next.add(p.id);
+                  }
+                  setSplitSelected(next);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isSelected
+                    ? "bg-[#0F5C53] text-white shadow-xs"
+                    : "bg-white dark:bg-[#1A2229] text-[#5A6863] dark:text-[#8E9C95] border border-[#E5E0D8] dark:border-[#1E2824] hover:border-[#0F5C53]/50"
+                }`}
+              >
+                <span>{p.name}</span>
+                {isSelected && <span>✓</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Payer Section (Single vs Multiple / Custom Paid) */}
+      {/* 2. Payer Section (Single vs Multiple / Custom Paid) */}
       <div className="p-3 bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl space-y-2.5">
         <div className="flex items-center justify-between">
           <label className="text-[10px] uppercase font-bold text-[#162B27] dark:text-white tracking-wider block">
@@ -127,8 +196,7 @@ export function SharedExpenseQuickFields({
               type="button"
               onClick={() => {
                 setPayerMode("single");
-                const selfMem = currentMembers.find((m) => m.personId === selfPersonId);
-                setPayerId(selfMem?.personId || currentMembers[0]?.personId || "");
+                setPayerId(selfPersonId || allParticipants[0]?.id || "");
                 setCustomPayments({});
               }}
               className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
@@ -145,8 +213,8 @@ export function SharedExpenseQuickFields({
                 setPayerMode("multiple");
                 if (Object.keys(customPayments).length === 0) {
                   const initial: Record<string, string> = {};
-                  currentMembers.forEach((m) => {
-                    initial[m.personId] = m.personId === selfPersonId ? parsedAmount.toFixed(0) : "0";
+                  allParticipants.forEach((p) => {
+                    initial[p.id] = p.id === selfPersonId ? parsedAmount.toFixed(0) : "0";
                   });
                   setCustomPayments(initial);
                 }
@@ -169,11 +237,11 @@ export function SharedExpenseQuickFields({
               onChange={(e) => setPayerId(e.target.value)}
               className="w-full text-xs bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2 text-[#162B27] dark:text-white font-medium focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
             >
-              {currentMembers.map((m) => {
-                const isSelf = m.personId === selfPersonId;
+              {allParticipants.map((p) => {
+                const isSelf = p.isSelf || p.id === selfPersonId;
                 return (
-                  <option key={m.personId} value={m.personId}>
-                    {isSelf ? "You (Paid full amount)" : `${m.person.name} (Paid full amount)`}
+                  <option key={p.id} value={p.id}>
+                    {isSelf ? "You (Paid full amount)" : `${p.name} (Paid full amount)`}
                   </option>
                 );
               })}
@@ -182,16 +250,16 @@ export function SharedExpenseQuickFields({
         ) : (
           <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
-              {currentMembers.map((m) => {
-                const isSelf = m.personId === selfPersonId;
-                const val = customPayments[m.personId] || "";
+              {allParticipants.map((p) => {
+                const isSelf = p.isSelf || p.id === selfPersonId;
+                const val = customPayments[p.id] || "";
                 return (
                   <div
-                    key={m.personId}
+                    key={p.id}
                     className="flex items-center gap-2 bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-2 rounded-xl"
                   >
                     <span className="text-xs font-medium text-[#162B27] dark:text-white flex-1 truncate">
-                      {isSelf ? "You" : m.person.name}
+                      {isSelf ? "You" : p.name}
                     </span>
                     <div className="flex items-center gap-1">
                       <span className="text-[11px] text-[#6B7268] dark:text-[#8E9C95]">{symbol}</span>
@@ -203,7 +271,7 @@ export function SharedExpenseQuickFields({
                         onChange={(e) => {
                           setCustomPayments({
                             ...customPayments,
-                            [m.personId]: e.target.value,
+                            [p.id]: e.target.value,
                           });
                         }}
                         className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-lg px-2 py-1 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
@@ -251,7 +319,7 @@ export function SharedExpenseQuickFields({
         )}
       </div>
 
-      {/* Account Deduction: Shown whenever "Me" is paying (Kaha se hoyi ha) */}
+      {/* 3. Account Deduction: Shown whenever "You" is paying */}
       {selfPaidAmount > 0 && (
         <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl space-y-1.5">
           <div className="flex items-center justify-between">
@@ -266,7 +334,7 @@ export function SharedExpenseQuickFields({
             value={accountId}
             onChange={setAccountId}
             label=""
-            placeholder="Select payment source (Cash, NayaPay, Bank...)"
+            placeholder="Select payment source (Cash, SadaPay, NayaPay...)"
           />
           <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
             Deducts {symbol}{Math.round(selfPaidAmount)} directly from this account balance.
@@ -274,11 +342,11 @@ export function SharedExpenseQuickFields({
         </div>
       )}
 
-      {/* Split Section (Equal vs Custom Amounts) */}
+      {/* 4. Split Section (Equal vs Custom Amounts) */}
       <div className="p-3 bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl space-y-2.5">
         <div className="flex items-center justify-between">
           <label className="text-[10px] uppercase font-bold text-[#162B27] dark:text-white tracking-wider block">
-            Split Between
+            Split Breakdown
           </label>
           <div className="flex bg-stone-200/60 dark:bg-[#13191E] p-0.5 rounded-lg text-[10px] font-medium border border-transparent dark:border-[#1E2824]">
             <button
@@ -298,9 +366,9 @@ export function SharedExpenseQuickFields({
                 setSplitMode("custom");
                 if (Object.keys(customSplits).length === 0) {
                   const initial: Record<string, string> = {};
-                  currentMembers.forEach((m) => {
-                    if (splitSelected.has(m.personId)) {
-                      initial[m.personId] = (equalSplitsMap[m.personId] || 0).toString();
+                  allParticipants.forEach((p) => {
+                    if (splitSelected.has(p.id)) {
+                      initial[p.id] = (equalSplitsMap[p.id] || 0).toString();
                     }
                   });
                   setCustomSplits(initial);
@@ -320,54 +388,38 @@ export function SharedExpenseQuickFields({
         {splitMode === "equal" ? (
           <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
-              {currentMembers.map((m) => {
-                const isChecked = splitSelected.has(m.personId);
-                const assignedShare = isChecked ? equalSplitsMap[m.personId] || 0 : 0;
-                const isSelf = m.personId === selfPersonId;
-                const baseShare = splitSelected.size > 0 ? Math.floor(parsedAmount / splitSelected.size) : 0;
-                const hasExtraRupee = isSelf && isChecked && assignedShare > baseShare;
+              {allParticipants
+                .filter((p) => splitSelected.has(p.id))
+                .map((p) => {
+                  const assignedShare = equalSplitsMap[p.id] || 0;
+                  const isSelf = p.isSelf || p.id === selfPersonId;
+                  const baseShare =
+                    splitSelected.size > 0 ? Math.floor(parsedAmount / splitSelected.size) : 0;
+                  const hasExtraRupee = isSelf && assignedShare > baseShare;
 
-                return (
-                  <label
-                    key={m.personId}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                      isChecked
-                        ? "bg-white dark:bg-[#1A2229] border-[#0F5C53] dark:border-[#10B981] shadow-xs"
-                        : "bg-[#FAF8F5] dark:bg-[#13191E] border-[#E5E0D8] dark:border-[#1E2824] text-stone-400 dark:text-stone-600 opacity-60"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {
-                          const next = new Set(splitSelected);
-                          if (next.has(m.personId)) next.delete(m.personId);
-                          else next.add(m.personId);
-                          setSplitSelected(next);
-                        }}
-                        className="w-3.5 h-3.5 accent-[#0F5C53] dark:accent-[#10B981]"
-                      />
+                  return (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between p-2.5 rounded-xl border text-xs bg-white dark:bg-[#1A2229] border-[#0F5C53] dark:border-[#10B981] shadow-xs"
+                    >
                       <span className="font-semibold text-[#162B27] dark:text-white truncate">
-                        {isSelf ? "You" : m.person.name}
+                        {isSelf ? "You" : p.name}
                       </span>
-                    </div>
-
-                    {isChecked && parsedAmount > 0 && (
-                      <div className="text-right flex-shrink-0">
-                        <span className="font-mono font-bold text-[#0F5C53] dark:text-[#34D399] text-xs">
-                          {symbol}{assignedShare}
-                        </span>
-                        {hasExtraRupee && (
-                          <span className="block text-[8px] font-bold text-amber-700 dark:text-amber-400">
-                            (+{assignedShare - baseShare} to you)
+                      {parsedAmount > 0 && (
+                        <div className="text-right flex-shrink-0">
+                          <span className="font-mono font-bold text-[#0F5C53] dark:text-[#34D399] text-xs">
+                            {symbol}{assignedShare}
                           </span>
-                        )}
-                      </div>
-                    )}
-                  </label>
-                );
-              })}
+                          {hasExtraRupee && (
+                            <span className="block text-[8px] font-bold text-amber-700 dark:text-amber-400">
+                              (+{assignedShare - baseShare} to you)
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
             <p className="text-[10px] text-[#6B7268] dark:text-[#8E9C95]">
               Whole integers only. Remainder is allocated to You to keep sums exact.
@@ -376,36 +428,38 @@ export function SharedExpenseQuickFields({
         ) : (
           <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
-              {currentMembers.map((m) => {
-                const isSelf = m.personId === selfPersonId;
-                const val = customSplits[m.personId] || "";
-                return (
-                  <div
-                    key={m.personId}
-                    className="flex items-center gap-2 bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-2 rounded-xl"
-                  >
-                    <span className="text-xs font-medium text-[#162B27] dark:text-white flex-1 truncate">
-                      {isSelf ? "You" : m.person.name}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-[#6B7268] dark:text-[#8E9C95]">{symbol}</span>
-                      <input
-                        type="number"
-                        step="1"
-                        placeholder="0"
-                        value={val}
-                        onChange={(e) => {
-                          setCustomSplits({
-                            ...customSplits,
-                            [m.personId]: e.target.value,
-                          });
-                        }}
-                        className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-lg px-2 py-1 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
-                      />
+              {allParticipants
+                .filter((p) => splitSelected.has(p.id))
+                .map((p) => {
+                  const isSelf = p.isSelf || p.id === selfPersonId;
+                  const val = customSplits[p.id] || "";
+                  return (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-2 bg-white dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] p-2 rounded-xl"
+                    >
+                      <span className="text-xs font-medium text-[#162B27] dark:text-white flex-1 truncate">
+                        {isSelf ? "You" : p.name}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[11px] text-[#6B7268] dark:text-[#8E9C95]">{symbol}</span>
+                        <input
+                          type="number"
+                          step="1"
+                          placeholder="0"
+                          value={val}
+                          onChange={(e) => {
+                            setCustomSplits({
+                              ...customSplits,
+                              [p.id]: e.target.value,
+                            });
+                          }}
+                          className="w-20 text-xs font-semibold text-right bg-[#FAF8F5] dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-lg px-2 py-1 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
 
             {/* Split Validation status */}

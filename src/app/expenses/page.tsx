@@ -348,8 +348,9 @@ export default function ExpensesMasterPage() {
                 onChange={(e) => setScope(e.target.value)}
                 className="w-full text-xs font-semibold bg-[#FAF8F5] dark:bg-[#182026] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-2.5 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
               >
-                <option value="all">All Sources</option>
+                <option value="all">All (Personal & Shared)</option>
                 <option value="personal">Personal Only</option>
+                <option value="shared">Shared Only</option>
                 {meta?.workspaces.map((w) => (
                   <option key={w.id} value={w.id}>
                     Workspace: {w.name}

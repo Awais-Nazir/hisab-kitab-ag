@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
+import { reconcileAccount } from "@/lib/account-balance";
 
 const depositSchema = z.object({
   amount: z.number().positive(),
@@ -37,8 +38,8 @@ export async function POST(
 
   const depositDate = date ? new Date(date) : new Date();
 
-  const [deposit, updatedAccount] = await prisma.$transaction([
-    prisma.accountDeposit.create({
+  const [deposit] = await prisma.$transaction(async (tx) => {
+    const d = await tx.accountDeposit.create({
       data: {
         ownerId: user.id,
         accountId,
@@ -47,14 +48,11 @@ export async function POST(
         note,
         date: depositDate,
       },
-    }),
-    prisma.account.update({
-      where: { id: accountId },
-      data: {
-        balance: { increment: amount },
-      },
-    }),
-  ]);
+    });
+    await reconcileAccount(accountId, tx);
+    const updatedAccount = await tx.account.findUnique({ where: { id: accountId } });
+    return [d, updatedAccount];
+  });
 
-  return NextResponse.json({ deposit, account: updatedAccount }, { status: 201 });
+  return NextResponse.json({ deposit, account: deposit }, { status: 201 });
 }

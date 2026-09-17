@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
+import { reconcileAccount } from "@/lib/account-balance";
 
 const updateSchema = z.object({
     amount: z.number().positive(),
@@ -54,55 +55,7 @@ export async function PATCH(
 
     try {
         const expense = await prisma.$transaction(async (tx) => {
-            if (oldAccountId && targetAccountId && oldAccountId === targetAccountId) {
-                // Same account: adjust difference
-                const diff = amount - oldAmount;
-                if (diff > 0) {
-                    const freshAcc = await tx.account.findUnique({ where: { id: targetAccountId } });
-                    if (!freshAcc || Number(freshAcc.balance) < diff) {
-                        throw new Error(
-                            `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
-                                freshAcc?.balance || 0
-                            )}, Additional required: ${diff}. Account balance cannot go negative.`
-                        );
-                    }
-                    await tx.account.update({
-                        where: { id: targetAccountId },
-                        data: { balance: { decrement: diff } },
-                    });
-                } else if (diff < 0) {
-                    await tx.account.update({
-                        where: { id: targetAccountId },
-                        data: { balance: { increment: Math.abs(diff) } },
-                    });
-                }
-            } else {
-                // Account changed or added/removed
-                // 1. Refund old account
-                if (oldAccountId) {
-                    await tx.account.update({
-                        where: { id: oldAccountId },
-                        data: { balance: { increment: oldAmount } },
-                    });
-                }
-                // 2. Deduct from new account
-                if (targetAccountId) {
-                    const freshAcc = await tx.account.findUnique({ where: { id: targetAccountId } });
-                    if (!freshAcc || Number(freshAcc.balance) < amount) {
-                        throw new Error(
-                            `Insufficient balance in ${freshAcc?.name || "account"}. Available: ${Number(
-                                freshAcc?.balance || 0
-                            )}, Required: ${amount}. Account balance cannot go negative.`
-                        );
-                    }
-                    await tx.account.update({
-                        where: { id: targetAccountId },
-                        data: { balance: { decrement: amount } },
-                    });
-                }
-            }
-
-            return tx.expense.update({
+            const updated = await tx.expense.update({
                 where: { id },
                 data: {
                     amount,
@@ -113,6 +66,15 @@ export async function PATCH(
                 },
                 include: { account: true },
             });
+
+            if (oldAccountId) {
+                await reconcileAccount(oldAccountId, tx);
+            }
+            if (targetAccountId && targetAccountId !== oldAccountId) {
+                await reconcileAccount(targetAccountId, tx);
+            }
+
+            return updated;
         });
 
         return NextResponse.json({ expense });
@@ -137,14 +99,13 @@ export async function DELETE(
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const accountId = existing.accountId;
+
     await prisma.$transaction(async (tx) => {
-        if (existing.accountId) {
-            await tx.account.update({
-                where: { id: existing.accountId },
-                data: { balance: { increment: Number(existing.amount) } },
-            });
-        }
         await tx.expense.delete({ where: { id } });
+        if (accountId) {
+            await reconcileAccount(accountId, tx);
+        }
     });
 
     return NextResponse.json({ success: true });

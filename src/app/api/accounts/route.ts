@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
             ownerId: user.id,
             name,
             type,
+            initialBalance: balance,
             balance,
             color,
             icon,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
+import { reconcileAccount } from "@/lib/account-balance";
 
 export async function DELETE(
     req: NextRequest,
@@ -13,32 +14,28 @@ export async function DELETE(
 
     const rows = await prisma.settlement.findMany({
         where: { batchId },
-        include: { workspace: true },
+        include: { workspace: true, fromPerson: true, toPerson: true },
     });
-    if (rows.length === 0 || rows.some((r) => r.workspace.ownerId !== user.id)) {
+    if (
+        rows.length === 0 ||
+        rows.some(
+            (r) =>
+                (r.workspace && r.workspace.ownerId !== user.id) ||
+                (!r.workspace && r.fromPerson.ownerId !== user.id && r.toPerson.ownerId !== user.id)
+        )
+    ) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const accountIds = Array.from(
+        new Set(rows.map((r) => r.accountId).filter(Boolean) as string[])
+    );
+
     await prisma.$transaction(async (tx) => {
-        // Revert any account adjustments made by settlements in this batch
-        for (const r of rows) {
-            if (r.accountId) {
-                if (r.fromPersonId === user.selfPersonId) {
-                    // User was payer (account decremented) -> increment back
-                    await tx.account.update({
-                        where: { id: r.accountId },
-                        data: { balance: { increment: r.amount } },
-                    });
-                } else if (r.toPersonId === user.selfPersonId) {
-                    // User was receiver (account incremented) -> decrement back
-                    await tx.account.update({
-                        where: { id: r.accountId },
-                        data: { balance: { decrement: r.amount } },
-                    });
-                }
-            }
-        }
         await tx.settlement.deleteMany({ where: { batchId } });
+        for (const accId of accountIds) {
+            await reconcileAccount(accId, tx);
+        }
     });
 
     return NextResponse.json({ success: true });

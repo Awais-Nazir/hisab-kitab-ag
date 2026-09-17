@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
+import { reconcileAccount } from "@/lib/account-balance";
 
 const transferSchema = z.object({
     fromAccountId: z.string().min(1),
@@ -75,15 +76,11 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        const uf = await tx.account.update({
-            where: { id: fromAccountId },
-            data: { balance: { decrement: amount } },
-        });
+        await reconcileAccount(fromAccountId, tx);
+        await reconcileAccount(toAccountId, tx);
 
-        const ut = await tx.account.update({
-            where: { id: toAccountId },
-            data: { balance: { increment: amount } },
-        });
+        const uf = await tx.account.findUnique({ where: { id: fromAccountId } });
+        const ut = await tx.account.findUnique({ where: { id: toAccountId } });
 
         return [t, uf, ut];
     });
