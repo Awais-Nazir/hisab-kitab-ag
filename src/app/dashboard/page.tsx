@@ -179,21 +179,35 @@ export default function DashboardPage() {
     return Object.values(customSplits).reduce((s, v) => s + (parseFloat(v) || 0), 0);
   }, [customSplits]);
 
+  // Quick Notes State
+  const [dashboardNotes, setDashboardNotes] = useState<any[]>([]);
+  const [quickNoteTitle, setQuickNoteTitle] = useState("");
+  const [quickNoteSaving, setQuickNoteSaving] = useState(false);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [noteModalTitle, setNoteModalTitle] = useState("");
+  const [noteModalContent, setNoteModalContent] = useState("");
+  const [noteModalCategory, setNoteModalCategory] = useState("General");
+  const [noteModalColor, setNoteModalColor] = useState("emerald");
+  const [noteModalIsPinned, setNoteModalIsPinned] = useState(false);
+  const [expandedDashboardNoteId, setExpandedDashboardNoteId] = useState<string | null>(null);
+
   useEffect(() => {
     async function load() {
       try {
-        const [peopleRes, expRes, overviewRes, trendRes, accRes] = await Promise.all([
+        const [peopleRes, expRes, overviewRes, trendRes, accRes, notesRes] = await Promise.all([
           apiFetch<{ people: Person[] }>("/api/people"),
           apiFetch<{ expenses: Expense[] }>("/api/expenses"),
           apiFetch<Overview>("/api/stats/overview"),
           apiFetch<{ days: TrendDay[] }>("/api/stats/last7days?range=week"),
           apiFetch<{ accounts: { id: string; name: string; type: string; balance: number | string }[] }>("/api/accounts"),
+          apiFetch<{ notes: any[] }>("/api/notes").catch(() => ({ notes: [] })),
         ]);
         setContacts(peopleRes.people || []);
         setExpenses(expRes.expenses || []);
         setOverview(overviewRes);
         setTrend(trendRes.days || []);
         setAccounts(accRes.accounts || []);
+        setDashboardNotes(notesRes.notes || []);
       } catch (err) {
         if (typeof navigator !== "undefined" && navigator.onLine) {
           router.push("/login");
@@ -212,13 +226,15 @@ export default function DashboardPage() {
         apiFetch<Overview>("/api/stats/overview"),
         apiFetch<{ days: TrendDay[] }>("/api/stats/last7days?range=week"),
         apiFetch<{ accounts: { id: string; name: string; type: string; balance: number | string }[] }>("/api/accounts"),
+        apiFetch<{ notes: any[] }>("/api/notes").catch(() => ({ notes: [] })),
       ])
-        .then(([peopleRes, expRes, overviewRes, trendRes, accRes]) => {
+        .then(([peopleRes, expRes, overviewRes, trendRes, accRes, notesRes]) => {
           if (peopleRes?.people) setContacts(peopleRes.people);
           if (expRes?.expenses) setExpenses(expRes.expenses);
           if (overviewRes) setOverview(overviewRes);
           if (trendRes?.days) setTrend(trendRes.days);
           if (accRes?.accounts) setAccounts(accRes.accounts || []);
+          if (notesRes?.notes) setDashboardNotes(notesRes.notes);
         })
         .catch(() => {});
     }
@@ -251,6 +267,58 @@ export default function DashboardPage() {
       setAccounts(accRes.accounts || []);
     } catch {
       // non-critical
+    }
+  }
+
+  async function handleQuickAddNote(e: React.FormEvent) {
+    e.preventDefault();
+    if (!quickNoteTitle.trim() || quickNoteSaving) return;
+    setQuickNoteSaving(true);
+    try {
+      const res = await apiFetch<{ note: any }>("/api/notes", {
+        method: "POST",
+        body: JSON.stringify({
+          title: quickNoteTitle.trim(),
+          content: quickNoteTitle.trim(),
+          category: "General",
+          color: "emerald",
+        }),
+      });
+      setDashboardNotes((prev) => [res.note, ...prev]);
+      setQuickNoteTitle("");
+    } catch {
+      alert("Failed to save quick note");
+    } finally {
+      setQuickNoteSaving(false);
+    }
+  }
+
+  async function handleCreateFullNote(e: React.FormEvent) {
+    e.preventDefault();
+    if (!noteModalTitle.trim() || !noteModalContent.trim() || quickNoteSaving) return;
+    setQuickNoteSaving(true);
+    try {
+      const res = await apiFetch<{ note: any }>("/api/notes", {
+        method: "POST",
+        body: JSON.stringify({
+          title: noteModalTitle.trim(),
+          content: noteModalContent.trim(),
+          category: noteModalCategory,
+          color: noteModalColor,
+          isPinned: noteModalIsPinned,
+        }),
+      });
+      setDashboardNotes((prev) => [res.note, ...prev]);
+      setNoteModalOpen(false);
+      setNoteModalTitle("");
+      setNoteModalContent("");
+      setNoteModalCategory("General");
+      setNoteModalColor("emerald");
+      setNoteModalIsPinned(false);
+    } catch {
+      alert("Failed to save note");
+    } finally {
+      setQuickNoteSaving(false);
     }
   }
 
@@ -1504,6 +1572,95 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+
+            {/* Quick Notes Card on Dashboard */}
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📝</span>
+                  <h3 className="font-serif font-bold text-lg text-[#162B27] dark:text-white">
+                    Quick Notes
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNoteModalOpen(true)}
+                    className="text-xs font-semibold text-[#0F5C53] dark:text-[#10B981] hover:underline cursor-pointer"
+                  >
+                    + Note
+                  </button>
+                  <span className="text-stone-300 dark:text-stone-700">•</span>
+                  <Link
+                    href="/notes"
+                    className="text-xs font-semibold text-[#0F5C53] dark:text-[#10B981] hover:underline"
+                  >
+                    All Notes →
+                  </Link>
+                </div>
+              </div>
+
+              {/* Instant inline quick-add input */}
+              <form onSubmit={handleQuickAddNote} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={quickNoteTitle}
+                  onChange={(e) => setQuickNoteTitle(e.target.value)}
+                  placeholder="Jot down a quick note & hit Enter..."
+                  className="flex-1 bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2 text-xs text-[#162B27] dark:text-white placeholder:text-stone-400 focus:outline-none focus:border-[#0F5C53] dark:focus:border-[#10B981]"
+                />
+                <button
+                  type="submit"
+                  disabled={quickNoteSaving || !quickNoteTitle.trim()}
+                  className="bg-[#0F5C53] hover:bg-[#0C4A43] text-white px-3 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 cursor-pointer flex-shrink-0"
+                >
+                  {quickNoteSaving ? "..." : "+ Add"}
+                </button>
+              </form>
+
+              {/* Recent / Pinned Notes List */}
+              {dashboardNotes.length === 0 ? (
+                <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] italic">
+                  No notes yet. Type above to quickly record a reminder or agreement.
+                </p>
+              ) : (
+                <div className="divide-y divide-[#F0ECE6] dark:divide-[#1E2824]">
+                  {dashboardNotes.slice(0, 3).map((note) => {
+                    const isExpanded = expandedDashboardNoteId === note.id;
+                    return (
+                      <div key={note.id} className="py-2.5 space-y-1">
+                        <div
+                          onClick={() => setExpandedDashboardNoteId(isExpanded ? null : note.id)}
+                          className="flex items-center justify-between cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {note.isPinned && <span className="text-xs">📌</span>}
+                            <span className="font-semibold text-xs text-[#162B27] dark:text-white truncate group-hover:text-[#0F5C53] dark:group-hover:text-[#34D399]">
+                              {note.title}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-[#8E9C95] flex-shrink-0 ml-2">
+                            {new Date(note.date || note.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
+                        </div>
+                        {isExpanded ? (
+                          <div className="text-xs text-[#5A6863] dark:text-[#9AA5A0] bg-[#FAF8F5] dark:bg-[#1A2229] p-2.5 rounded-xl whitespace-pre-wrap">
+                            {note.content}
+                          </div>
+                        ) : (
+                          <p
+                            onClick={() => setExpandedDashboardNoteId(note.id)}
+                            className="text-[11px] text-[#5A6863] dark:text-[#8E9C95] truncate cursor-pointer"
+                          >
+                            {note.content}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1879,6 +2036,114 @@ export default function DashboardPage() {
             </form>
           </div>
         </div>
+        </ModalPortal>
+      )}
+
+      {/* Quick Note Modal on Dashboard */}
+      {noteModalOpen && (
+        <ModalPortal>
+          <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE6] dark:border-[#1E2824]">
+                <div>
+                  <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white">
+                    New Quick Note
+                  </h3>
+                  <p className="text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5">
+                    Save a memorandum, reminder, or agreement
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNoteModalOpen(false)}
+                  className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateFullNote} className="space-y-3.5">
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={noteModalTitle}
+                    onChange={(e) => setNoteModalTitle(e.target.value)}
+                    placeholder="e.g. Return 1000 to Razaq, Rent receipt"
+                    className="w-full text-sm font-semibold text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3.5 py-2.5 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
+                    Details
+                  </label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={noteModalContent}
+                    onChange={(e) => setNoteModalContent(e.target.value)}
+                    placeholder="Write your note, commitments, or details..."
+                    className="w-full text-xs text-[#162B27] dark:text-white bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl p-3 focus:bg-white dark:focus:bg-[#13191E] focus:outline-none focus:border-[#0F5C53] resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-[#5A6863] dark:text-[#8E9C95] tracking-wider block mb-1">
+                      Category
+                    </label>
+                    <select
+                      value={noteModalCategory}
+                      onChange={(e) => setNoteModalCategory(e.target.value)}
+                      className="w-full text-xs bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl px-3 py-2 text-[#162B27] dark:text-white focus:outline-none focus:border-[#0F5C53]"
+                    >
+                      <option value="General">General</option>
+                      <option value="Financial">Financial</option>
+                      <option value="Reminder">Reminder</option>
+                      <option value="Agreement">Agreement</option>
+                      <option value="Checklist">Checklist</option>
+                      <option value="Personal">Personal</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center pt-5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={noteModalIsPinned}
+                        onChange={(e) => setNoteModalIsPinned(e.target.checked)}
+                        className="w-4 h-4 text-[#0F5C53] rounded border-stone-300 focus:ring-0 cursor-pointer"
+                      />
+                      <span className="text-xs font-semibold text-[#162B27] dark:text-white">
+                        Pin note 📌
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-[#F0ECE6] dark:border-[#1E2824] flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNoteModalOpen(false)}
+                    className="w-1/3 py-2.5 text-xs font-semibold text-[#5A6863] dark:text-[#8E9C95] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={quickNoteSaving}
+                    className="w-2/3 bg-[#0F5C53] hover:bg-[#0A3F38] text-white py-2.5 rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {quickNoteSaving ? "Saving..." : "+ Save Note"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         </ModalPortal>
       )}
     </AppLayout>

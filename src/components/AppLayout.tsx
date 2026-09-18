@@ -24,6 +24,7 @@ const MOBILE_TABS = [
   "/accounts",
   "/people",
   "/categories",
+  "/notes",
 ];
 
 export function AppLayout({

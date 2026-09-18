@@ -27,6 +27,7 @@ model User {
   transfers        AccountTransfer[]
   deposits         AccountDeposit[]
   udharEntries     UdharEntry[]
+  notes            Note[]
 }
 
 model Person {
@@ -208,5 +209,22 @@ model UdharEntry {
   person        Person   @relation(fields: [personId], references: [id])
   account       Account? @relation("AccountUdhar", fields: [accountId], references: [id])
   settleAccount Account? @relation("AccountUdharSettled", fields: [settleAccountId], references: [id])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  ownerId   String
+  title     String
+  content   String   @db.Text
+  category  String?  @default("General") // General, Financial, Reminder, Checklist, Agreement
+  color     String?  @default("emerald") // emerald, amber, blue, purple, rose, slate
+  isPinned  Boolean  @default(false)
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, date])
 }
 
