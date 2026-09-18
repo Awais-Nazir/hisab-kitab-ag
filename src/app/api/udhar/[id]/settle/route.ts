@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
+import { reconcileAccount } from "@/lib/account-balance";
 
 const settleUdharSchema = z.object({
   accountId: z.string().optional(),
@@ -96,6 +97,10 @@ export async function POST(
         settleAccount: true,
       },
     });
+
+    if (verifiedAccountId) {
+      await reconcileAccount(verifiedAccountId, tx);
+    }
 
     return settledEntry;
   });

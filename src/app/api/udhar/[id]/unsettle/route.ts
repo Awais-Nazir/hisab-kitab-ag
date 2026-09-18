@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/requireUser";
+import { reconcileAccount } from "@/lib/account-balance";
 
 export async function POST(
   req: NextRequest,
@@ -25,20 +26,21 @@ export async function POST(
   }
 
   const amt = Number(entry.amount);
+  const oldSettleAccountId = entry.settleAccountId;
 
   const updated = await prisma.$transaction(async (tx) => {
     // Revert the balance impact made during settlement
-    if (entry.settleAccountId) {
+    if (oldSettleAccountId) {
       if (entry.type === "DENA") {
         // Was paid back out of an account (decremented) -> Refund the account
         await tx.account.update({
-          where: { id: entry.settleAccountId },
+          where: { id: oldSettleAccountId },
           data: { balance: { increment: amt } },
         });
       } else {
         // Was received into an account (incremented) -> Deduct back from account
         await tx.account.update({
-          where: { id: entry.settleAccountId },
+          where: { id: oldSettleAccountId },
           data: { balance: { decrement: amt } },
         });
       }
@@ -57,6 +59,10 @@ export async function POST(
         settleAccount: true,
       },
     });
+
+    if (oldSettleAccountId) {
+      await reconcileAccount(oldSettleAccountId, tx);
+    }
 
     return unsettledEntry;
   });
