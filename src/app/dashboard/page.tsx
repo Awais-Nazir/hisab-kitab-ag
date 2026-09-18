@@ -808,9 +808,9 @@ export default function DashboardPage() {
                   setShowGlobalSettle(true);
                   document.getElementById("dashboard-settlements-card")?.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="bg-white hover:bg-stone-100 text-[#0B3B36] text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5"
+                className="bg-white hover:bg-stone-100 text-[#0B3B36] dark:text-white text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5"
               >
-                <span>Settle Now →</span>
+                <span className="text-[#0B3B36] dark:text-white">Settle Now →</span>
               </button>
             </div>
           </div>
