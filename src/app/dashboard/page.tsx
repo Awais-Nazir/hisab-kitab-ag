@@ -113,6 +113,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [activityScope, setActivityScope] = useState<"all" | "personal">("all");
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [activityCollapsed, setActivityCollapsed] = useState(false);
+  const [showAllDays, setShowAllDays] = useState(false);
 
   // Quick Entry State
   const [entryType, setEntryType] = useState<"expense" | "shared" | "income" | "transfer">("expense");
@@ -964,7 +966,7 @@ export default function DashboardPage() {
         {/* Two-Column Grid: Left Activity Feed, Right Quick Entry & Settlements */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* Left Column (2 Cols wide on desktop): Recent Activity Feed */}
-          <div className="lg:col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-5 order-2 lg:order-1">
             {/* Header & Controls */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-4 shadow-xs">
               <div>
@@ -1006,6 +1008,25 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
+                {/* Master Collapse / Expand Button */}
+                <button
+                  type="button"
+                  onClick={() => setActivityCollapsed(!activityCollapsed)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF8F5] dark:bg-[#1A2229] hover:bg-stone-200/60 dark:hover:bg-[#202A25] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl text-xs font-semibold text-stone-700 dark:text-stone-300 transition-colors cursor-pointer"
+                  title={activityCollapsed ? "Expand Activity Ledger" : "Collapse Activity Ledger"}
+                >
+                  <span>{activityCollapsed ? "Expand" : "Collapse"}</span>
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${activityCollapsed ? "rotate-180" : ""}`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M18 15l-6-6-6 6" />
+                  </svg>
+                </button>
+
                 {/* Link to Full Page */}
                 <Link
                   href="/expenses"
@@ -1019,195 +1040,238 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Quick Expand/Collapse toggles if groups exist */}
-            {groupedDays.length > 0 && (
-              <div className="flex items-center justify-between text-xs text-[#5A6863] dark:text-[#8E9C95] px-1">
-                <span>Grouped by Date ({groupedDays.length} days recorded)</span>
-                <div className="flex items-center gap-3 font-medium">
-                  <button
-                    onClick={() => toggleAllAccordions(true)}
-                    className="hover:text-[#0F5C53] dark:hover:text-[#10B981] cursor-pointer"
-                  >
-                    Expand All
-                  </button>
-                  <span>•</span>
-                  <button
-                    onClick={() => toggleAllAccordions(false)}
-                    className="hover:text-[#0F5C53] dark:hover:text-[#10B981] cursor-pointer"
-                  >
-                    Collapse All
-                  </button>
+            {/* Activity Ledger Body: Collapsed view or Accordion groups */}
+            {activityCollapsed ? (
+              <div className="p-4 bg-white dark:bg-[#13191E] border border-dashed border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl flex items-center justify-between text-xs text-[#5A6863] dark:text-[#8E9C95] shadow-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📋</span>
+                  <span>Activity ledger is currently collapsed ({groupedDays.length} days recorded).</span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setActivityCollapsed(false)}
+                  className="px-3 py-1.5 bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl text-xs font-semibold text-[#0F5C53] dark:text-[#10B981] hover:underline cursor-pointer"
+                >
+                  Tap to Expand
+                </button>
               </div>
-            )}
+            ) : (
+              <>
+                {/* Quick Expand/Collapse toggles if groups exist */}
+                {groupedDays.length > 0 && (
+                  <div className="flex items-center justify-between text-xs text-[#5A6863] dark:text-[#8E9C95] px-1">
+                    <span>
+                      {showAllDays
+                        ? `Showing all ${groupedDays.length} recorded days`
+                        : `Showing recent ${Math.min(2, groupedDays.length)} of ${groupedDays.length} days`}
+                    </span>
+                    <div className="flex items-center gap-3 font-medium">
+                      <button
+                        onClick={() => toggleAllAccordions(true)}
+                        className="hover:text-[#0F5C53] dark:hover:text-[#10B981] cursor-pointer"
+                      >
+                        Expand All
+                      </button>
+                      <span>•</span>
+                      <button
+                        onClick={() => toggleAllAccordions(false)}
+                        className="hover:text-[#0F5C53] dark:hover:text-[#10B981] cursor-pointer"
+                      >
+                        Collapse All
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-            {/* Day-by-Day Accordion Groups */}
-            <div className="space-y-4">
-              {groupedDays.map((group) => {
-                const isOpen = expandedDays[group.dateStr] !== false; // default open
+                {/* Day-by-Day Accordion Groups */}
+                <div className="space-y-4">
+                  {(showAllDays ? groupedDays : groupedDays.slice(0, 2)).map((group) => {
+                    const isOpen = expandedDays[group.dateStr] !== false; // default open
 
-                return (
-                  <div
-                    key={group.dateStr}
-                    className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl overflow-hidden shadow-xs transition-all"
-                  >
-                    {/* Day Accordion Header Button */}
-                    <button
-                      type="button"
-                      onClick={() => toggleDayAccordion(group.dateStr)}
-                      className="w-full px-4 py-3.5 bg-[#FAF8F5]/60 dark:bg-[#1A2229]/40 hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229]/80 border-b border-[#E5E0D8]/60 dark:border-[#1E2824]/60 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-6 h-6 rounded-lg bg-stone-200/60 dark:bg-stone-800 flex items-center justify-center text-stone-600 dark:text-stone-300 transition-transform duration-200 ${
-                            isOpen ? "rotate-90" : ""
-                          }`}
+                    return (
+                      <div
+                        key={group.dateStr}
+                        className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl overflow-hidden shadow-xs transition-all"
+                      >
+                        {/* Day Accordion Header Button */}
+                        <button
+                          type="button"
+                          onClick={() => toggleDayAccordion(group.dateStr)}
+                          className="w-full px-4 py-3.5 bg-[#FAF8F5]/60 dark:bg-[#1A2229]/40 hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229]/80 border-b border-[#E5E0D8]/60 dark:border-[#1E2824]/60 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer"
                         >
-                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="9 18 15 12 9 6" />
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm text-[#162B27] dark:text-white">
-                              {group.label}
-                            </span>
-                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] text-[#5A6863] dark:text-[#8E9C95]">
-                              {group.items.length} {group.items.length === 1 ? "entry" : "entries"}
-                            </span>
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-6 h-6 rounded-lg bg-stone-200/60 dark:bg-stone-800 flex items-center justify-center text-stone-600 dark:text-stone-300 transition-transform duration-200 ${
+                                isOpen ? "rotate-90" : ""
+                              }`}
+                            >
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <polyline points="9 18 15 12 9 6" />
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
+                                  {group.label}
+                                </span>
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-stone-200/50 dark:bg-stone-800 text-stone-600 dark:text-stone-400">
+                                  {group.items.length} {group.items.length === 1 ? "expense" : "expenses"}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-stone-500 dark:text-stone-400">
+                                {group.subLabel}
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-[11px] text-[#5A6863] dark:text-[#8E9C95]">
-                            {group.subLabel}
-                          </p>
-                        </div>
-                      </div>
 
-                      {/* Day summary totals */}
-                      <div className="text-right flex-shrink-0">
-                        <div className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
-                          -{symbol}{Math.round(group.totalDayShare).toLocaleString()}
-                        </div>
-                        {group.totalDayAmount !== group.totalDayShare && (
-                          <div className="text-[10px] text-[#5A6863] dark:text-[#8E9C95]">
-                            Bill: {symbol}{Math.round(group.totalDayAmount).toLocaleString()}
+                          {/* Day summary totals */}
+                          <div className="text-right">
+                            <div className="text-xs font-bold text-[#0F5C53] dark:text-[#10B981]">
+                              {symbol} {group.totalDayShare.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                            </div>
+                            {group.totalDayAmount !== group.totalDayShare && (
+                              <div className="text-[10px] text-stone-400">
+                                total: {symbol} {group.totalDayAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+
+                        {/* Day Items List */}
+                        {isOpen && (
+                          <div className="divide-y divide-[#E5E0D8]/40 dark:divide-[#1E2824]/40">
+                            {group.items.map((exp) => {
+                              const amt = typeof exp.amount === "number" ? exp.amount : parseFloat(exp.amount) || 0;
+                              const share = exp.userShare !== undefined ? exp.userShare : amt;
+                              const paid = exp.userPaid !== undefined ? exp.userPaid : (exp.isPersonal !== false ? amt : 0);
+
+                              return (
+                                <div
+                                  key={exp.id}
+                                  className="p-4 hover:bg-[#FAF8F5]/40 dark:hover:bg-[#1A2229]/30 transition-colors flex items-center justify-between gap-3 group"
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-[#1A2229] border border-[#E5E0D8]/60 dark:border-[#1E2824]/60 flex items-center justify-center text-stone-600 dark:text-stone-300 shrink-0">
+                                      {getCategoryIcon(exp.category)}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-semibold text-xs sm:text-sm text-[#162B27] dark:text-white truncate">
+                                          {exp.description}
+                                        </span>
+
+                                        {/* Workspace or Personal Badge */}
+                                        {exp.isPersonal === false ? (
+                                          <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                            {exp.workspaceName || "Shared"}
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-[#0F5C53] dark:text-[#10B981] border border-emerald-200 dark:border-emerald-800/60">
+                                            Personal
+                                          </span>
+                                        )}
+
+                                        {/* Funding Account Badge */}
+                                        {exp.account && (
+                                          <span
+                                            className="text-[9px] font-medium px-1.5 py-0.5 rounded border flex items-center gap-1"
+                                            style={{
+                                              backgroundColor: exp.account.color ? `${exp.account.color}15` : undefined,
+                                              borderColor: exp.account.color ? `${exp.account.color}40` : undefined,
+                                              color: exp.account.color || undefined,
+                                            }}
+                                          >
+                                            <span>💳</span>
+                                            <span>{exp.account.name}</span>
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Who paid info */}
+                                      <div className="text-[11px] text-stone-500 dark:text-stone-400 flex items-center gap-2 mt-0.5">
+                                        <span>{exp.category || "General"}</span>
+                                        <span>•</span>
+                                        <span>
+                                          {exp.isPersonal !== false
+                                            ? "You paid in full"
+                                            : paid > 0 && share > 0
+                                            ? `You paid ${symbol} ${paid.toFixed(0)} • your share ${symbol} ${share.toFixed(0)}`
+                                            : paid > 0
+                                            ? `You paid ${symbol} ${paid.toFixed(0)} for others`
+                                            : `Paid by others • your share ${symbol} ${share.toFixed(0)}`}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right shrink-0 flex items-center gap-3">
+                                    <div>
+                                      <div className="font-mono font-bold text-xs sm:text-sm text-[#162B27] dark:text-white">
+                                        {symbol} {share.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                                      </div>
+                                      {amt !== share && (
+                                        <div className="text-[10px] text-stone-400">
+                                          total: {symbol} {amt.toFixed(0)}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Action dropdown or delete */}
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteExpense(exp.id)}
+                                        className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-stone-400 hover:text-rose-600 rounded transition-colors"
+                                        title="Delete expense"
+                                      >
+                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                          <polyline points="3 6 5 6 21 6" />
+                                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
+                    );
+                  })}
+                </div>
+
+                {/* Show All Days Toggle Button */}
+                {groupedDays.length > 2 && (
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllDays(!showAllDays)}
+                      className="w-full sm:w-auto px-4 py-2.5 bg-white dark:bg-[#13191E] hover:bg-[#FAF8F5] dark:hover:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] rounded-xl text-xs font-semibold text-[#0F5C53] dark:text-[#10B981] shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>
+                        {showAllDays ? "Show Recent 2 Days Only" : `Show All ${groupedDays.length} Recorded Days`}
+                      </span>
+                      <svg
+                        className={`w-3.5 h-3.5 transition-transform duration-200 ${showAllDays ? "rotate-180" : ""}`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      >
+                        <path d="M19 9l-7 7-7-7" />
+                      </svg>
                     </button>
-
-                    {/* Day Items List */}
-                    {isOpen && (
-                      <div className="divide-y divide-[#E5E0D8]/50 dark:divide-[#1E2824]/50">
-                        {group.items.map((exp) => {
-                          const isPersonal = exp.isPersonal !== false;
-                          const userShare = typeof exp.userShare === "number" ? exp.userShare : (isPersonal ? Number(exp.amount) : 0);
-                          const userPaid = typeof exp.userPaid === "number" ? exp.userPaid : (isPersonal ? Number(exp.amount) : 0);
-                          const timeStr = new Date(exp.date).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          });
-
-                          return (
-                            <div
-                              key={exp.id}
-                              className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-[#FAF8F5]/30 dark:hover:bg-[#1A2229]/20 transition-colors"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] dark:bg-[#1A2229] border border-[#E5E0D8] dark:border-[#1E2824] text-[#0F5C53] dark:text-[#10B981] flex items-center justify-center flex-shrink-0">
-                                  {getCategoryIcon(exp.category)}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="font-medium text-sm text-[#162B27] dark:text-white truncate">
-                                      {exp.description}
-                                    </p>
-
-                                    {/* Workspace or Personal Badge */}
-                                    {isPersonal ? (
-                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
-                                        Personal
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-800/40 flex items-center gap-1">
-                                        <span>👥 {exp.workspaceName || "Shared"}</span>
-                                      </span>
-                                    )}
-
-                                    {/* Funding Account Badge */}
-                                    {exp.account && (
-                                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#FAF8F5] dark:bg-[#1A2229] text-[#5A6863] dark:text-[#8E9C95] border border-[#E5E0D8] dark:border-[#1E2824] flex items-center gap-1">
-                                        <span>💳</span>
-                                        <span>{exp.account.name}</span>
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center gap-2 text-xs text-[#5A6863] dark:text-[#8E9C95] mt-0.5 flex-wrap">
-                                    <span>{exp.category || "Uncategorized"}</span>
-                                    <span>•</span>
-                                    <span>{timeStr}</span>
-                                    <span>•</span>
-                                    {/* Who paid info */}
-                                    {isPersonal ? (
-                                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                                        Paid by You
-                                      </span>
-                                    ) : userPaid > 0 ? (
-                                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                                        You paid {symbol}{Math.round(userPaid).toLocaleString()}
-                                      </span>
-                                    ) : (
-                                      <span className="text-amber-600 dark:text-amber-400 font-medium">
-                                        Paid by {exp.paidBy?.map((p) => p.name).join(", ") || "Others"}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-3 flex-shrink-0">
-                                <div className="text-right">
-                                  <div className="font-serif font-bold text-sm text-[#162B27] dark:text-white">
-                                    -{symbol}{Math.round(userShare).toLocaleString()}
-                                  </div>
-                                  {!isPersonal && Number(exp.amount) !== userShare && (
-                                    <div className="text-[10px] text-[#5A6863] dark:text-[#8E9C95]">
-                                      Total: {symbol}{Math.round(Number(exp.amount)).toLocaleString()}
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => handleEditClick(exp)}
-                                    className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-white text-xs cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-[#1A2229]"
-                                    title="Edit"
-                                  >
-                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteExpense(exp.id)}
-                                    className="p-1.5 text-stone-400 hover:text-rose-600 text-xs cursor-pointer rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                                    title="Delete"
-                                  >
-                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="3 6 5 6 21 6" />
-                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <Link
+                      href="/expenses"
+                      className="text-xs font-semibold text-stone-500 hover:text-[#0F5C53] dark:text-stone-400 dark:hover:text-[#10B981] transition-colors"
+                    >
+                      View Full Expenses Page →
+                    </Link>
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </>
+            )}
 
             {filteredActivityExpenses.length === 0 && (
               <div className="bg-white dark:bg-[#13191E] border border-dashed border-[#E5E0D8] dark:border-[#1E2824] rounded-2xl p-12 text-center text-[#5A6863] dark:text-[#8E9C95]">
@@ -1224,7 +1288,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Right Column: Quick Entry & Settlements Widgets */}
-          <div className="space-y-6">
+          <div className="space-y-6 order-1 lg:order-2">
             {/* Quick Entry Card matching Figma */}
             <div className="bg-white dark:bg-[#13191E] border border-[#E5E0D8] dark:border-[#1E2824] rounded-3xl p-6 shadow-xs">
               <h3 className="font-serif font-bold text-xl text-[#162B27] dark:text-white mb-3">
