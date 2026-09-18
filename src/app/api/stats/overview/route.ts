@@ -33,32 +33,55 @@ export async function GET() {
     const yesterdayStart = startOfDay(yesterday);
     const yesterdayEnd = endOfDay(yesterday);
 
-    const [personalExpenses, mySplitsToday, mySplitsYesterday, allWorkspaceExpenses, settlements] =
+    const [personalExpenses, mySplitsToday, mySplitsYesterday, allSharedExpenses, settlements] =
         await Promise.all([
-            prisma.expense.findMany({ where: { ownerId: user.id } }),
-            // My own share of shared expenses, today
-            prisma.expenseSplit.findMany({
-                where: {
-                    personId: user.selfPersonId,
-                    expense: { workspace: { ownerId: user.id }, date: { gte: todayStart, lte: todayEnd } },
-                },
-            }),
-            // My own share of shared expenses, yesterday
-            prisma.expenseSplit.findMany({
-                where: {
-                    personId: user.selfPersonId,
-                    expense: {
-                        workspace: { ownerId: user.id },
-                        date: { gte: yesterdayStart, lte: yesterdayEnd },
-                    },
-                },
-            }),
-            // Full data needed for the per-contact net balance below
+            // 1. Pure personal expenses created by user:
             prisma.expense.findMany({
-                where: { workspace: { ownerId: user.id } },
+                where: {
+                    ownerId: user.id,
+                    workspaceId: null,
+                    splits: { none: {} },
+                    payments: { none: {} },
+                },
+            }),
+            // 2. User's share of shared expenses, today:
+            prisma.expenseSplit.findMany({
+                where: {
+                    personId: user.selfPersonId,
+                    expense: { date: { gte: todayStart, lte: todayEnd } },
+                },
+            }),
+            // 3. User's share of shared expenses, yesterday:
+            prisma.expenseSplit.findMany({
+                where: {
+                    personId: user.selfPersonId,
+                    expense: { date: { gte: yesterdayStart, lte: yesterdayEnd } },
+                },
+            }),
+            // 4. All shared expenses needed for net balance:
+            prisma.expense.findMany({
+                where: {
+                    OR: [
+                        { ownerId: user.id, splits: { some: {} } },
+                        { workspace: { ownerId: user.id } },
+                        { splits: { some: { personId: user.selfPersonId } } },
+                        { payments: { some: { personId: user.selfPersonId } } },
+                    ],
+                },
                 include: { splits: true, payments: true },
             }),
-            prisma.settlement.findMany({ where: { workspace: { ownerId: user.id } } }),
+            // 5. All settlements:
+            prisma.settlement.findMany({
+                where: {
+                    OR: [
+                        { workspace: { ownerId: user.id } },
+                        { fromPersonId: user.selfPersonId },
+                        { toPersonId: user.selfPersonId },
+                        { fromPerson: { ownerId: user.id } },
+                        { toPerson: { ownerId: user.id } },
+                    ],
+                },
+            }),
         ]);
 
     const inRange = (d: Date, start: Date, end: Date) => d >= start && d <= end;
@@ -84,7 +107,7 @@ export async function GET() {
 
     // Net balance per contact, relative to self specifically — not their
     // position against the whole group (see src/lib/balances.ts)
-    const expensesLite = allWorkspaceExpenses.map((e) => ({
+    const expensesLite = allSharedExpenses.map((e) => ({
         amount: Number(e.amount),
         splits: e.splits.map((s) => ({ personId: s.personId, shareAmount: Number(s.shareAmount) })),
         payments: e.payments.map((p) => ({ personId: p.personId, amountPaid: Number(p.amountPaid) })),

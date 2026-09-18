@@ -48,13 +48,21 @@ export async function GET(req: NextRequest) {
         intervals.map(async ({ start, end, label }) => {
             const [personal, mySplits] = await Promise.all([
                 prisma.expense.findMany({
-                    where: { ownerId: user.id, date: { gte: start, lte: end } },
+                    where: {
+                        ownerId: user.id,
+                        workspaceId: null,
+                        splits: { none: {} },
+                        payments: { none: {} },
+                        date: { gte: start, lte: end },
+                    },
+                    select: { amount: true },
                 }),
                 prisma.expenseSplit.findMany({
                     where: {
                         personId: user.selfPersonId!,
-                        expense: { workspace: { ownerId: user.id }, date: { gte: start, lte: end } },
+                        expense: { date: { gte: start, lte: end } },
                     },
+                    select: { shareAmount: true },
                 }),
             ]);
             const personalTotal = personal.reduce((s, e) => s + Number(e.amount), 0);

@@ -70,6 +70,8 @@ export async function GET(req: NextRequest) {
       where: {
         ownerId: user.id,
         workspaceId: null,
+        splits: { none: {} },
+        payments: { none: {} },
         date: { gte: startOfDay, lte: endOfDay },
       },
       include: {
