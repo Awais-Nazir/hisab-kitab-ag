@@ -530,10 +530,10 @@ export default function ExpensesMasterPage() {
                     {/* Day Totals */}
                     <div className="text-right">
                       <div className="font-serif font-bold text-base text-[#162B27] dark:text-white">
-                        {symbol}{Math.round(group.totalAmount).toLocaleString()}
+                        {symbol}{Math.round(group.totalUserShare).toLocaleString()}
                       </div>
-                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        Your Share: {symbol}{Math.round(group.totalUserShare).toLocaleString()}
+                      <div className="text-[11px] text-[#6B7268] dark:text-[#8E9C95] font-medium">
+                        Total: {symbol}{Math.round(group.totalAmount).toLocaleString()}
                       </div>
                     </div>
                   </button>
