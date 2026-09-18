@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { CURRENCIES } from "@/lib/currency";
 import { useCurrency } from "@/context/CurrencyContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PushNotificationManager } from "@/components/PushNotificationManager";
 import { useUser, User } from "@/context/UserContext";
 
 export default function ProfilePage() {
@@ -336,6 +337,9 @@ export default function ProfilePage() {
                 <ThemeToggle />
               </div>
             </div>
+
+            {/* Daily Expense Push Notification Settings */}
+            <PushNotificationManager variant="full" />
 
             <div className="space-y-4 pt-2">
               <form onSubmit={handleSaveName}>

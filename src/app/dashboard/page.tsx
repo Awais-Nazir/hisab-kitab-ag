@@ -16,6 +16,7 @@ import { useUser } from "@/context/UserContext";
 import { calculateEqualSplits } from "@/lib/splits";
 import { SharedExpenseQuickFields, Person } from "@/components/SharedExpenseQuickFields";
 import { useSync } from "@/context/SyncContext";
+import { PushNotificationManager } from "@/components/PushNotificationManager";
 
 interface Expense {
   id: string;
@@ -741,6 +742,9 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Push Notification Banner for PWA Reminders */}
+        <PushNotificationManager variant="banner" />
 
         {/* Top 3 Metric Cards matching Figma Dashboard */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

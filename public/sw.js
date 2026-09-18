@@ -112,3 +112,68 @@ self.addEventListener("fetch", (event) => {
     fetch(request).catch(() => caches.match(request))
   );
 });
+
+// ==========================================================================
+// Native Android PWA Push Notifications
+// ==========================================================================
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (err) {
+    data = {
+      title: "Hisab Kitab",
+      body: event.data ? event.data.text() : "Aj ka kharcha note down kr le Bahi, bad main confusion hogi! 📝",
+    };
+  }
+
+  const title = data.title || "Hisab Kitab Reminder";
+  const options = {
+    body: data.body || "Aj ka kharcha note down kr le Bahi, bad main confusion hogi! 📝",
+    icon: "/icon-192.png",
+    badge: "/favicon.svg",
+    vibrate: [250, 100, 250, 100, 250],
+    tag: data.tag || "hisab-kitab-reminder",
+    renotify: true,
+    data: {
+      url: data.url || "/dashboard",
+      dateOfArrival: Date.now(),
+    },
+    actions: [
+      { action: "open_app", title: "📝 Log Expense" },
+      { action: "dismiss", title: "Dismiss" },
+    ],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  if (event.action === "dismiss") {
+    return;
+  }
+
+  const targetUrl = event.notification.data?.url || "/dashboard";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // If a window is already open, focus it and navigate
+      for (const client of clientList) {
+        if ("focus" in client) {
+          client.focus();
+          if ("navigate" in client && targetUrl) {
+            return client.navigate(targetUrl);
+          }
+          return;
+        }
+      }
+      // Otherwise open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
