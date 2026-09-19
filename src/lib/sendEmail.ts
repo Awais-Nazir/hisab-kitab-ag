@@ -376,3 +376,132 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+export async function sendPasswordResetEmail(
+  to: string,
+  name: string,
+  resetUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  const safeName = escapeHtml(name || "there");
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || "hello@awaisnazir.tech";
+
+  const text = `Hi ${safeName},
+
+We received a request to reset your password for your Hisab Kitab account.
+
+Click the link below to set a new password:
+${resetUrl}
+
+This link is valid for 1 hour. If you didn't request a password reset, please ignore this email.
+
+— Hisab Kitab Team
+`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Your Password</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F4F1EC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #162B27; -webkit-font-smoothing: antialiased;">
+  <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: #F4F1EC; padding: 40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width: 520px; background-color: #FFFFFF; border-radius: 24px; overflow: hidden; border: 1px solid #E5E0D8; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+          
+          <!-- Top Accent Bar -->
+          <tr>
+            <td style="height: 6px; background: linear-gradient(90deg, #4EAA9C 0%, #0F5C53 50%, #0A3F38 100%);"></td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 36px 36px 20px; text-align: center;">
+              <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; border-radius: 14px; background-color: #0F5C53; color: #FFFFFF; font-size: 24px; font-weight: bold; margin-bottom: 12px;">
+                HK
+              </div>
+              <h1 style="margin: 0; font-family: 'Newsreader', Georgia, serif; font-size: 26px; font-weight: 700; color: #162B27; letter-spacing: -0.5px;">
+                Hisab Kitab
+              </h1>
+              <p style="margin: 4px 0 0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: #0F5C53;">
+                Security &bull; Password Reset
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding: 10px 36px 36px;">
+              <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #3A4743;">
+                Hi <strong>${safeName}</strong>,
+              </p>
+              <p style="margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: #5A6863;">
+                We received a request to reset your password. Tap the button below to choose a new, secure password for your account:
+              </p>
+
+              <!-- Reset Button -->
+              <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin: 28px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="${resetUrl}" style="display: inline-block; background-color: #0F5C53; color: #FFFFFF; font-size: 14px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 14px; box-shadow: 0 2px 8px rgba(15, 92, 83, 0.25);">
+                      Reset My Password &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="background-color: #FAF8F5; border: 1px solid #E5E0D8; border-radius: 14px; padding: 16px; margin-top: 24px;">
+                <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #162B27;">
+                  Can't click the button?
+                </p>
+                <p style="margin: 0; font-size: 11px; word-break: break-all; color: #0F5C53; line-height: 1.5;">
+                  <a href="${resetUrl}" style="color: #0F5C53; text-decoration: underline;">${resetUrl}</a>
+                </p>
+              </div>
+
+              <p style="margin: 24px 0 0; font-size: 12px; line-height: 1.6; color: #8E9C95;">
+                ⏰ <strong>Note:</strong> This link will expire in <strong>1 hour</strong> for your security. If you did not request this reset, you can safely ignore this email — your account is safe and no changes have been made.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #FAF8F5; border-top: 1px solid #E5E0D8; padding: 20px 36px; text-align: center;">
+              <p style="margin: 0; font-size: 11px; color: #7B8580; line-height: 1.6;">
+                Hisab Kitab &bull; Private Ledger &bull; Secure Financial Clarity<br>
+                This is an automated security notification.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  try {
+    if (process.env.SENDGRID_API_KEY) {
+      await sgMail.send({
+        to,
+        from: fromEmail,
+        subject: "Reset your Hisab Kitab password",
+        text,
+        html,
+      });
+      console.log(`[Password Reset] Email sent successfully to ${to}`);
+    } else {
+      console.warn("[Password Reset] SENDGRID_API_KEY not configured. Reset URL:", resetUrl);
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.error("[Password Reset] Failed to send email:", err?.response?.body || err);
+    console.log(`[Password Reset Fallback URL for ${to}]: ${resetUrl}`);
+    return { success: false, error: err?.message || "Failed to send reset email" };
+  }
+}

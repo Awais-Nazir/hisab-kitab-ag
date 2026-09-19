@@ -119,8 +119,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center pt-1">
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between pt-1">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -130,6 +130,12 @@ export default function LoginPage() {
                 />
                 <span className="text-xs text-[#5A6863] dark:text-[#95A19B]">Remember me</span>
               </label>
+              <Link
+                href="/forgot-password"
+                className="text-xs font-semibold text-[#0F5C53] dark:text-[#34D399] hover:underline"
+              >
+                Forgot password?
+              </Link>
             </div>
 
             {/* Submit Button */}
