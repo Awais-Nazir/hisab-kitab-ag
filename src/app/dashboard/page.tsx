@@ -102,7 +102,7 @@ function getCategoryIcon(cat: string | null) {
 export default function DashboardPage() {
   const router = useRouter();
   const { symbol } = useCurrency();
-  const { user } = useUser();
+  const { user, loading: userLoading, refreshUser } = useUser();
   const { isOnline } = useSync();
   const [contacts, setContacts] = useState<Person[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -158,6 +158,17 @@ export default function DashboardPage() {
       });
     }
   }, [user?.selfPersonId]);
+
+  // Ensure user profile is re-fetched if absent on direct or client-side navigation
+  useEffect(() => {
+    if (!user && !userLoading) {
+      refreshUser().then((u) => {
+        if (!u && typeof navigator !== "undefined" && navigator.onLine) {
+          router.push("/login");
+        }
+      });
+    }
+  }, [user, userLoading, refreshUser, router]);
 
   const parsedAmount = parseFloat(amount) || 0;
   const selfPersonId = user?.selfPersonId;
@@ -694,15 +705,16 @@ export default function DashboardPage() {
     setExpandedDays(updated);
   };
 
-  if (loading) {
+  if (loading || userLoading || !user) {
     return (
       <AppLayout title="Dashboard" subtitle="Financial Pulse">
-        <div className="py-16 text-center text-[#5A6863]">Loading your dashboard...</div>
+        <div className="py-24 text-center text-[#5A6863] dark:text-[#8E9C95] flex flex-col items-center justify-center gap-3">
+          <div className="w-8 h-8 border-3 border-[#0F5C53] dark:border-[#10B981] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs font-medium">Loading your dashboard...</p>
+        </div>
       </AppLayout>
     );
   }
-
-  if (!user) return null;
 
   const owedToYou = overview?.netByPerson.filter((p) => p.netBalance > 0) ?? [];
   const youOwe = overview?.netByPerson.filter((p) => p.netBalance < 0) ?? [];

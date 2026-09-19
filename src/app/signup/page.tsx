@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandLogo } from "@/components/BrandLogo";
+import { useUser, User } from "@/context/UserContext";
 
 export default function SignupPage() {
   const router = useRouter();
+  const { setUser, refreshUser } = useUser();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,14 +23,17 @@ export default function SignupPage() {
     setError(null);
     setLoading(true);
     try {
-      await apiFetch("/api/auth/signup", {
+      const res = await apiFetch<{ user: User }>("/api/auth/signup", {
         method: "POST",
         body: JSON.stringify({ name, email, password }),
       });
-      router.push("/dashboard");
+      if (res.user) {
+        setUser(res.user);
+      }
+      await refreshUser().catch(() => {});
+      window.location.href = "/dashboard";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setLoading(false);
     }
   }

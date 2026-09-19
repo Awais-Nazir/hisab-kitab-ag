@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { BrandLogo } from "@/components/BrandLogo";
+import { useUser, User } from "@/context/UserContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setUser, refreshUser } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -21,14 +23,17 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await apiFetch("/api/auth/login", {
+      const res = await apiFetch<{ user: User }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      router.push("/dashboard");
+      if (res.user) {
+        setUser(res.user);
+      }
+      await refreshUser().catch(() => {});
+      window.location.href = "/dashboard";
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Invalid credentials");
-    } finally {
       setLoading(false);
     }
   }
