@@ -457,15 +457,6 @@ export default function DashboardPage() {
         }
 
         const myPayment = paymentsPayload.find((p) => p.personId === user?.selfPersonId);
-        if (myPayment && myPayment.amount > 0 && !accountId) {
-          const confirmNoAccount = confirm(
-            "You haven't selected an account (Kaha se hoyi ha). Proceed without deducting from an account?"
-          );
-          if (!confirmNoAccount) {
-            setSubmitting(false);
-            return;
-          }
-        }
 
         if (editingId) {
           await apiFetch(`/api/expenses/${editingId}`, {
@@ -480,7 +471,6 @@ export default function DashboardPage() {
               splits: splitsPayload,
             }),
           });
-          alert("Shared expense updated successfully!");
         } else {
           await apiFetch("/api/expenses", {
             method: "POST",
@@ -495,7 +485,6 @@ export default function DashboardPage() {
               splits: splitsPayload,
             }),
           });
-          alert("Shared expense logged successfully!");
         }
         setEditingId(null);
 

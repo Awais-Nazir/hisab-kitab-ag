@@ -489,10 +489,6 @@ export default function WorkspaceDetailPage() {
 
     // Check if account is required when "Me" paid
     const myPayment = paymentsPayload.find((p) => p.personId === selfPersonId);
-    if (myPayment && myPayment.amount > 0 && !accountId) {
-      const confirmNoAccount = confirm("You haven't selected an account (Kaha se hoyi ha). Proceed without deducting from an account?");
-      if (!confirmNoAccount) return;
-    }
 
     setSubmittingExp(true);
     try {

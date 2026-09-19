@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "./BrandLogo";
+import { ModalPortal } from "./ModalPortal";
 
 interface SidebarProps {
   userName?: string;
@@ -15,6 +16,7 @@ interface SidebarProps {
 export function Sidebar({ userName = "Account Admin", userImage, onLogout }: SidebarProps) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -188,9 +190,10 @@ export function Sidebar({ userName = "Account Admin", userImage, onLogout }: Sid
           </div>
           {onLogout && (
             <button
-              onClick={onLogout}
-              title="Logout"
-              className="p-1.5 text-stone-400 hover:text-stone-700 rounded-lg transition-colors ml-1 cursor-pointer"
+              type="button"
+              onClick={() => setShowLogoutConfirm(true)}
+              title="Sign Out"
+              className="p-1.5 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-colors ml-1 cursor-pointer hover:bg-rose-50/60 dark:hover:bg-rose-950/30"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -201,6 +204,58 @@ export function Sidebar({ userName = "Account Admin", userImage, onLogout }: Sid
           )}
         </div>
       </div>
+
+      {/* Sign Out Confirmation Modal */}
+      {showLogoutConfirm && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowLogoutConfirm(false);
+            }}
+          >
+            <div className="bg-white dark:bg-[#19201D] border border-[#E5E0D8] dark:border-[#28332E] rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-base text-[#162B27] dark:text-white">
+                    Sign Out?
+                  </h3>
+                  <p className="text-xs text-[#6B7268] dark:text-[#8E9C95] mt-0.5">
+                    Are you sure you want to end your current session?
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="px-4 py-2 rounded-xl border border-[#E5E0D8] dark:border-[#28332E] text-stone-600 dark:text-stone-300 text-xs font-semibold hover:bg-stone-100 dark:hover:bg-[#202925] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLogoutConfirm(false);
+                    onLogout?.();
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                >
+                  Yes, Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </aside>
   );
 }
