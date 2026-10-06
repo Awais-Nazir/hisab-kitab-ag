@@ -376,16 +376,52 @@ export default function AgentChatPage() {
                               <span className="font-semibold">{String(msg.pendingAction.proposal.description)}</span>
                             </div>
                           )}
-                          {Boolean(msg.pendingAction.proposal.category || msg.pendingAction.proposal.category_id) && (
+                          {Boolean(
+                            msg.pendingAction.proposal.category_name ??
+                            msg.pendingAction.proposal.category_id ??
+                            msg.pendingAction.proposal.category
+                          ) && (
                             <div className="flex justify-between items-center font-sans text-xs">
                               <span className="text-stone-500">Category:</span>
-                              <span>{String(msg.pendingAction.proposal.category || msg.pendingAction.proposal.category_id)}</span>
+                              <span className="font-medium">
+                                {String(
+                                  msg.pendingAction.proposal.category_name ??
+                                  msg.pendingAction.proposal.category_id ??
+                                  msg.pendingAction.proposal.category
+                                )}
+                              </span>
                             </div>
                           )}
-                          {Boolean(msg.pendingAction.proposal.account || msg.pendingAction.proposal.account_id) && (
+                          {Boolean(
+                            msg.pendingAction.proposal.account_name ??
+                            msg.pendingAction.proposal.account_id ??
+                            msg.pendingAction.proposal.account
+                          ) && (
                             <div className="flex justify-between items-center font-sans text-xs">
                               <span className="text-stone-500">Account:</span>
-                              <span>{String(msg.pendingAction.proposal.account || msg.pendingAction.proposal.account_id)}</span>
+                              <span className="font-medium">
+                                {String(
+                                  msg.pendingAction.proposal.account_name ??
+                                  msg.pendingAction.proposal.account_id ??
+                                  msg.pendingAction.proposal.account
+                                )}
+                              </span>
+                            </div>
+                          )}
+                          {Boolean(
+                            msg.pendingAction.proposal.person_name ??
+                            msg.pendingAction.proposal.person_id ??
+                            msg.pendingAction.proposal.person
+                          ) && (
+                            <div className="flex justify-between items-center font-sans text-xs">
+                              <span className="text-stone-500">Person:</span>
+                              <span className="font-medium">
+                                {String(
+                                  msg.pendingAction.proposal.person_name ??
+                                  msg.pendingAction.proposal.person_id ??
+                                  msg.pendingAction.proposal.person
+                                )}
+                              </span>
                             </div>
                           )}
 
