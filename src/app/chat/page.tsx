@@ -31,11 +31,77 @@ export default function AgentChatPage() {
   const [showRawProposal, setShowRawProposal] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Metadata lookup maps for resolving IDs to human-readable names
+  const [accountsMap, setAccountsMap] = useState<Record<string, string>>({});
+  const [peopleMap, setPeopleMap] = useState<Record<string, string>>({});
+  const [categoriesMap, setCategoriesMap] = useState<Record<string, string>>({});
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const getChatKey = (id?: string) => (id ? `hisab-ai-chat:${id}` : null);
   const getSessionKey = (id?: string) => (id ? `hisab-ai-session-id:${id}` : null);
+
+  // Fetch metadata dictionaries so proposal IDs can be resolved to friendly names
+  useEffect(() => {
+    if (!userId) return;
+    async function loadMeta() {
+      try {
+        const [accRes, pplRes, catRes] = await Promise.all([
+          apiFetch<{ accounts: { id: string; name: string }[] }>("/api/accounts").catch(() => ({ accounts: [] })),
+          apiFetch<{ people: { id: string; name: string }[] }>("/api/people").catch(() => ({ people: [] })),
+          apiFetch<{ categories: { id: string; name: string }[] }>("/api/categories").catch(() => ({ categories: [] })),
+        ]);
+
+        const accs: Record<string, string> = {};
+        for (const a of accRes.accounts || []) accs[a.id] = a.name;
+        setAccountsMap(accs);
+
+        const ppl: Record<string, string> = {};
+        for (const p of pplRes.people || []) ppl[p.id] = p.name;
+        if (user?.selfPersonId) ppl[user.selfPersonId] = "You (Self)";
+        ppl["self"] = "You (Self)";
+        setPeopleMap(ppl);
+
+        const cats: Record<string, string> = {};
+        for (const c of catRes.categories || []) cats[c.id] = c.name;
+        setCategoriesMap(cats);
+      } catch (err) {
+        console.error("Failed to load metadata maps for proposal resolving", err);
+      }
+    }
+    loadMeta();
+  }, [userId, user?.selfPersonId]);
+
+  function resolveAccountLabel(proposal: Record<string, any>): string | null {
+    if (proposal.account_name && typeof proposal.account_name === "string") {
+      return proposal.account_name;
+    }
+    const raw = proposal.account_id ?? proposal.accountId ?? proposal.account;
+    if (!raw) return null;
+    const str = String(raw);
+    return accountsMap[str] || proposal.account_name || str;
+  }
+
+  function resolvePersonLabel(proposal: Record<string, any>): string | null {
+    if (proposal.person_name && typeof proposal.person_name === "string") {
+      return proposal.person_name;
+    }
+    const raw = proposal.person_id ?? proposal.personId ?? proposal.person;
+    if (!raw) return null;
+    const str = String(raw);
+    return peopleMap[str] || proposal.person_name || str;
+  }
+
+  function resolveCategoryLabel(proposal: Record<string, any>): string | null {
+    if (proposal.category_name && typeof proposal.category_name === "string") {
+      return proposal.category_name;
+    }
+    const raw = proposal.category_id ?? proposal.categoryId ?? proposal.category;
+    if (!raw) return null;
+    const str = String(raw);
+    return categoriesMap[str] || proposal.category_name || str;
+  }
 
   // 1 & 2. Reset chat state on user change/login/logout and load user-scoped chat
   useEffect(() => {
@@ -484,51 +550,39 @@ export default function AgentChatPage() {
                               <span className="font-semibold">{String(msg.pendingAction.proposal.description)}</span>
                             </div>
                           )}
-                          {Boolean(
-                            msg.pendingAction.proposal.category_name ??
-                            msg.pendingAction.proposal.category_id ??
-                            msg.pendingAction.proposal.category
-                          ) && (
+                          {Boolean(msg.pendingAction.proposal.type) && (
+                            <div className="flex justify-between items-center font-sans text-xs">
+                              <span className="text-stone-500">Udhar Type:</span>
+                              <span className="font-semibold">
+                                {msg.pendingAction.proposal.type === "LENA"
+                                  ? "Maine Diye (Receivable)"
+                                  : msg.pendingAction.proposal.type === "DENA"
+                                  ? "Maine Liye (Payable)"
+                                  : String(msg.pendingAction.proposal.type)}
+                              </span>
+                            </div>
+                          )}
+                          {Boolean(resolveCategoryLabel(msg.pendingAction.proposal)) && (
                             <div className="flex justify-between items-center font-sans text-xs">
                               <span className="text-stone-500">Category:</span>
                               <span className="font-medium">
-                                {String(
-                                  msg.pendingAction.proposal.category_name ??
-                                  msg.pendingAction.proposal.category_id ??
-                                  msg.pendingAction.proposal.category
-                                )}
+                                {resolveCategoryLabel(msg.pendingAction.proposal)}
                               </span>
                             </div>
                           )}
-                          {Boolean(
-                            msg.pendingAction.proposal.account_name ??
-                            msg.pendingAction.proposal.account_id ??
-                            msg.pendingAction.proposal.account
-                          ) && (
+                          {Boolean(resolveAccountLabel(msg.pendingAction.proposal)) && (
                             <div className="flex justify-between items-center font-sans text-xs">
                               <span className="text-stone-500">Account:</span>
-                              <span className="font-medium">
-                                {String(
-                                  msg.pendingAction.proposal.account_name ??
-                                  msg.pendingAction.proposal.account_id ??
-                                  msg.pendingAction.proposal.account
-                                )}
+                              <span className="font-medium text-[#0F5C53] dark:text-emerald-400">
+                                {resolveAccountLabel(msg.pendingAction.proposal)}
                               </span>
                             </div>
                           )}
-                          {Boolean(
-                            msg.pendingAction.proposal.person_name ??
-                            msg.pendingAction.proposal.person_id ??
-                            msg.pendingAction.proposal.person
-                          ) && (
+                          {Boolean(resolvePersonLabel(msg.pendingAction.proposal)) && (
                             <div className="flex justify-between items-center font-sans text-xs">
                               <span className="text-stone-500">Person:</span>
-                              <span className="font-medium">
-                                {String(
-                                  msg.pendingAction.proposal.person_name ??
-                                  msg.pendingAction.proposal.person_id ??
-                                  msg.pendingAction.proposal.person
-                                )}
+                              <span className="font-medium text-stone-800 dark:text-stone-100">
+                                {resolvePersonLabel(msg.pendingAction.proposal)}
                               </span>
                             </div>
                           )}
