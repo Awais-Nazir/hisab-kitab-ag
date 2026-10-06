@@ -15,6 +15,16 @@ export function BottomNav() {
 
   const moreRoutes = [
     {
+      label: "AI Assistant",
+      sublabel: "Chat & Smart Entry",
+      href: "/chat",
+      icon: (
+        <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
+        </svg>
+      ),
+    },
+    {
       label: "Categories",
       sublabel: "Tags & Icons",
       href: "/categories",
