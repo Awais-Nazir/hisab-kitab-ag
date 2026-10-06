@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { useUser } from "@/context/UserContext";
 import { apiFetch } from "@/lib/api";
 import {
   ChatMessage,
@@ -9,9 +10,6 @@ import {
   ChatResponse,
   ActionResponse,
 } from "@/types/agent";
-
-const STORAGE_KEY_SESSION = "hisab_agent_session_id";
-const STORAGE_KEY_MESSAGES = "hisab_agent_messages";
 
 const SUGGESTED_PROMPTS = [
   "Maine NayaPay se 250 PKR ka breakfast kiya hai. Category Food & Dining hai.",
@@ -21,6 +19,9 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export default function AgentChatPage() {
+  const { user } = useUser();
+  const userId = user?.id || user?.email;
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
@@ -33,58 +34,94 @@ export default function AgentChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load session & messages from localStorage on mount
+  const getChatKey = (id?: string) => (id ? `hisab-ai-chat:${id}` : null);
+  const getSessionKey = (id?: string) => (id ? `hisab-ai-session-id:${id}` : null);
+
+  // 1 & 2. Reset chat state on user change/login/logout and load user-scoped chat
   useEffect(() => {
+    setMessages([]);
+    setSessionId(null);
+    setPendingAction(null);
+    setErrorMsg(null);
+
+    if (!userId) return;
+
     try {
-      const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+      const sessionKey = getSessionKey(userId);
+      const chatKey = getChatKey(userId);
+
+      const savedSession = sessionKey ? localStorage.getItem(sessionKey) : null;
       if (savedSession) setSessionId(savedSession);
 
-      const savedMessages = localStorage.getItem(STORAGE_KEY_MESSAGES);
+      const savedMessages = chatKey ? localStorage.getItem(chatKey) : null;
       if (savedMessages) {
         const parsed: ChatMessage[] = JSON.parse(savedMessages);
         setMessages(parsed);
 
         // Check if the latest assistant message has a pending action
-        const lastWithAction = parsed.slice().reverse().find((m) => m.pendingAction && m.pendingAction.status === "pending");
+        const lastWithAction = parsed
+          .slice()
+          .reverse()
+          .find((m) => m.pendingAction && m.pendingAction.status === "pending");
         if (lastWithAction?.pendingAction) {
           setPendingAction(lastWithAction.pendingAction);
         }
       }
     } catch (e) {
-      console.error("Failed to read cached chat session", e);
+      console.error("Failed to read cached user chat session", e);
     }
-  }, []);
+  }, [userId]);
 
-  // Save session & messages to localStorage
+  // Save session & messages to user-scoped localStorage
   useEffect(() => {
+    if (!userId) return;
+    const sessionKey = getSessionKey(userId);
+    if (!sessionKey) return;
+
     if (sessionId) {
-      localStorage.setItem(STORAGE_KEY_SESSION, sessionId);
+      localStorage.setItem(sessionKey, sessionId);
+    } else {
+      localStorage.removeItem(sessionKey);
     }
-  }, [sessionId]);
+  }, [sessionId, userId]);
 
   useEffect(() => {
+    if (!userId) return;
+    const chatKey = getChatKey(userId);
+    if (!chatKey) return;
+
     if (messages.length > 0) {
       try {
-        localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
+        localStorage.setItem(chatKey, JSON.stringify(messages));
       } catch (e) {
         console.error("Failed to cache messages", e);
       }
+    } else {
+      localStorage.removeItem(chatKey);
     }
-  }, [messages]);
+  }, [messages, userId]);
 
   // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending, pendingAction]);
 
+  function clearCurrentUserChat() {
+    setMessages([]);
+    setSessionId(null);
+    setPendingAction(null);
+    setErrorMsg(null);
+    if (userId) {
+      const sessionKey = getSessionKey(userId);
+      const chatKey = getChatKey(userId);
+      if (sessionKey) localStorage.removeItem(sessionKey);
+      if (chatKey) localStorage.removeItem(chatKey);
+    }
+  }
+
   function handleResetChat() {
-    if (confirm("Start a new chat session? This will clear the chat history.")) {
-      setMessages([]);
-      setSessionId(null);
-      setPendingAction(null);
-      setErrorMsg(null);
-      localStorage.removeItem(STORAGE_KEY_SESSION);
-      localStorage.removeItem(STORAGE_KEY_MESSAGES);
+    if (confirm("Start a new chat session? This will clear the chat history for this account.")) {
+      clearCurrentUserChat();
     }
   }
 
@@ -106,13 +143,48 @@ export default function AgentChatPage() {
     setIsSending(true);
 
     try {
-      const res = await apiFetch<ChatResponse>("/api/agent/chat", {
-        method: "POST",
-        body: JSON.stringify({
-          message: text,
-          session_id: sessionId ?? null,
-        }),
-      });
+      let res: ChatResponse;
+      try {
+        res = await apiFetch<ChatResponse>("/api/agent/chat", {
+          method: "POST",
+          body: JSON.stringify({
+            message: text,
+            session_id: sessionId ?? null,
+          }),
+        });
+      } catch (err: any) {
+        // 5. Handle backend session mismatch (404 Session not found)
+        const isSessionMismatch =
+          err?.status === 404 &&
+          (err?.data?.detail === "Session not found." ||
+            err?.message?.includes("Session not found"));
+
+        if (isSessionMismatch) {
+          // Clear stale session
+          clearCurrentUserChat();
+
+          // Inform user and retry with fresh session
+          setMessages([
+            {
+              id: "sys_reset_" + Date.now(),
+              sender: "system",
+              text: "⚠️ Session expired or belonged to another account. Started a fresh chat for this account.",
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            },
+            userMsg,
+          ]);
+
+          res = await apiFetch<ChatResponse>("/api/agent/chat", {
+            method: "POST",
+            body: JSON.stringify({
+              message: text,
+              session_id: null,
+            }),
+          });
+        } else {
+          throw err;
+        }
+      }
 
       if (res.session_id) {
         setSessionId(res.session_id);
@@ -188,8 +260,26 @@ export default function AgentChatPage() {
       setMessages((prev) => [...prev, confMsg]);
       setPendingAction(null);
     } catch (err: any) {
-      const msg = err?.message || "Failed to confirm action";
-      setErrorMsg(msg);
+      const isSessionMismatch =
+        err?.status === 404 &&
+        (err?.data?.detail === "Session not found." ||
+          err?.message?.includes("Session not found"));
+
+      if (isSessionMismatch) {
+        clearCurrentUserChat();
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: "sys_stale_" + Date.now(),
+            sender: "system",
+            text: "⚠️ This session is no longer active on the server. Chat session reset.",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+      } else {
+        const msg = err?.message || "Failed to confirm action";
+        setErrorMsg(msg);
+      }
     } finally {
       setActionLoading(null);
     }
@@ -231,8 +321,26 @@ export default function AgentChatPage() {
       setMessages((prev) => [...prev, rejMsg]);
       setPendingAction(null);
     } catch (err: any) {
-      const msg = err?.message || "Failed to reject action";
-      setErrorMsg(msg);
+      const isSessionMismatch =
+        err?.status === 404 &&
+        (err?.data?.detail === "Session not found." ||
+          err?.message?.includes("Session not found"));
+
+      if (isSessionMismatch) {
+        clearCurrentUserChat();
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: "sys_stale_" + Date.now(),
+            sender: "system",
+            text: "⚠️ This session is no longer active on the server. Chat session reset.",
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+      } else {
+        const msg = err?.message || "Failed to reject action";
+        setErrorMsg(msg);
+      }
     } finally {
       setActionLoading(null);
     }

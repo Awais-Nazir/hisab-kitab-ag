@@ -22,7 +22,16 @@ export async function apiFetch<T>(
     }
 
     if (!res.ok) {
-        throw new Error(data.error?.formErrors?.[0] ?? data.error ?? "Request failed");
+        const message =
+            data?.error?.formErrors?.[0] ??
+            data?.error ??
+            data?.detail ??
+            data?.message ??
+            `Request failed with status ${res.status}`;
+        const error: any = new Error(typeof message === "string" ? message : JSON.stringify(message));
+        error.status = res.status;
+        error.data = data;
+        throw error;
     }
 
     return data as T;

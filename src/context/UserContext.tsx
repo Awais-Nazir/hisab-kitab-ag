@@ -88,6 +88,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     try {
       await apiFetch("/api/auth/logout", { method: "POST" });
     } catch {}
+    if (user?.id || user?.email) {
+      const uKey = user.id || user.email;
+      try {
+        localStorage.removeItem(`hisab-ai-chat:${uKey}`);
+        localStorage.removeItem(`hisab-ai-session-id:${uKey}`);
+      } catch {}
+    }
     setUser(null);
     try {
       localStorage.removeItem(USER_CACHE_KEY);
@@ -95,7 +102,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       window.location.href = "/login";
     }
-  }, []);
+  }, [user]);
 
   return (
     <UserContext.Provider value={{ user, loading, setUser, updateUser, refreshUser, logout }}>

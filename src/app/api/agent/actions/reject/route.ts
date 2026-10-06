@@ -29,8 +29,10 @@ export async function POST(req: NextRequest) {
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    if (user?.id) {
-      headers["X-User-Id"] = user.id;
+    const userId = user.id || user.email;
+    if (userId) {
+      headers["X-Hisab-User-Id"] = userId;
+      headers["X-User-Id"] = userId;
     }
 
     const url = new URL(`${API_URL}/actions/${action_id}/reject`);
