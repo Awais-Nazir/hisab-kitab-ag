@@ -18,6 +18,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const cookie = req.headers.get("cookie");
+    const token = req.cookies.get("token")?.value;
+
+    const headers: Record<string, string> = {
+      "X-Agent-Secret": SECRET,
+      "Cookie": cookie ?? "",
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (user?.id) {
+      headers["X-User-Id"] = user.id;
+    }
+
     const url = new URL(`${API_URL}/actions/${action_id}/reject`);
     if (session_id) {
       url.searchParams.set("session_id", session_id);
@@ -25,10 +40,7 @@ export async function POST(req: NextRequest) {
 
     const res = await fetch(url.toString(), {
       method: "POST",
-      headers: {
-        "X-Agent-Secret": SECRET,
-        "X-User-Id": user.id,
-      },
+      headers,
     });
 
     const data = await res.json();

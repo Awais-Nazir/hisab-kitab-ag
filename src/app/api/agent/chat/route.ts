@@ -18,13 +18,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const cookie = req.headers.get("cookie");
+    const token = req.cookies.get("token")?.value;
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-Agent-Secret": SECRET,
+      "Cookie": cookie ?? "",
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (user?.id) {
+      headers["X-User-Id"] = user.id;
+    }
+
     const res = await fetch(`${API_URL}/chat`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Agent-Secret": SECRET,
-        "X-User-Id": user.id,
-      },
+      headers,
       body: JSON.stringify({
         message: body.message,
         session_id: body.session_id ?? null,
