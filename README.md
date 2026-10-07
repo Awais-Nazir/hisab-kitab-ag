@@ -1,76 +1,77 @@
-# Hisab Kitab (حساب کتاب) 💸
+# Hisab Kitab (حساب کتاب)
 
-> **Modern personal finance, peer-to-peer debt ledger, and AI-powered expense tracking designed for everyday life.**
+Hisab Kitab is a mobile-first web app for tracking personal expenses across cash, bank accounts and wallets like SadaPay and NayaPay, keeping a ledger of who owes whom, and logging entries by typing or speaking in Roman Urdu or English.
 
----
+## Why it exists
 
-## 📌 The Problem It Solves
+Handling money day to day gets messy in a few ways.
 
-Managing money in daily life is surprisingly messy:
-- **Scattered Wallets:** You juggle physical cash, digital wallets (SadaPay, NayaPay), and bank accounts. Knowing your actual available balance across all of them at any given moment is a headache.
-- **Informal Debts (*Udhar*):** Lending money to a friend (*Maine Diye*) or borrowing for fuel/lunch (*Maine Liye*) is usually tracked through mental math or lost WhatsApp chats, leading to awkward confusion weeks later.
-- **The Group Friction:** Traditional split apps force you to create and manage isolated "groups" just to split a single meal with a colleague.
-- **Logging Fatigue:** Opening an app, selecting 5 dropdowns, and typing an amount every single time you buy chai or groceries leads to abandoned budgets.
+Your money sits in several places: physical cash, digital wallets (SadaPay, NayaPay) and bank accounts. Finding out what you can actually spend right now means checking all of them.
 
-**Hisab Kitab** solves this by unifying **Personal Expense Tracking**, **Multi-Wallet Accounts**, **Contact-to-Contact Ledgers**, and an **AI Assistant** into one frictionless, mobile-first experience.
+Informal debts (*udhar*) usually live in your head or in an old WhatsApp chat. You lend a friend money (*maine diye*) or borrow for fuel or lunch (*maine liye*), and a few weeks later nobody remembers the details.
 
----
+Most split apps make you create a group first, even if you only want to split one meal with one colleague.
 
-## ✨ Key Features
+And picking from five dropdowns and typing an amount every time you buy chai is the reason a lot of people give up on budgeting apps.
 
-### 1. 💳 Multi-Account & Wallet Balances
-- Keep real-time balances for **Cash in hand**, **Bank Accounts**, **SadaPay**, **NayaPay**, and **Udhar Khata**.
-- Automatic double-entry reconciliation: spending, receiving settlements, deposits, and account-to-account transfers update balances accurately with zero negative balance leaks.
+Hisab Kitab puts expense tracking, multiple accounts, per-contact ledgers and an AI assistant in one app.
 
-### 2. 🤝 Peer-to-Peer Shared Expenses & Udhar
-- **No rigid group silos:** Split expenses directly with any contact from your dashboard.
-- **Lena / Dena Tracking:** Log when you lend or borrow money with clear timestamps and notes.
-- **Interactive Person Ledger:** Every contact has a chronological timeline showing net balance, past splits, and mutual settlements.
-- **One-Click Settlements:** Pay or receive money (partial or full) with automatic account balance adjustments.
+## What it does
 
-### 3. 🤖 Hisab AI Assistant (Natural Language Entry)
-- Type or speak naturally in **Roman Urdu or English**:
-  > *"Maine NayaPay se 250 PKR ka breakfast kiya"*  
-  > *"Hamza ko 2000 cash udhar diya"*
-- **Human-in-the-Loop:** The assistant drafts an interactive **Proposal Card** resolving accounts, contacts, and categories.
-- Review and tap **Confirm & Save** to write directly to your ledger, or **Reject** to cancel. Never write blindly.
+### Accounts and wallets
 
-### 4. 📊 Analytics & Daily Timeline
-- High-level daily comparison: see what you spent today vs. yesterday at a glance.
-- Category breakdowns with custom color codes and icons.
-- Instant search across all expenses, contacts, and udhar records.
+It keeps live balances for cash in hand, bank accounts, SadaPay, NayaPay and Udhar Khata. Spending, received settlements, deposits and transfers between accounts all go through double-entry reconciliation, so balances stay accurate and never go negative.
 
-### 5. 📝 Financial Notes & Daily Logs
-- Keep financial reminders, rent agreements, payment deadlines, and checklists organized in one place alongside your numbers.
+### Shared expenses and udhar
 
-### 6. 📱 Progressive Web App (PWA) & Push Alerts
-- Installable directly to your Android or iOS home screen for an app-like feel.
-- Web push notification support to give you gentle daily reminders to log your expenses.
+You can split an expense with any contact straight from the dashboard, with no groups to set up. When you lend or borrow money (*lena* / *dena*), you log it with a timestamp and a note.
 
----
+Every contact has their own ledger, a chronological timeline of net balance, past splits and settlements. You can settle up in part or in full, and your account balances adjust automatically.
 
-## 🛠️ Tech Stack
+### AI assistant
 
-- **Framework:** [Next.js 16](https://nextjs.org/) (App Router, Turbopack) & [React 19](https://react.dev/)
-- **Styling:** [Tailwind CSS 4](https://tailwindcss.com/) (Clean minimalist emerald aesthetic with full Dark Mode support)
-- **Database & ORM:** [PostgreSQL](https://www.postgresql.org/) (Neon Serverless) with [Prisma ORM](https://www.prisma.io/)
-- **AI Agent Integration:** Next.js Server-to-Server secure proxy connecting to a Python [FastAPI](https://fastapi.tiangolo.com/) agent service
-- **Authentication:** Secure HTTP-only JWT sessions with password hashing via `bcryptjs`
-- **Notifications & Mail:** Web Push API (`web-push`) & [SendGrid](https://sendgrid.com/) for password recovery
+Type or speak in Roman Urdu or English:
 
----
+> "Maine NayaPay se 250 PKR ka breakfast kiya"
+> "Hamza ko 2000 cash udhar diya"
 
-## 🚀 Quick Setup
+The assistant drafts a proposal card with the account, contact and category already filled in. You tap **Confirm & Save** to write it to your ledger, or **Reject** to cancel. It never writes anything without your confirmation.
 
-### 1. Clone & Install Dependencies
+### Analytics and daily timeline
+
+The home screen compares what you spent today with yesterday. Categories have their own colors and icons, and search covers all your expenses, contacts and udhar records.
+
+### Notes
+
+You can keep reminders, rent agreements, payment deadlines and checklists next to your numbers.
+
+### PWA and push notifications
+
+The app installs to an Android or iOS home screen and behaves like a native app. Web push sends a gentle daily reminder to log your expenses.
+
+## Tech stack
+
+- [Next.js 16](https://nextjs.org/) (App Router, Turbopack) and [React 19](https://react.dev/)
+- [Tailwind CSS 4](https://tailwindcss.com/), with a minimalist emerald look and full dark mode
+- [PostgreSQL](https://www.postgresql.org/) on Neon serverless, accessed through [Prisma ORM](https://www.prisma.io/)
+- A Python [FastAPI](https://fastapi.tiangolo.com/) agent service for the AI assistant, reached through a server-to-server proxy in Next.js
+- HTTP-only JWT sessions for auth, with passwords hashed using `bcryptjs`
+- Web Push API (`web-push`) for notifications and [SendGrid](https://sendgrid.com/) for password recovery emails
+
+## Running it locally
+
+### 1. Clone and install dependencies
+
 ```bash
 git clone https://github.com/Awais-Nazir/hisab-kitab-ag.git
 cd hisab-kitab-ag
 npm install
 ```
 
-### 2. Environment Variables
+### 2. Set environment variables
+
 Create a `.env.local` file in the project root:
+
 ```env
 DATABASE_URL="postgresql://user:password@host/neondb?sslmode=require"
 JWT_SECRET="your-jwt-secret-key"
@@ -86,14 +87,15 @@ HISAB_AGENT_API_URL="http://127.0.0.1:8000"
 HISAB_AGENT_SECRET="your-agent-secret"
 ```
 
-### 3. Database Migration & Run
+### 3. Push the schema and start the dev server
+
 ```bash
 npx prisma db push
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
 
----
+Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 📄 License
-Private project built with passion by [Awais Nazir](https://github.com/Awais-Nazir).
+## License
+
+Private project by [Awais Nazir](https://github.com/Awais-Nazir).
