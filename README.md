@@ -2,6 +2,8 @@
 
 Hisab Kitab is a mobile-first web app for tracking personal expenses across cash, bank accounts and wallets like SadaPay and NayaPay, keeping a ledger of who owes whom, and logging entries by typing or speaking in Roman Urdu or English.
 
+Live app: [hisab.awaisnazir.tech](https://hisab.awaisnazir.tech). Create an account with an email and password to try it. The AI assistant is at [hisab.awaisnazir.tech/chat](https://hisab.awaisnazir.tech/chat) and runs on a separate service, [Hisab-AI-Agent](https://github.com/Awais-Nazir/Hisab-AI-Agent).
+
 ## Why it exists
 
 Handling money day to day gets messy in a few ways.
@@ -54,7 +56,7 @@ The app installs to an Android or iOS home screen and behaves like a native app.
 - [Next.js 16](https://nextjs.org/) (App Router, Turbopack) and [React 19](https://react.dev/)
 - [Tailwind CSS 4](https://tailwindcss.com/), with a minimalist emerald look and full dark mode
 - [PostgreSQL](https://www.postgresql.org/) on Neon serverless, accessed through [Prisma ORM](https://www.prisma.io/)
-- A Python [FastAPI](https://fastapi.tiangolo.com/) agent service for the AI assistant, reached through a server-to-server proxy in Next.js
+- A Python [FastAPI](https://fastapi.tiangolo.com/) agent service for the AI assistant ([Hisab-AI-Agent](https://github.com/Awais-Nazir/Hisab-AI-Agent)), reached through a server-to-server proxy in Next.js
 - HTTP-only JWT sessions for auth, with passwords hashed using `bcryptjs`
 - Web Push API (`web-push`) for notifications and [SendGrid](https://sendgrid.com/) for password recovery emails
 
@@ -98,4 +100,4 @@ Then open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## License
 
-Private project by [Awais Nazir](https://github.com/Awais-Nazir).
+No open-source license is included, so all rights are reserved. The code is public so you can read it, but you can't reuse it without permission from [Awais Nazir](https://github.com/Awais-Nazir).
